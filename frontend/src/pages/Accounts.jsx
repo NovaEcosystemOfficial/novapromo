@@ -30,7 +30,11 @@ export default function Accounts() {
       const [accs, status] = await Promise.all([api.getAccounts(), api.getIntegrationsStatus()]);
       setAccounts(accs);
       setIntegrations(status);
-      await refreshUser();
+      try {
+        await refreshUser();
+      } catch (err) {
+        console.warn('[Accounts] refreshUser skipped:', err.message);
+      }
     } catch (err) {
       if (isDemoMode()) {
         setAccounts([]);

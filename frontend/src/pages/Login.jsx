@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { isTikTokEnabled, isDemoMode } from '../lib/features.js';
@@ -12,7 +12,6 @@ export default function Login() {
   const location = useLocation();
   const { user, loading, enterLocalApp } = useAuth();
   const demo = isDemoMode();
-  const autoEnterAttempted = useRef(false);
 
   const goAfterAuth = useCallback(() => {
     navigate(resolveAuthReturnPath(location), { replace: true });
@@ -24,18 +23,6 @@ export default function Login() {
     }
   }, [loading, user, goAfterAuth]);
 
-  useEffect(() => {
-    if (demo || loading || user || autoEnterAttempted.current) return;
-    if (!location.state?.from) return;
-
-    autoEnterAttempted.current = true;
-    enterLocalApp()
-      .then(goAfterAuth)
-      .catch(() => {
-        autoEnterAttempted.current = false;
-      });
-  }, [demo, loading, user, location.state, enterLocalApp, goAfterAuth]);
-
   const handleEnter = async () => {
     if (demo) {
       await enterLocalApp();
@@ -46,8 +33,8 @@ export default function Login() {
     try {
       await enterLocalApp();
       goAfterAuth();
-    } catch {
-      goAfterAuth();
+    } catch (err) {
+      console.warn('[Login] enterLocalApp failed:', err.message);
     }
   };
 

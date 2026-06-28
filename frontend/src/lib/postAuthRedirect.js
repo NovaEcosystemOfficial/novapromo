@@ -13,7 +13,7 @@ export function consumeOAuthReturn(fallback = '/dashboard') {
     const stored = sessionStorage.getItem(OAUTH_RETURN_KEY);
     if (stored) {
       sessionStorage.removeItem(OAUTH_RETURN_KEY);
-      return stored;
+      return normalizeReturnPath(stored, fallback);
     }
   } catch {
     // ignore
@@ -21,10 +21,16 @@ export function consumeOAuthReturn(fallback = '/dashboard') {
   return fallback;
 }
 
+export function normalizeReturnPath(path, fallback = '/dashboard') {
+  if (!path || !path.startsWith('/')) return fallback;
+  if (path === '/' || path.startsWith('/login')) return fallback;
+  return path;
+}
+
 export function resolveAuthReturnPath(location, fallback = '/dashboard') {
   const fromState = location.state?.from;
   if (typeof fromState === 'string' && fromState.startsWith('/')) {
-    return fromState;
+    return normalizeReturnPath(fromState, fallback);
   }
   return consumeOAuthReturn(fallback);
 }

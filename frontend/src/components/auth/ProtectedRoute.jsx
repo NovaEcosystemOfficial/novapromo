@@ -2,13 +2,14 @@ import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { isDemoMode } from '../../lib/features.js';
+import { normalizeReturnPath } from '../../lib/postAuthRedirect.js';
 
 export default function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const demo = isDemoMode();
-  const returnPath = `${location.pathname}${location.search}`;
+  const returnPath = normalizeReturnPath(`${location.pathname}${location.search}`);
 
   useEffect(() => {
     if (!loading && user && (location.pathname === '/' || location.pathname === '')) {
