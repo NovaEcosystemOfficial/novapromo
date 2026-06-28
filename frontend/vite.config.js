@@ -23,6 +23,7 @@ export default defineConfig(({ mode }) => {
       ),
       'import.meta.env.VITE_TIKTOK_ENABLED': JSON.stringify(process.env.VITE_TIKTOK_ENABLED || 'false'),
       'import.meta.env.VITE_DESKTOP_API_URL': JSON.stringify(process.env.VITE_DESKTOP_API_URL || 'http://localhost:3001'),
+      'import.meta.env.VITE_DEMO_MODE': JSON.stringify(mergedEnv.VITE_DEMO_MODE || 'false'),
     },
     server: {
       host: 'localhost',

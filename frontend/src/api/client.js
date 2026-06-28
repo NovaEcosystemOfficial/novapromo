@@ -1,12 +1,40 @@
 import { getApiBaseUrl } from '../lib/runtime.js';
+import {
+  isDemoMode,
+  resolveDemoResponse,
+  isNetworkError,
+  BackendUnavailableError,
+  DEMO_BACKEND_MESSAGE,
+} from '../lib/demo.js';
 
 const API_BASE = getApiBaseUrl();
 
 const defaultFetchOpts = { credentials: 'include' };
 
 async function request(path, options = {}) {
-  const res = await fetch(`${API_BASE}${path}`, { ...defaultFetchOpts, ...options });
+  const method = (options.method || 'GET').toUpperCase();
+
+  const demoData = resolveDemoResponse(path, method);
+  if (demoData !== null) {
+    return demoData;
+  }
+
+  if (isDemoMode()) {
+    throw new BackendUnavailableError();
+  }
+
+  let res;
+  try {
+    res = await fetch(`${API_BASE}${path}`, { ...defaultFetchOpts, ...options });
+  } catch (err) {
+    if (isNetworkError(err)) {
+      throw new BackendUnavailableError();
+    }
+    throw err;
+  }
+
   const data = await res.json().catch(() => ({}));
+
   if (!res.ok) {
     const err = new Error(data.error || data.credentialsError || `HTTP ${res.status}`);
     err.code = data.code;
@@ -14,6 +42,7 @@ async function request(path, options = {}) {
     err.details = data;
     throw err;
   }
+
   return data;
 }
 
@@ -122,3 +151,5 @@ export const api = {
       return data;
     }),
 };
+
+export { DEMO_BACKEND_MESSAGE, BackendUnavailableError };

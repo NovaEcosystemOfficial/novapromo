@@ -2,9 +2,20 @@ import { createContext, useContext, useState, useEffect, useCallback } from 'rea
 import { signInWithCustomToken, signOut as firebaseSignOut, onAuthStateChanged } from 'firebase/auth';
 import { auth, hasClientConfig } from '../lib/firebase.js';
 import { api } from '../api/client.js';
-import { isTikTokEnabled } from '../lib/features.js';
+import { isTikTokEnabled, isDemoMode } from '../lib/features.js';
+import { getDemoAuthPayload } from '../lib/demo.js';
 
 const AuthContext = createContext(null);
+
+function applyDemoSession(setters) {
+  const data = getDemoAuthPayload();
+  setters.setUser(data.user);
+  setters.setTiktok(data.tiktok || null);
+  setters.setInstagram(data.instagram || null);
+  setters.setAppMode('demo');
+  setters.setError(null);
+  return data;
+}
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -14,7 +25,14 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const setters = { setUser, setTiktok, setInstagram, setAppMode, setError };
+
   const refreshUser = useCallback(async () => {
+    if (isDemoMode()) {
+      applyDemoSession(setters);
+      return;
+    }
+
     try {
       const data = await api.getMe();
       if (data.authenticated) {
@@ -39,11 +57,15 @@ export function AuthProvider({ children }) {
   }, []);
 
   const enterLocalApp = useCallback(async () => {
+    if (isDemoMode()) {
+      return applyDemoSession(setters);
+    }
+
     const data = await api.enterLocalApp();
     setUser(data.user);
     setTiktok(data.tiktok || null);
     setInstagram(data.instagram || null);
-    setAppMode('local');
+    setAppMode(data.mode || 'local');
     setError(null);
     return data;
   }, []);
@@ -53,6 +75,11 @@ export function AuthProvider({ children }) {
 
     async function bootstrap() {
       try {
+        if (isDemoMode()) {
+          if (!cancelled) applyDemoSession(setters);
+          return;
+        }
+
         if (!isTikTokEnabled()) {
           try {
             await api.enterLocalApp();
@@ -89,6 +116,14 @@ export function AuthProvider({ children }) {
   };
 
   const logout = async () => {
+    if (isDemoMode()) {
+      setUser(null);
+      setTiktok(null);
+      setInstagram(null);
+      setAppMode(null);
+      return;
+    }
+
     await api.logout();
     if (hasClientConfig && auth) {
       await firebaseSignOut(auth);
@@ -113,6 +148,7 @@ export function AuthProvider({ children }) {
         enterLocalApp,
         loginWithCustomToken,
         logout,
+        isDemoMode: isDemoMode(),
       }}
     >
       {children}

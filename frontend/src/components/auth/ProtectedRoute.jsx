@@ -1,11 +1,13 @@
-import { useEffect } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext.jsx';
+import { isDemoMode } from '../../lib/features.js';
 
 export default function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const demo = isDemoMode();
 
   useEffect(() => {
     if (!loading && user && (location.pathname === '/' || location.pathname === '')) {
@@ -13,7 +15,7 @@ export default function ProtectedRoute({ children }) {
     }
   }, [loading, user, location.pathname, navigate]);
 
-  if (loading) {
+  if (loading && !demo) {
     return (
       <div className="auth-loading-screen">
         <div className="auth-spinner auth-spinner--large" />
@@ -22,7 +24,7 @@ export default function ProtectedRoute({ children }) {
     );
   }
 
-  if (!user) {
+  if (!user && !demo) {
     return <Navigate to="/login" state={{ from: location.pathname }} replace />;
   }
 

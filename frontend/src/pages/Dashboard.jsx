@@ -3,6 +3,8 @@ import { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 
 import { api } from '../api/client.js';
+import { isDemoMode } from '../lib/features.js';
+import { getDemoDashboardStats } from '../lib/demo.js';
 
 import StatCard from '../components/dashboard/StatCard.jsx';
 
@@ -74,7 +76,15 @@ export default function Dashboard() {
 
       })
 
-      .catch((err) => setError(err.message))
+      .catch((err) => {
+        if (isDemoMode()) {
+          setStats(getDemoDashboardStats());
+          setPosts([]);
+          setAccounts([]);
+        } else {
+          setError(err.message);
+        }
+      })
 
       .finally(() => setLoading(false));
 

@@ -3,6 +3,8 @@ import { useSearchParams } from 'react-router-dom';
 import { api } from '../api/client.js';
 import { openOAuthUrl } from '../lib/electron.js';
 import { isDesktopApp } from '../lib/runtime.js';
+import { isDemoMode } from '../lib/features.js';
+import { getDemoIntegrationsStatus, DEMO_BACKEND_MESSAGE } from '../lib/demo.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import IntegrationStatusPanel from '../components/accounts/IntegrationStatusPanel.jsx';
 import TikTokPausedBadge from '../components/TikTokPausedBadge.jsx';
@@ -23,10 +25,19 @@ export default function Accounts() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const load = async () => {
-    const [accs, status] = await Promise.all([api.getAccounts(), api.getIntegrationsStatus()]);
-    setAccounts(accs);
-    setIntegrations(status);
-    await refreshUser();
+    try {
+      const [accs, status] = await Promise.all([api.getAccounts(), api.getIntegrationsStatus()]);
+      setAccounts(accs);
+      setIntegrations(status);
+      await refreshUser();
+    } catch (err) {
+      if (isDemoMode()) {
+        setAccounts([]);
+        setIntegrations(getDemoIntegrationsStatus());
+      } else {
+        throw err;
+      }
+    }
   };
 
   useEffect(() => {
@@ -47,6 +58,10 @@ export default function Accounts() {
   }, []);
 
   const connectInstagram = async () => {
+    if (isDemoMode()) {
+      setError(DEMO_BACKEND_MESSAGE);
+      return;
+    }
     setError('');
     setMessage('');
     setConnecting(true);
@@ -94,6 +109,11 @@ export default function Accounts() {
 
       {error && <div className="alert alert-error">{error}</div>}
       {message && <div className="alert alert-success">{message}</div>}
+      {isDemoMode() && (
+        <div className="alert alert-info" style={{ marginBottom: '1rem' }}>
+          {DEMO_BACKEND_MESSAGE} Instagram risulta <strong>non collegato</strong> finché non deployi il backend API.
+        </div>
+      )}
 
       <section className="card" style={{ marginBottom: '1.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
@@ -160,9 +180,10 @@ export default function Accounts() {
               type="button"
               className="btn btn-primary"
               onClick={connectInstagram}
-              disabled={connecting || !igIntegration.canStartOAuth}
+              disabled={connecting || isDemoMode() || !igIntegration.canStartOAuth}
+              title={isDemoMode() ? DEMO_BACKEND_MESSAGE : undefined}
             >
-              {connecting ? 'Apertura login Meta…' : 'Collega Instagram'}
+              {isDemoMode() ? 'OAuth disponibile con backend' : connecting ? 'Apertura login Meta…' : 'Collega Instagram'}
             </button>
           </div>
         )}

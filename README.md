@@ -31,9 +31,15 @@ Il backend/API sarà un **secondo progetto Vercel** separato (fase 2).
 
 Non usare Experimental Services né deploy multiservizio. Il `vercel.json` alla root è stato rimosso; in `frontend/vercel.json` c’è solo il rewrite SPA.
 
-### Variabili ambiente (fase 1 — opzionali)
+### Variabili ambiente (fase 1)
 
-Per ora il frontend è statico. Quando collegherai il backend, aggiungi su Vercel:
+| Variabile | Valore | Obbligatoria |
+|-----------|--------|--------------|
+| `VITE_DEMO_MODE` | `true` | **Sì** (finché il backend non è deployato) |
+
+Con `VITE_DEMO_MODE=true` l'app funziona senza API: login, dashboard e account sono accessibili in modalità demo.
+
+Quando collegherai il backend, imposta `VITE_DEMO_MODE=false` e aggiungi:
 
 - `VITE_API_URL` = URL del secondo progetto API (es. `https://novapromo-api.vercel.app`)
 

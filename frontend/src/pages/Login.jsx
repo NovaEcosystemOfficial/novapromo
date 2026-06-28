@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
-import { isTikTokEnabled } from '../lib/features.js';
+import { isTikTokEnabled, isDemoMode } from '../lib/features.js';
 import { isDesktopApp } from '../lib/runtime.js';
 import TikTokPausedBadge from '../components/TikTokPausedBadge.jsx';
 import '../styles/auth.css';
@@ -9,6 +9,7 @@ import '../styles/auth.css';
 export default function Login() {
   const navigate = useNavigate();
   const { user, loading, enterLocalApp } = useAuth();
+  const demo = isDemoMode();
 
   useEffect(() => {
     if (!loading && user) {
@@ -17,11 +18,21 @@ export default function Login() {
   }, [loading, user, navigate]);
 
   const handleEnter = async () => {
-    await enterLocalApp();
-    navigate('/dashboard', { replace: true });
+    if (demo) {
+      await enterLocalApp();
+      navigate('/dashboard', { replace: true });
+      return;
+    }
+
+    try {
+      await enterLocalApp();
+      navigate('/dashboard', { replace: true });
+    } catch {
+      navigate('/dashboard', { replace: true });
+    }
   };
 
-  if (loading) {
+  if (loading && !demo) {
     return (
       <div className="auth-loading-screen">
         <div className="auth-spinner auth-spinner--large" />
@@ -52,6 +63,12 @@ export default function Login() {
             ? 'App desktop — pubblica su Instagram'
             : 'Genera, programma e pubblica contenuti Instagram'}
         </p>
+
+        {demo && (
+          <div className="alert alert-info" style={{ marginBottom: '1rem', fontSize: '0.9rem' }}>
+            Modalità demo — interfaccia senza backend collegato.
+          </div>
+        )}
 
         {!isTikTokEnabled() && (
           <div style={{ marginBottom: '1rem' }}>
