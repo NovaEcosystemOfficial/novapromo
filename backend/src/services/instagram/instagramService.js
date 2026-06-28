@@ -7,27 +7,33 @@ import {
   isAllowedInstagramAccountType,
 } from './metaConfig.js';
 import { toUserFriendlyMetaError } from './metaErrors.js';
+import {
+  INSTAGRAM_OAUTH_SCOPES,
+  INSTAGRAM_OAUTH_AUTHORIZE_URL,
+  INSTAGRAM_OAUTH_TOKEN_URL,
+  INSTAGRAM_GRAPH_URL,
+} from './metaScopes.js';
 
 const GRAPH_BASE = `https://graph.facebook.com/${config.meta.graphApiVersion}`;
 
-const INSTAGRAM_SCOPES = [
-  'public_profile',
-  'pages_show_list',
-  'pages_read_engagement',
-  'instagram_basic',
-  'instagram_content_publish',
-];
+function getInstagramClientId() {
+  return config.meta.instagramAppId || config.meta.appId;
+}
+
+function getInstagramClientSecret() {
+  return config.meta.instagramAppSecret || config.meta.appSecret;
+}
 
 function graphError(data, fallback) {
-  const err = new Error(data?.error?.message || fallback);
-  err.metaCode = data?.error?.code;
-  err.metaType = data?.error?.type;
+  const err = new Error(data?.error?.message || data?.error_message || fallback);
+  err.metaCode = data?.error?.code || data?.code;
+  err.metaType = data?.error?.type || data?.error_type;
   throw err;
 }
 
-async function graphGet(path, accessToken) {
+async function graphGet(path, accessToken, baseUrl = GRAPH_BASE) {
   const separator = path.includes('?') ? '&' : '?';
-  const res = await fetch(`${GRAPH_BASE}${path}${separator}access_token=${encodeURIComponent(accessToken)}`);
+  const res = await fetch(`${baseUrl}${path}${separator}access_token=${encodeURIComponent(accessToken)}`);
   const data = await res.json();
   if (!res.ok || data.error) {
     graphError(data, 'Richiesta alle API Meta fallita');
@@ -40,67 +46,89 @@ export function getInstagramAuthUrl(state) {
 
   const redirectUri = config.meta.redirectUri;
   const params = new URLSearchParams({
-    client_id: config.meta.appId,
+    client_id: getInstagramClientId(),
     redirect_uri: redirectUri,
-    scope: INSTAGRAM_SCOPES.join(','),
+    scope: INSTAGRAM_OAUTH_SCOPES.join(','),
     response_type: 'code',
     state,
+    enable_fb_login: 'true',
   });
 
-  return `https://www.facebook.com/${config.meta.graphApiVersion}/dialog/oauth?${params.toString()}`;
+  return `${INSTAGRAM_OAUTH_AUTHORIZE_URL}?${params.toString()}`;
+}
+
+function parseShortLivedTokenResponse(tokenData) {
+  const entry = tokenData?.data?.[0] || tokenData;
+  const accessToken = entry?.access_token;
+  const userId = entry?.user_id;
+
+  if (!accessToken || !userId) {
+    graphError(tokenData, 'Risposta token Instagram non valida');
+  }
+
+  return { accessToken, userId, permissions: entry?.permissions || null };
 }
 
 export async function exchangeInstagramCode(code) {
   assertMetaRealOAuthReady();
 
   const redirectUri = config.meta.redirectUri;
-
-  const tokenParams = new URLSearchParams({
-    client_id: config.meta.appId,
-    client_secret: config.meta.appSecret,
+  const form = new URLSearchParams({
+    client_id: getInstagramClientId(),
+    client_secret: getInstagramClientSecret(),
+    grant_type: 'authorization_code',
     redirect_uri: redirectUri,
     code,
   });
 
   let tokenData;
   try {
-    const tokenRes = await fetch(`${GRAPH_BASE}/oauth/access_token?${tokenParams}`);
+    const tokenRes = await fetch(INSTAGRAM_OAUTH_TOKEN_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: form.toString(),
+    });
     tokenData = await tokenRes.json();
-    if (!tokenRes.ok || tokenData.error) {
+    if (!tokenRes.ok || tokenData.error || tokenData.error_type) {
       graphError(tokenData, 'Scambio authorization code fallito');
     }
   } catch (err) {
     throw Object.assign(new Error(toUserFriendlyMetaError(err)), { code: err.code });
   }
 
-  const longLived = await exchangeLongLivedToken(tokenData.access_token);
-  const facebookUser = await fetchFacebookUser(longLived.access_token);
-  const pages = await fetchPages(longLived.access_token);
-  const igAccount = await findInstagramBusinessAccount(pages, longLived.access_token);
+  const { accessToken: shortToken, userId, permissions } = parseShortLivedTokenResponse(tokenData);
+  const longLived = await exchangeInstagramLongLivedToken(shortToken);
+  const profile = await fetchInstagramProfile(userId, longLived.access_token);
+
+  if (!isAllowedInstagramAccountType(profile.account_type)) {
+    throw buildInstagramNotBusinessError(profile.account_type);
+  }
 
   return {
     accessToken: longLived.access_token,
     expiresIn: longLived.expires_in,
-    facebookUserId: facebookUser.id,
-    facebookUserName: facebookUser.name,
-    username: igAccount.username,
-    instagramAccountId: igAccount.instagramAccountId,
-    pageId: igAccount.pageId,
-    pageName: igAccount.pageName,
-    pageAccessToken: igAccount.pageAccessToken,
-    accountType: igAccount.accountType,
-    scopes: INSTAGRAM_SCOPES,
+    facebookUserId: null,
+    facebookUserName: null,
+    username: profile.username,
+    instagramAccountId: profile.id || userId,
+    pageId: null,
+    pageName: null,
+    pageAccessToken: null,
+    accountType: profile.account_type,
+    scopes: permissions
+      ? String(permissions).split(',').map((s) => s.trim()).filter(Boolean)
+      : [...INSTAGRAM_OAUTH_SCOPES],
+    connectionMode: 'INSTAGRAM_LOGIN',
   };
 }
 
-async function exchangeLongLivedToken(shortToken) {
+async function exchangeInstagramLongLivedToken(shortToken) {
   const params = new URLSearchParams({
-    grant_type: 'fb_exchange_token',
-    client_id: config.meta.appId,
-    client_secret: config.meta.appSecret,
-    fb_exchange_token: shortToken,
+    grant_type: 'ig_exchange_token',
+    client_secret: getInstagramClientSecret(),
+    access_token: shortToken,
   });
-  const res = await fetch(`${GRAPH_BASE}/oauth/access_token?${params}`);
+  const res = await fetch(`${INSTAGRAM_GRAPH_URL}/access_token?${params}`);
   const data = await res.json();
   if (!res.ok || data.error) {
     graphError(data, 'Estensione token long-lived fallita');
@@ -108,75 +136,31 @@ async function exchangeLongLivedToken(shortToken) {
   return data;
 }
 
-async function fetchFacebookUser(userToken) {
-  return graphGet('/me?fields=id,name', userToken);
-}
+async function fetchInstagramProfile(userId, accessToken) {
+  const fields = 'id,username,account_type';
+  const data = await graphGet(`/${userId}?fields=${fields}`, accessToken, INSTAGRAM_GRAPH_URL);
 
-async function fetchPages(userToken) {
-  const data = await graphGet('/me/accounts?fields=id,name,access_token', userToken);
-  const pages = data.data || [];
-
-  if (pages.length === 0) {
-    const err = new Error(
-      'Nessuna Pagina Facebook collegata al tuo account Meta. Crea o collega una Pagina e riprova.'
-    );
-    err.code = META_ERROR_CODES.NO_FACEBOOK_PAGES;
-    throw err;
-  }
-  return pages;
-}
-
-async function findInstagramBusinessAccount(pages, userToken) {
-  const pagesWithoutIg = [];
-
-  for (const page of pages) {
-    const pageToken = page.access_token || userToken;
-
-    let pageData;
-    try {
-      pageData = await graphGet(`/${page.id}?fields=instagram_business_account`, pageToken);
-    } catch (err) {
-      logger.warn('[Instagram] Lettura pagina fallita', { pageId: page.id, error: err.message });
-      continue;
-    }
-
-    const igId = pageData.instagram_business_account?.id;
-    if (!igId) {
-      pagesWithoutIg.push(page.name || page.id);
-      continue;
-    }
-
-    const igData = await graphGet(`/${igId}?fields=username,account_type`, pageToken);
-
-    if (!igData.username) {
-      throw new Error('Impossibile leggere lo username Instagram collegato. Riprova il collegamento.');
-    }
-
-    if (!isAllowedInstagramAccountType(igData.account_type)) {
-      throw buildInstagramNotBusinessError(igData.account_type);
-    }
-
-    return {
-      instagramAccountId: igId,
-      username: igData.username,
-      accountType: igData.account_type,
-      pageId: page.id,
-      pageName: page.name || null,
-      pageAccessToken: page.access_token,
-    };
+  if (!data.username) {
+    throw new Error('Impossibile leggere lo username Instagram. Riprova il collegamento.');
   }
 
-  const err = new Error(
-    pagesWithoutIg.length > 0
-      ? `Nessun account Instagram collegato alle tue Pagine Facebook (${pagesWithoutIg.join(', ')}). Collega un profilo Business/Creator in Meta Business Suite.`
-      : 'Nessun account Instagram Business/Creator collegato a una Pagina Facebook'
-  );
-  err.code = META_ERROR_CODES.NO_INSTAGRAM_ON_PAGE;
-  throw err;
+  return data;
 }
 
 export async function refreshInstagramToken(currentToken) {
-  return exchangeLongLivedToken(currentToken);
+  const params = new URLSearchParams({
+    grant_type: 'ig_refresh_token',
+    access_token: currentToken,
+  });
+  const res = await fetch(`${INSTAGRAM_GRAPH_URL}/refresh_access_token?${params}`);
+  const data = await res.json();
+  if (!res.ok || data.error) {
+    graphError(data, 'Refresh token Instagram fallito');
+  }
+  return {
+    accessToken: data.access_token,
+    expiresIn: data.expires_in,
+  };
 }
 
 export async function createMediaContainer({ accessToken, instagramAccountId, caption, mediaUrl, mediaType, contentType }) {
@@ -231,13 +215,13 @@ export async function publishContainer({ accessToken, instagramAccountId, contai
 
 export async function publishToInstagram(post, account) {
   const { metadata } = account;
-  const instagramAccountId = metadata?.instagramAccountId;
+  const instagramAccountId = metadata?.instagramAccountId || account.externalUserId;
   if (!instagramAccountId) throw new Error('Account Instagram non configurato correttamente. Ricollega Instagram.');
 
   const fullCaption = [post.caption, post.hashtags].filter(Boolean).join('\n\n');
   const mediaUrl = `${config.backendUrl}/uploads/${post.mediaPath?.split(/[/\\]/).pop()}`;
 
-  const token = metadata.pageAccessToken || account.accessToken;
+  const token = metadata?.pageAccessToken || account.accessToken;
 
   const { containerId } = await createMediaContainer({
     accessToken: token,

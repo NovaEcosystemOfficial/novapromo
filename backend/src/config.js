@@ -158,6 +158,8 @@ export const config = {
   meta: {
     appId: process.env.META_APP_ID || '',
     appSecret: process.env.META_APP_SECRET || '',
+    instagramAppId: process.env.INSTAGRAM_APP_ID || process.env.META_APP_ID || '',
+    instagramAppSecret: process.env.INSTAGRAM_APP_SECRET || process.env.META_APP_SECRET || '',
     redirectUri: urls.metaRedirectUri,
     graphApiVersion: process.env.META_GRAPH_API_VERSION || 'v21.0',
   },

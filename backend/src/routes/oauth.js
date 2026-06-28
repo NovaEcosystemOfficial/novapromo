@@ -85,7 +85,7 @@ router.get('/instagram/callback', async (req, res) => {
       accessToken: data.pageAccessToken || data.accessToken,
       refreshToken: null,
       expiresAt: data.expiresIn ? new Date(Date.now() + data.expiresIn * 1000).toISOString() : null,
-      scopes: data.scopes || ['instagram_basic', 'instagram_content_publish'],
+      scopes: data.scopes || ['instagram_business_basic', 'instagram_business_content_publish'],
       metadata: {
         instagramAccountId: data.instagramAccountId,
         pageId: data.pageId,
@@ -94,7 +94,7 @@ router.get('/instagram/callback', async (req, res) => {
         accountType: data.accountType || null,
         facebookUserId: data.facebookUserId || null,
         facebookUserName: data.facebookUserName || null,
-        connectionMode: 'REAL',
+        connectionMode: data.connectionMode || 'INSTAGRAM_LOGIN',
       },
     });
 

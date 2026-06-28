@@ -62,11 +62,8 @@ export function getInstagramIntegrationStatus() {
     lastApiCheck: lastChecks.instagram,
     nextStep: buildMetaNextStep({ account, metaStatus }),
     requiredScopes: [
-      'public_profile',
-      'pages_show_list',
-      'pages_read_engagement',
-      'instagram_basic',
-      'instagram_content_publish',
+      'instagram_business_basic',
+      'instagram_business_content_publish',
     ],
   };
 }

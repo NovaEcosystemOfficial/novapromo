@@ -33,7 +33,10 @@ export function toUserFriendlyMetaError(error) {
     return 'APP Secret non valido. Controlla META_APP_SECRET in .env.local e riavvia NovaPromo.';
   }
   if (lower.includes('invalid client') || lower.includes('client_id')) {
-    return 'APP ID non valido. Controlla META_APP_ID in .env.local e riavvia NovaPromo.';
+    return 'APP ID non valido. Controlla META_APP_ID (o INSTAGRAM_APP_ID) e riavvia NovaPromo.';
+  }
+  if (lower.includes('invalid scope') || lower.includes('scope')) {
+    return 'Permessi Instagram non validi. In Meta Developers abilita Instagram Login con instagram_business_basic e instagram_business_content_publish.';
   }
   if (lower.includes('state oauth') || lower.includes('csrf')) {
     return 'Sessione OAuth scaduta o non valida. Chiudi il browser e riprova il collegamento da Account.';
