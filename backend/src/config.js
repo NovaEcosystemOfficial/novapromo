@@ -72,14 +72,23 @@ function resolveAppUrls() {
     };
   }
 
-  const appUrl = resolveWebAppUrl();
+  const frontendUrl = stripTrailingSlash(
+    process.env.FRONTEND_URL?.trim() || process.env.APP_URL?.trim() || resolveWebAppUrl()
+  );
+  const backendUrl = stripTrailingSlash(
+    process.env.BACKEND_URL?.trim() ||
+      (isVercel && process.env.VERCEL_PROJECT_PRODUCTION_URL
+        ? `https://${stripTrailingSlash(process.env.VERCEL_PROJECT_PRODUCTION_URL.trim())}`
+        : frontendUrl)
+  );
+  const appUrl = stripTrailingSlash(process.env.APP_URL?.trim() || frontendUrl);
 
   return {
     appUrl,
-    frontendUrl: appUrl,
-    backendUrl: appUrl,
+    frontendUrl,
+    backendUrl,
     metaRedirectUri: stripTrailingSlash(
-      process.env.META_REDIRECT_URI || `${appUrl}/api/oauth/instagram/callback`
+      process.env.META_REDIRECT_URI || `${backendUrl}/api/oauth/instagram/callback`
     ),
     tiktokLoginRedirectUri: stripTrailingSlash(
       process.env.TIKTOK_LOGIN_REDIRECT_URI || `${appUrl}/auth/callback`
