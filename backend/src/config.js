@@ -93,8 +93,8 @@ function resolveAppUrls() {
 const urls = resolveAppUrls();
 
 function resolveDataPath(relativeSegment, envOverride, vercelFallback) {
-  if (envOverride) return envOverride;
   if (isVercel && vercelFallback) return vercelFallback;
+  if (envOverride) return envOverride;
   if (isDesktop && userDataPath) {
     return path.join(userDataPath, relativeSegment);
   }
@@ -112,7 +112,10 @@ const uploadDir = resolveDataPath(
   '/tmp/novapromo/uploads'
 );
 
-if (isDesktop || isVercel) {
+if (isVercel) {
+  fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+  fs.mkdirSync(uploadDir, { recursive: true });
+} else if (isDesktop) {
   fs.mkdirSync(path.dirname(dbPath), { recursive: true });
   fs.mkdirSync(uploadDir, { recursive: true });
 }
