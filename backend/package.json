@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node --watch --watch-path=../.env --watch-path=../.env.local src/index.js",
-    "start": "node src/index.js"
+    "dev": "node --watch --watch-path=../.env --watch-path=../.env.local src/server.js",
+    "start": "node src/server.js"
   },
   "dependencies": {
     "cookie-parser": "^1.4.7",

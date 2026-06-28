@@ -1,6 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "comment": "Fase 2 — progetto Vercel backend separato (Root Directory = repo root). Copia come vercel.json alla root.",
   "installCommand": "npm install",
   "functions": {
     "api/index.js": {

@@ -16,67 +16,73 @@ function resolveCorsOrigin(origin, callback) {
   return callback(null, false);
 }
 
-export function createApp() {
-  const app = express();
+const app = express();
 
-  app.set('trust proxy', 1);
+app.set('trust proxy', 1);
 
-  app.use(
-    cors({
-      origin: resolveCorsOrigin,
-      credentials: true,
-    })
-  );
-  app.use(cookieParser());
-  app.use(express.json());
-  app.use(express.urlencoded({ extended: true }));
+app.use(
+  cors({
+    origin: resolveCorsOrigin,
+    credentials: true,
+  })
+);
+app.use(cookieParser());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-  app.use('/uploads', express.static(config.uploadDir));
+app.use('/uploads', express.static(config.uploadDir));
 
-  app.get('/api/health', (_req, res) => {
-    res.json({
-      status: 'ok',
-      runtime: config.runtime,
-      tiktokEnabled: config.tiktokEnabled,
-      timestamp: new Date().toISOString(),
-    });
+app.get('/', (_req, res) => {
+  res.send('NovaPromo backend running');
+});
+
+app.get('/health', (_req, res) => {
+  res.json({ ok: true });
+});
+
+app.get('/api/health', (_req, res) => {
+  res.json({
+    status: 'ok',
+    runtime: config.runtime,
+    tiktokEnabled: config.tiktokEnabled,
+    timestamp: new Date().toISOString(),
   });
+});
 
-  app.get('/api/config/features', (_req, res) => {
-    res.json(getAppFeatures());
+app.get('/api/config/features', (_req, res) => {
+  res.json(getAppFeatures());
+});
+
+app.get('/api/auth/tiktok/setup', (_req, res) => {
+  const status = getTikTokConfigStatus();
+  res.json({
+    ...status,
+    instructions: status.paused
+      ? { message: 'Integrazione TikTok in pausa — usa Instagram dalla sezione Account' }
+      : status.ready
+        ? null
+        : {
+            message: 'Configura TikTok for Developers prima di usare il login',
+            steps: [
+              '1. Imposta TIKTOK_ENABLED=true',
+              '2. Configura TIKTOK_CLIENT_KEY e TIKTOK_CLIENT_SECRET',
+            ],
+          },
   });
+});
 
-  app.get('/api/auth/tiktok/setup', (_req, res) => {
-    const status = getTikTokConfigStatus();
-    res.json({
-      ...status,
-      instructions: status.paused
-        ? { message: 'Integrazione TikTok in pausa — usa Instagram dalla sezione Account' }
-        : status.ready
-          ? null
-          : {
-              message: 'Configura TikTok for Developers prima di usare il login',
-              steps: [
-                '1. Imposta TIKTOK_ENABLED=true',
-                '2. Configura TIKTOK_CLIENT_KEY e TIKTOK_CLIENT_SECRET',
-              ],
-            },
-    });
-  });
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/posts', postsRoutes);
+app.use('/api/oauth', oauthRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/tiktok/review', tiktokReviewRoutes);
 
-  app.use('/api/dashboard', dashboardRoutes);
-  app.use('/api/posts', postsRoutes);
-  app.use('/api/oauth', oauthRoutes);
-  app.use('/api/auth', authRoutes);
-  app.use('/api/tiktok/review', tiktokReviewRoutes);
+app.use((err, _req, res, _next) => {
+  if (err.code === 'LIMIT_FILE_SIZE') {
+    return res.status(413).json({ error: `File troppo grande (max ${config.maxFileSizeMb}MB)` });
+  }
+  logger.error('Unhandled error', { error: err.message });
+  res.status(err.status || 500).json({ error: err.message || 'Errore interno' });
+});
 
-  app.use((err, _req, res, _next) => {
-    if (err.code === 'LIMIT_FILE_SIZE') {
-      return res.status(413).json({ error: `File troppo grande (max ${config.maxFileSizeMb}MB)` });
-    }
-    logger.error('Unhandled error', { error: err.message });
-    res.status(err.status || 500).json({ error: err.message || 'Errore interno' });
-  });
-
-  return app;
-}
+export default app;

@@ -1,0 +1,17 @@
+release/
+build/
+win-unpacked/
+/node_modules/
+/electron/
+/frontend/
+/deploy/
+/scripts/
+.git/
+*.exe
+*.msi
+*.zip
+*.dmg
+*.blockmap
+*.7z
+*.db
+*.db-*
