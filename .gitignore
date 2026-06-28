@@ -1,0 +1,51 @@
+# Dependencies
+node_modules/
+
+# Environment & secrets
+.env
+.env.local
+.env.*.local
+!.env.example
+!.env.local.example
+
+# Build outputs
+dist/
+build/
+out/
+release/
+win-unpacked/
+
+# Installers & archives
+*.exe
+*.msi
+*.zip
+*.dmg
+*.AppImage
+*.blockmap
+*.7z
+
+# Database & local uploads
+*.db
+*.db-*
+backend/data/
+**/uploads/*
+!**/uploads/.gitkeep
+
+# Logs & cache
+*.log
+npm-debug.log*
+.vite/
+.cache/
+.turbo/
+.vercel/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo

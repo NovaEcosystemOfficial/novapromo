@@ -1,0 +1,122 @@
+.tiktok-user-card {
+  background: linear-gradient(135deg, rgba(0, 242, 234, 0.08), rgba(255, 0, 80, 0.08));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 1.25rem;
+}
+
+.tiktok-user-card.compact {
+  padding: 1rem;
+}
+
+.tiktok-user-card-header {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.tiktok-user-card-icon {
+  font-size: 2rem;
+}
+
+.tiktok-user-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.tiktok-user-avatar--placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent, #7c3aed);
+  color: #fff;
+  font-weight: 700;
+  font-size: 1.25rem;
+}
+
+.tiktok-user-card-meta h3 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.tiktok-user-handle {
+  margin: 0.15rem 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.tiktok-status {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.tiktok-status--ok { color: #34d399; }
+.tiktok-status--warn { color: #fbbf24; }
+.tiktok-status--error { color: #f87171; }
+.tiktok-status--muted { color: var(--text-muted); }
+
+.tiktok-user-details {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0 0 1rem;
+  font-size: 0.85rem;
+}
+
+.tiktok-user-details dt {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.tiktok-user-details dd {
+  margin: 0.1rem 0 0;
+  word-break: break-all;
+}
+
+.tiktok-user-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.review-demo-page {
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.review-step {
+  border-left: 3px solid var(--accent, #7c3aed);
+  padding-left: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.review-step-num {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--accent, #7c3aed);
+}
+
+.review-log {
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 8px;
+  padding: 0.75rem;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.8rem;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.review-log-entry {
+  padding: 0.35rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.review-log-entry.ok { color: #34d399; }
+.review-log-entry.error { color: #f87171; }
+.review-log-entry.running { color: #60a5fa; }
+.review-log-entry.info { color: #94a3b8; }

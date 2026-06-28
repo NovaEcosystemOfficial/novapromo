@@ -1,0 +1,110 @@
+import { config, hasFirebaseAdminCredentials } from '../../config.js';
+import { logger } from '../../utils/logger.js';
+
+let adminApp = null;
+
+async function getAdmin() {
+  if (!hasFirebaseAdminCredentials()) {
+    return null;
+  }
+  if (adminApp) return adminApp;
+
+  const { initializeApp, cert, getApps } = await import('firebase-admin/app');
+  const { getFirestore } = await import('firebase-admin/firestore');
+  const { getAuth } = await import('firebase-admin/auth');
+
+  if (getApps().length === 0) {
+    adminApp = initializeApp({
+      credential: cert({
+        projectId: config.firebase.projectId,
+        clientEmail: config.firebase.clientEmail,
+        privateKey: config.firebase.privateKey,
+      }),
+    });
+  } else {
+    adminApp = getApps()[0];
+  }
+
+  return { app: adminApp, db: getFirestore(), auth: getAuth() };
+}
+
+export async function upsertTikTokUser(profile, tokens) {
+  const admin = await getAdmin();
+  const now = new Date().toISOString();
+  const uid = `tiktok:${profile.openId}`;
+
+  const userDoc = {
+    uid,
+    provider: 'tiktok',
+    openId: profile.openId,
+    displayName: profile.displayName,
+    username: profile.username,
+    avatarUrl: profile.avatarUrl,
+    tiktokAccessTokenExpiresAt: new Date(Date.now() + tokens.expiresIn * 1000).toISOString(),
+    updatedAt: now,
+  };
+
+  if (admin) {
+    const ref = admin.db.collection('users').doc(profile.openId);
+    const existing = await ref.get();
+    await ref.set(
+      {
+        ...userDoc,
+        createdAt: existing.exists ? existing.data()?.createdAt || now : now,
+      },
+      { merge: true }
+    );
+
+    try {
+      await admin.auth.getUser(uid);
+    } catch {
+      await admin.auth.createUser({
+        uid,
+        displayName: profile.displayName,
+        photoURL: profile.avatarUrl || undefined,
+      });
+    }
+
+    await admin.auth.updateUser(uid, {
+      displayName: profile.displayName,
+      photoURL: profile.avatarUrl || undefined,
+    });
+
+    const customToken = await admin.auth.createCustomToken(uid, {
+      provider: 'tiktok',
+      openId: profile.openId,
+    });
+
+    return { uid, customToken, storedIn: 'firestore' };
+  }
+
+  logger.warn('Firebase Admin non configurato — utente salvato solo in sessione');
+  return { uid, customToken: null, storedIn: 'session_only' };
+}
+
+export async function getFirestoreUser(openId) {
+  const admin = await getAdmin();
+  if (!admin) return null;
+  const snap = await admin.db.collection('users').doc(openId).get();
+  return snap.exists ? snap.data() : null;
+}
+
+export async function createCustomTokenForSession(session) {
+  const admin = await getAdmin();
+  if (!admin) return null;
+
+  try {
+    await admin.auth.getUser(session.uid);
+  } catch {
+    await admin.auth.createUser({
+      uid: session.uid,
+      displayName: session.displayName,
+      photoURL: session.avatarUrl || undefined,
+    });
+  }
+
+  return admin.auth.createCustomToken(session.uid, {
+    provider: 'tiktok',
+    openId: session.openId,
+  });
+}

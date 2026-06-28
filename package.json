@@ -1,0 +1,90 @@
+{
+  "name": "novapromo-autopublisher",
+  "version": "1.0.0",
+  "private": true,
+  "description": "NovaPromo AutoPublisher — web app autonoma (Instagram)",
+  "author": "NovaPromo",
+  "type": "module",
+  "main": "electron/main.js",
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "predev": "node scripts/free-port.js 3001 && node scripts/free-port.js 5173",
+    "dev": "concurrently -n backend,frontend -c blue,green \"npm run dev -w backend\" \"npm run dev -w frontend\"",
+    "dev:web": "npm run dev",
+    "dev:backend": "npm run dev -w backend",
+    "dev:frontend": "npm run dev -w frontend",
+    "dev:electron": "node -e \"console.error('\\nElectron/EXE in pausa. Usa: npm run dev (web locale) oppure deploy su Vercel.\\n'); process.exit(1)\"",
+    "build": "npm run build -w frontend",
+    "build:desktop": "cross-env ELECTRON_BUILD=1 VITE_RUNTIME=desktop VITE_TIKTOK_ENABLED=false VITE_DESKTOP_API_URL=http://localhost:3001 npm run build -w frontend",
+    "dist": "npm run build:desktop && electron-builder --win",
+    "dist:dir": "npm run build:desktop && electron-builder --win dir",
+    "install:all": "npm install"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "cross-env": "^7.0.3",
+    "electron": "^35.0.0",
+    "electron-builder": "^25.1.8",
+    "wait-on": "^8.0.1"
+  },
+  "build": {
+    "appId": "com.novapromo.autopublisher",
+    "productName": "NovaPromo AutoPublisher",
+    "copyright": "Copyright © NovaPromo",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "electron/**/*",
+      "package.json",
+      "node_modules/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "backend/src",
+        "to": "backend/src",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "backend/package.json",
+        "to": "backend/package.json"
+      },
+      {
+        "from": "frontend/dist",
+        "to": "frontend/dist",
+        "filter": ["**/*"]
+      }
+    ],
+    "asar": true,
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "build/icon.png",
+      "artifactName": "NovaPromo-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "NovaPromo AutoPublisher"
+    },
+    "protocols": [
+      {
+        "name": "NovaPromo OAuth",
+        "schemes": ["novapromo"]
+      }
+    ]
+  }
+}

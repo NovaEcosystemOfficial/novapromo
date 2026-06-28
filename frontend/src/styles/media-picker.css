@@ -1,0 +1,64 @@
+.media-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.media-picker-drop {
+  border: 2px dashed rgba(124, 58, 237, 0.35);
+  border-radius: 12px;
+  padding: 1.25rem 1rem;
+  text-align: center;
+  cursor: pointer;
+  background: rgba(124, 58, 237, 0.04);
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.media-picker-drop:hover,
+.media-picker-drop.drag-over {
+  border-color: rgba(124, 58, 237, 0.7);
+  background: rgba(124, 58, 237, 0.08);
+}
+
+.media-picker-drop.has-file {
+  cursor: default;
+  text-align: left;
+}
+
+.media-picker-hint {
+  display: block;
+  font-weight: 600;
+  color: var(--text-primary, #e2e8f0);
+}
+
+.media-picker-sub {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--text-muted, #94a3b8);
+  margin-top: 0.25rem;
+}
+
+.media-picker-file {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.media-picker-name {
+  flex: 1;
+  font-size: 0.9rem;
+  word-break: break-all;
+}
+
+.media-picker-clear {
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 1.25rem;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.media-picker-browse {
+  align-self: flex-start;
+}
