@@ -8,13 +8,15 @@ const isElectronBuild = process.env.ELECTRON_BUILD === '1';
 const DEFAULT_APP_URL = 'http://127.0.0.1:3001';
 
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, path.resolve(__dirname, '..'), '');
-  const apiProxyTarget = env.VITE_API_PROXY || env.APP_URL || DEFAULT_APP_URL;
+  const env = loadEnv(mode, __dirname, '');
+  const envFromRoot = loadEnv(mode, path.resolve(__dirname, '..'), '');
+  const mergedEnv = { ...envFromRoot, ...env };
+  const apiProxyTarget = mergedEnv.VITE_API_PROXY || mergedEnv.APP_URL || DEFAULT_APP_URL;
 
   return {
     plugins: [react()],
     base: isElectronBuild ? './' : '/',
-    envDir: path.resolve(__dirname, '..'),
+    envDir: __dirname,
     define: {
       'import.meta.env.VITE_RUNTIME': JSON.stringify(
         process.env.VITE_RUNTIME || (isElectronBuild ? 'desktop' : 'web')

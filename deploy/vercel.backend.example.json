@@ -1,9 +1,9 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "comment": "Fase 2 — deploy backend separato. Non usare insieme al frontend.",
   "installCommand": "npm install",
-  "buildCommand": "npm run build",
+  "buildCommand": "npm run build -w frontend",
   "outputDirectory": "frontend/dist",
-  "framework": null,
   "functions": {
     "api/index.js": {
       "maxDuration": 30

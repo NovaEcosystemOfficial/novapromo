@@ -15,49 +15,31 @@ npm run dev
 
 Apri `http://localhost:5173/dashboard` — il frontend fa proxy verso il backend su `127.0.0.1:3001`.
 
-## Deploy su Vercel
+## Deploy su Vercel (solo frontend — fase 1)
 
-### 1. Crea il progetto Vercel
+Il backend/API sarà un **secondo progetto Vercel** separato (fase 2).
 
-1. Vai su [vercel.com/new](https://vercel.com/new)
-2. Importa il repository Git di **novapromo-autopublisher** (non NovaWeb)
-3. Framework Preset: **Other**
-4. Build Command: `npm run build` (già in `vercel.json`)
-5. Output Directory: `frontend/dist` (già in `vercel.json`)
-6. Install Command: `npm install`
-7. Nome progetto consigliato: `novapromo` → URL `https://novapromo.vercel.app`
+### Impostazioni progetto Vercel
 
-### 2. Variabili ambiente Vercel (Production)
+| Campo | Valore |
+|-------|--------|
+| **Root Directory** | `frontend` |
+| **Framework Preset** | Vite (o Other) |
+| **Build Command** | `npm run build` |
+| **Output Directory** | `dist` |
+| **Install Command** | `npm install` (default) |
 
-| Variabile | Valore |
-|-----------|--------|
-| `APP_URL` | `https://novapromo.vercel.app` (o il dominio Vercel assegnato) |
-| `META_APP_ID` | App ID da Meta Developers |
-| `META_APP_SECRET` | App Secret da Meta Developers |
-| `META_REDIRECT_URI` | `https://novapromo.vercel.app/api/oauth/instagram/callback` |
-| `SESSION_SECRET` | Stringa random ≥ 32 caratteri |
-| `ENCRYPTION_KEY` | Stringa random ≥ 32 caratteri |
-| `TIKTOK_ENABLED` | `false` |
-| `META_GRAPH_API_VERSION` | `v21.0` (opzionale) |
+Non usare Experimental Services né deploy multiservizio. Il `vercel.json` alla root è stato rimosso; in `frontend/vercel.json` c’è solo il rewrite SPA.
 
-Non impostare `META_REDIRECT_URI` con `localhost` o `127.0.0.1` in produzione.
+### Variabili ambiente (fase 1 — opzionali)
 
-### 3. Meta Developers — Redirect URI
+Per ora il frontend è statico. Quando collegherai il backend, aggiungi su Vercel:
 
-Registra **solo HTTPS** in Facebook Login → URI di reindirizzamento OAuth validi:
+- `VITE_API_URL` = URL del secondo progetto API (es. `https://novapromo-api.vercel.app`)
 
-```
-https://novapromo.vercel.app/api/oauth/instagram/callback
-```
+### Fase 2 (dopo)
 
-(Sostituisci con il tuo dominio Vercel se diverso.)
-
-### 4. Test login Instagram
-
-1. Deploy su Vercel
-2. Apri `https://novapromo.vercel.app/accounts`
-3. Clicca **Collega Instagram**
-4. Autorizza su Meta → redirect a `/accounts?connected=instagram`
+Deploy separato della cartella `api/` + `backend/` con il proprio `vercel.json`.
 
 ## Comandi
 
