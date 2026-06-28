@@ -2,9 +2,12 @@ import { config } from '../../config.js';
 import { META_ERROR_CODES } from './metaConfig.js';
 
 const FRIENDLY_BY_CODE = {
-  [META_ERROR_CODES.META_APP_ID_MISSING]: 'Configurazione incompleta: manca META_APP_ID in .env.local.',
-  [META_ERROR_CODES.META_APP_SECRET_MISSING]: 'Configurazione incompleta: manca META_APP_SECRET in .env.local.',
-  [META_ERROR_CODES.META_REDIRECT_URI_MISSING]: 'Configurazione incompleta: manca META_REDIRECT_URI in .env.local.',
+  [META_ERROR_CODES.INSTAGRAM_APP_ID_MISSING]:
+    'Configurazione incompleta: manca INSTAGRAM_APP_ID (Instagram App ID, non il Facebook App ID).',
+  [META_ERROR_CODES.INSTAGRAM_APP_SECRET_MISSING]:
+    'Configurazione incompleta: manca INSTAGRAM_APP_SECRET dalla sezione Instagram Login.',
+  [META_ERROR_CODES.INSTAGRAM_APP_ID_INVALID]:
+    'INSTAGRAM_APP_ID errato: non usare il Facebook App ID. Copia l’Instagram App ID da Meta Dashboard > Instagram > API setup with Instagram login.',
   [META_ERROR_CODES.NO_FACEBOOK_PAGES]:
     'Nessuna Pagina Facebook trovata. Crea una Pagina Facebook o concedi l’accesso alle Pagine durante il login Meta.',
   [META_ERROR_CODES.NO_INSTAGRAM_ON_PAGE]:
@@ -35,8 +38,8 @@ export function toUserFriendlyMetaError(error) {
   if (lower.includes('invalid client') || lower.includes('client_id')) {
     return 'APP ID non valido. Controlla META_APP_ID (o INSTAGRAM_APP_ID) e riavvia NovaPromo.';
   }
-  if (lower.includes('invalid scope') || lower.includes('scope')) {
-    return 'Permessi Instagram non validi. In Meta Developers abilita Instagram Login con instagram_business_basic e instagram_business_content_publish.';
+  if (lower.includes('invalid platform app')) {
+    return 'Instagram App ID errato. Su Vercel imposta INSTAGRAM_APP_ID e INSTAGRAM_APP_SECRET dalla sezione Instagram > API setup with Instagram login (non il Facebook App ID in cima alla dashboard Meta).';
   }
   if (lower.includes('state oauth') || lower.includes('csrf')) {
     return 'Sessione OAuth scaduta o non valida. Chiudi il browser e riprova il collegamento da Account.';

@@ -25,7 +25,7 @@ function buildInstagramProfileSummary(account) {
 
 function buildMetaNextStep({ account, metaStatus }) {
   if (!metaStatus.credentialsPresent) {
-    return 'Aggiungi META_APP_ID, META_APP_SECRET e META_REDIRECT_URI in .env.local';
+    return metaStatus.credentialsError || 'Configura INSTAGRAM_APP_ID e INSTAGRAM_APP_SECRET su Vercel (sezione Instagram Login in Meta Developers)';
   }
   if (!account) return 'Collega Instagram Business/Creator via OAuth Meta';
   return 'Integrazione Instagram pronta';
