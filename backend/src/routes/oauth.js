@@ -36,17 +36,29 @@ router.delete('/accounts/:id', (req, res) => {
   res.json({ success: true });
 });
 
-router.get('/instagram/start', (_req, res) => {
+router.get('/instagram/start', (req, res) => {
   try {
     assertCanStartOAuth('instagram');
     const { state } = createOAuthState('instagram');
-    const url = getInstagramAuthUrl(state);
+    const forceReauth = req.query.force_reauth !== 'false';
+    const enableFbLogin = req.query.enable_fb_login === 'true';
+    const url = getInstagramAuthUrl(state, { forceReauth, enableFbLogin });
 
     res.json({
       url,
       mode: 'REAL',
       redirectUri: config.meta.redirectUri,
       label: 'Collega Instagram',
+      oauthParams: {
+        force_reauth: forceReauth,
+        enable_fb_login: enableFbLogin,
+      },
+      setupHints: [
+        'Usa un account Instagram Business o Creator (es. @novaecosystem), non un profilo personale.',
+        'In Development mode solo Instagram Tester invitati possono autorizzare l’app.',
+        'Aggiungi @novaecosystem come Instagram Tester in Meta Developers e accetta l’invito da Instagram → Impostazioni → App e siti web.',
+        'Se vedi il profilo sbagliato, apri il link in finestra privata e accedi con le credenziali di @novaecosystem.',
+      ],
     });
   } catch (err) {
     res.status(err.status || 500).json({

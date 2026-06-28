@@ -10,3 +10,9 @@ export const INSTAGRAM_OAUTH_SCOPES = [
 export const INSTAGRAM_OAUTH_AUTHORIZE_URL = 'https://www.instagram.com/oauth/authorize';
 export const INSTAGRAM_OAUTH_TOKEN_URL = 'https://api.instagram.com/oauth/access_token';
 export const INSTAGRAM_GRAPH_URL = 'https://graph.instagram.com';
+
+/** Official Business Login params (no auth_type / prompt on instagram.com/oauth/authorize). */
+export const INSTAGRAM_OAUTH_DEFAULT_OPTIONS = {
+  forceReauth: true,
+  enableFbLogin: false,
+};

@@ -65,6 +65,15 @@ export function getInstagramIntegrationStatus() {
       'instagram_business_basic',
       'instagram_business_content_publish',
     ],
+    oauthParams: {
+      force_reauth: true,
+      enable_fb_login: false,
+    },
+    testerSetup: [
+      'Meta Developers → App Nova_Promo → Roles → Instagram Testers → aggiungi @novaecosystem',
+      'Instagram (account @novaecosystem) → Impostazioni → App e siti web → Inviti → Accetta Nova_Promo',
+      'Riprova il collegamento in finestra privata loggandoti come @novaecosystem',
+    ],
   };
 }
 

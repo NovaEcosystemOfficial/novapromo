@@ -182,6 +182,19 @@ export default function Accounts() {
             <p style={{ color: 'var(--text-muted)', marginTop: 0 }}>
               Stato connessione: <strong>{CONNECTION_LABELS.disconnected}</strong>
             </p>
+            {igIntegration.testerSetup?.length > 0 && (
+              <div className="alert alert-info" style={{ marginTop: '0.75rem' }}>
+                <strong>Per collegare @novaecosystem</strong>
+                <ol style={{ margin: '0.5rem 0 0', paddingLeft: '1.25rem' }}>
+                  {igIntegration.testerSetup.map((step) => (
+                    <li key={step}>{step}</li>
+                  ))}
+                </ol>
+                <p style={{ margin: '0.75rem 0 0', fontSize: '0.9rem' }}>
+                  Il login forza una nuova autenticazione Instagram (non via Facebook). Se vedi ancora il profilo personale, usa una finestra privata.
+                </p>
+              </div>
+            )}
             <button
               type="button"
               className="btn btn-primary"

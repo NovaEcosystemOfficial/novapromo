@@ -12,6 +12,7 @@ import {
   INSTAGRAM_OAUTH_AUTHORIZE_URL,
   INSTAGRAM_OAUTH_TOKEN_URL,
   INSTAGRAM_GRAPH_URL,
+  INSTAGRAM_OAUTH_DEFAULT_OPTIONS,
 } from './metaScopes.js';
 
 const GRAPH_BASE = `https://graph.facebook.com/${config.meta.graphApiVersion}`;
@@ -41,17 +42,21 @@ async function graphGet(path, accessToken, baseUrl = GRAPH_BASE) {
   return data;
 }
 
-export function getInstagramAuthUrl(state) {
+export function getInstagramAuthUrl(state, options = {}) {
   assertMetaRealOAuthReady();
 
   const redirectUri = config.meta.redirectUri;
+  const forceReauth = options.forceReauth ?? INSTAGRAM_OAUTH_DEFAULT_OPTIONS.forceReauth;
+  const enableFbLogin = options.enableFbLogin ?? INSTAGRAM_OAUTH_DEFAULT_OPTIONS.enableFbLogin;
+
   const params = new URLSearchParams({
     client_id: getInstagramClientId(),
     redirect_uri: redirectUri,
     scope: INSTAGRAM_OAUTH_SCOPES.join(','),
     response_type: 'code',
     state,
-    enable_fb_login: 'true',
+    force_reauth: forceReauth ? 'true' : 'false',
+    enable_fb_login: enableFbLogin ? 'true' : 'false',
   });
 
   return `${INSTAGRAM_OAUTH_AUTHORIZE_URL}?${params.toString()}`;
