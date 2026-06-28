@@ -3,7 +3,6 @@ build/
 win-unpacked/
 /node_modules/
 /electron/
-/frontend/
 /deploy/
 /scripts/
 .git/
