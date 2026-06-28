@@ -1,34 +1,53 @@
-import { useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useCallback, useEffect, useRef } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { isTikTokEnabled, isDemoMode } from '../lib/features.js';
 import { isDesktopApp } from '../lib/runtime.js';
+import { resolveAuthReturnPath } from '../lib/postAuthRedirect.js';
 import TikTokPausedBadge from '../components/TikTokPausedBadge.jsx';
 import '../styles/auth.css';
 
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, loading, enterLocalApp } = useAuth();
   const demo = isDemoMode();
+  const autoEnterAttempted = useRef(false);
+
+  const goAfterAuth = useCallback(() => {
+    navigate(resolveAuthReturnPath(location), { replace: true });
+  }, [location, navigate]);
 
   useEffect(() => {
     if (!loading && user) {
-      navigate('/dashboard', { replace: true });
+      goAfterAuth();
     }
-  }, [loading, user, navigate]);
+  }, [loading, user, goAfterAuth]);
+
+  useEffect(() => {
+    if (demo || loading || user || autoEnterAttempted.current) return;
+    if (!location.state?.from) return;
+
+    autoEnterAttempted.current = true;
+    enterLocalApp()
+      .then(goAfterAuth)
+      .catch(() => {
+        autoEnterAttempted.current = false;
+      });
+  }, [demo, loading, user, location.state, enterLocalApp, goAfterAuth]);
 
   const handleEnter = async () => {
     if (demo) {
       await enterLocalApp();
-      navigate('/dashboard', { replace: true });
+      goAfterAuth();
       return;
     }
 
     try {
       await enterLocalApp();
-      navigate('/dashboard', { replace: true });
+      goAfterAuth();
     } catch {
-      navigate('/dashboard', { replace: true });
+      goAfterAuth();
     }
   };
 
@@ -44,7 +63,7 @@ export default function Login() {
   if (user) {
     return (
       <div className="auth-loading-screen">
-        <p>Reindirizzamento alla dashboard…</p>
+        <p>Reindirizzamento…</p>
       </div>
     );
   }

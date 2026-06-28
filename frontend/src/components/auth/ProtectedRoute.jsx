@@ -8,6 +8,7 @@ export default function ProtectedRoute({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
   const demo = isDemoMode();
+  const returnPath = `${location.pathname}${location.search}`;
 
   useEffect(() => {
     if (!loading && user && (location.pathname === '/' || location.pathname === '')) {
@@ -25,7 +26,7 @@ export default function ProtectedRoute({ children }) {
   }
 
   if (!user && !demo) {
-    return <Navigate to="/login" state={{ from: location.pathname }} replace />;
+    return <Navigate to="/login" state={{ from: returnPath }} replace />;
   }
 
   return children;

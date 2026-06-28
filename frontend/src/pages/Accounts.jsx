@@ -5,6 +5,7 @@ import { openOAuthUrl } from '../lib/electron.js';
 import { isDesktopApp } from '../lib/runtime.js';
 import { isDemoMode } from '../lib/features.js';
 import { getDemoIntegrationsStatus, DEMO_BACKEND_MESSAGE } from '../lib/demo.js';
+import { markOAuthReturn } from '../lib/postAuthRedirect.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import IntegrationStatusPanel from '../components/accounts/IntegrationStatusPanel.jsx';
 import TikTokPausedBadge from '../components/TikTokPausedBadge.jsx';
@@ -67,6 +68,7 @@ export default function Accounts() {
     setConnecting(true);
     try {
       const start = await api.startInstagramOAuth();
+      markOAuthReturn('/accounts');
       if (isDesktopApp()) {
         await openOAuthUrl(start.url);
       } else {

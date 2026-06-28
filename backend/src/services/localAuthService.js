@@ -1,4 +1,4 @@
-import { getCookieOptions } from '../utils/cookieOptions.js';
+import { getCookieOptions, getClearCookieOptions } from '../utils/cookieOptions.js';
 
 export const LOCAL_SESSION_COOKIE = 'novapromo_local';
 const LOCAL_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
@@ -15,7 +15,7 @@ export function setLocalSession(res) {
 }
 
 export function clearLocalSession(res) {
-  res.clearCookie(LOCAL_SESSION_COOKIE, { path: '/' });
+  res.clearCookie(LOCAL_SESSION_COOKIE, getClearCookieOptions());
 }
 
 export function hasLocalSession(req) {
