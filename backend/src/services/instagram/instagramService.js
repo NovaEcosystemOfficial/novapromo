@@ -17,8 +17,14 @@ import {
   normalizeGrantedScopes,
   getMissingInstagramScopes,
 } from './metaScopes.js';
+import {
+  resolveInstagramPublishToken,
+  logInstagramGraphRequest,
+} from './instagramToken.js';
 
-const GRAPH_BASE = `https://graph.facebook.com/${config.meta.graphApiVersion}`;
+function getInstagramGraphApiBase() {
+  return `${INSTAGRAM_GRAPH_URL}/${config.meta.graphApiVersion}`;
+}
 
 function getInstagramClientId() {
   return config.meta.instagramAppId || config.meta.appId;
@@ -55,7 +61,7 @@ function logInstagramOAuthExchange(stage, meta) {
   logger.info(`Instagram OAuth: ${stage}`, meta);
 }
 
-async function graphGet(path, accessToken, baseUrl = GRAPH_BASE) {
+async function graphGet(path, accessToken, baseUrl = getInstagramGraphApiBase()) {
   const separator = path.includes('?') ? '&' : '?';
   const res = await fetch(`${baseUrl}${path}${separator}access_token=${encodeURIComponent(accessToken)}`);
   const data = await res.json();
@@ -258,27 +264,36 @@ export async function refreshInstagramToken(currentToken) {
 export async function createMediaContainer({ accessToken, instagramAccountId, caption, mediaUrl, mediaType, contentType }) {
   const isVideo = mediaType?.startsWith('video/') || contentType === 'reel';
   const isStory = contentType === 'story';
+  const endpoint = `${getInstagramGraphApiBase()}/${instagramAccountId}/media`;
 
-  const body = {
-    caption: caption || undefined,
+  const form = new URLSearchParams({
     access_token: accessToken,
-  };
+  });
+
+  if (caption) form.set('caption', caption);
 
   if (isStory) {
-    body.media_type = isVideo ? 'VIDEO' : 'STORIES';
-    if (isVideo) body.video_url = mediaUrl;
-    else body.image_url = mediaUrl;
+    form.set('media_type', isVideo ? 'VIDEO' : 'STORIES');
+    if (isVideo) form.set('video_url', mediaUrl);
+    else form.set('image_url', mediaUrl);
   } else if (isVideo || contentType === 'reel') {
-    body.media_type = 'REELS';
-    body.video_url = mediaUrl;
+    form.set('media_type', 'REELS');
+    form.set('video_url', mediaUrl);
   } else {
-    body.image_url = mediaUrl;
+    form.set('image_url', mediaUrl);
   }
 
-  const res = await fetch(`${GRAPH_BASE}/${instagramAccountId}/media`, {
+  logInstagramGraphRequest({
+    action: 'create_media_container',
+    endpoint,
+    instagramAccountId,
+    accessToken,
+  });
+
+  const res = await fetch(endpoint, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: form.toString(),
   });
   const data = await res.json();
   if (!res.ok || data.error) {
@@ -288,15 +303,35 @@ export async function createMediaContainer({ accessToken, instagramAccountId, ca
 }
 
 export async function checkContainerStatus({ accessToken, containerId }) {
-  const data = await graphGet(`/${containerId}?fields=status_code`, accessToken);
+  const endpoint = `${getInstagramGraphApiBase()}/${containerId}?fields=status_code`;
+  logInstagramGraphRequest({
+    action: 'check_container_status',
+    endpoint,
+    instagramAccountId: null,
+    accessToken,
+  });
+  const data = await graphGet(`/${containerId}?fields=status_code`, accessToken, getInstagramGraphApiBase());
   return { status: data.status_code, statusCode: data.status_code };
 }
 
 export async function publishContainer({ accessToken, instagramAccountId, containerId }) {
-  const res = await fetch(`${GRAPH_BASE}/${instagramAccountId}/media_publish`, {
+  const endpoint = `${getInstagramGraphApiBase()}/${instagramAccountId}/media_publish`;
+  const form = new URLSearchParams({
+    creation_id: containerId,
+    access_token: accessToken,
+  });
+
+  logInstagramGraphRequest({
+    action: 'publish_container',
+    endpoint,
+    instagramAccountId,
+    accessToken,
+  });
+
+  const res = await fetch(endpoint, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ creation_id: containerId, access_token: accessToken }),
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: form.toString(),
   });
   const data = await res.json();
   if (!res.ok || data.error) {
@@ -306,17 +341,27 @@ export async function publishContainer({ accessToken, instagramAccountId, contai
 }
 
 export async function publishToInstagram(post, account) {
-  const { metadata } = account;
-  const instagramAccountId = metadata?.instagramAccountId || account.externalUserId;
-  if (!instagramAccountId) throw new Error('Account Instagram non configurato correttamente. Ricollega Instagram.');
+  const { accessToken, instagramAccountId, connectionMode, inspection } = resolveInstagramPublishToken(account);
+
+  if (!instagramAccountId) {
+    throw new Error('Account Instagram non configurato correttamente. Ricollega Instagram.');
+  }
+
+  logger.info('Instagram publish: starting', {
+    postId: post.id,
+    instagramAccountId,
+    connectionMode,
+    tokenPresent: inspection.tokenPresent,
+    tokenLength: inspection.tokenLength,
+    tokenPrefix: inspection.tokenPrefix,
+    mediaUrlHost: config.backendUrl,
+  });
 
   const fullCaption = [post.caption, post.hashtags].filter(Boolean).join('\n\n');
   const mediaUrl = `${config.backendUrl}/uploads/${post.mediaPath?.split(/[/\\]/).pop()}`;
 
-  const token = metadata?.pageAccessToken || account.accessToken;
-
   const { containerId } = await createMediaContainer({
-    accessToken: token,
+    accessToken,
     instagramAccountId,
     caption: fullCaption,
     mediaUrl,
@@ -328,7 +373,7 @@ export async function publishToInstagram(post, account) {
   let attempts = 0;
   while (status === 'IN_PROGRESS' && attempts < 30) {
     await sleep(2000);
-    const check = await checkContainerStatus({ accessToken: token, containerId });
+    const check = await checkContainerStatus({ accessToken, containerId });
     status = check.statusCode;
     attempts++;
   }
@@ -338,7 +383,7 @@ export async function publishToInstagram(post, account) {
   }
 
   const { mediaId } = await publishContainer({
-    accessToken: token,
+    accessToken,
     instagramAccountId,
     containerId,
   });

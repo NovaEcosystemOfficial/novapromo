@@ -7,6 +7,7 @@ import {
   estimateMockViews,
 } from './postService.js';
 import { publishToInstagram, refreshInstagramToken } from './instagram/instagramService.js';
+import { INSTAGRAM_TOKEN_MISSING_MESSAGE } from './instagram/instagramToken.js';
 import { publishToTikTok, refreshTikTokToken } from './tiktok/tiktokService.js';
 import { logger } from '../utils/logger.js';
 import { recordPublishEvent } from './desktopEvents.js';
@@ -113,6 +114,10 @@ async function ensureValidToken(platform) {
   const account = getAccountByPlatform(platform);
   if (!account) return null;
 
+  if (platform === 'instagram' && !account.accessToken) {
+    throw new Error(INSTAGRAM_TOKEN_MISSING_MESSAGE);
+  }
+
   const expiresAt = account.tokenExpiresAt ? new Date(account.tokenExpiresAt) : null;
   const needsRefresh = expiresAt && expiresAt.getTime() - Date.now() < 5 * 60 * 1000;
 
@@ -120,6 +125,9 @@ async function ensureValidToken(platform) {
 
   try {
     if (platform === 'instagram') {
+      if (!account.accessToken) {
+        throw new Error(INSTAGRAM_TOKEN_MISSING_MESSAGE);
+      }
       const refreshed = await refreshInstagramToken(account.accessToken);
       return upsertAccount({
         platform,

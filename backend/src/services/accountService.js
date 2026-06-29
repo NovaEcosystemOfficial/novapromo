@@ -1,6 +1,29 @@
 import { v4 as uuidv4 } from 'uuid';
 import { getDb } from '../db/index.js';
 import { encrypt, decrypt } from '../utils/crypto.js';
+import { logger } from '../utils/logger.js';
+
+function safeDecryptToken(encrypted, platform) {
+  if (!encrypted) return null;
+  try {
+    const value = decrypt(encrypted);
+    if (typeof value !== 'string') return null;
+    const trimmed = value.trim();
+    if (!trimmed || trimmed.startsWith('{') || trimmed.startsWith('[')) {
+      logger.warn('Account token decrypt produced invalid value', {
+        platform,
+        tokenPresent: Boolean(trimmed),
+        tokenLength: trimmed.length,
+        tokenPrefix: trimmed ? trimmed.slice(0, 6) : null,
+      });
+      return null;
+    }
+    return trimmed;
+  } catch (err) {
+    logger.error('Account token decrypt failed', { platform, error: err.message });
+    return null;
+  }
+}
 
 export function listAccounts() {
   const rows = getDb().prepare('SELECT * FROM connected_accounts ORDER BY platform, username').all();
@@ -13,6 +36,13 @@ export function getAccountByPlatform(platform) {
 }
 
 export function upsertAccount({ platform, externalUserId, username, displayName, accessToken, refreshToken, expiresAt, scopes, metadata }) {
+  const token = typeof accessToken === 'string' ? accessToken.trim() : '';
+  if (!token) {
+    const err = new Error('Token di accesso mancante durante il salvataggio account');
+    err.code = 'INSTAGRAM_TOKEN_MISSING';
+    throw err;
+  }
+
   const existing = getDb()
     .prepare('SELECT id FROM connected_accounts WHERE platform = ? AND external_user_id = ?')
     .get(platform, externalUserId);
@@ -43,7 +73,7 @@ export function upsertAccount({ platform, externalUserId, username, displayName,
       externalUserId,
       username || null,
       displayName || null,
-      encrypt(accessToken),
+      encrypt(token),
       refreshToken ? encrypt(refreshToken) : null,
       expiresAt || null,
       scopes ? JSON.stringify(scopes) : null,
@@ -79,7 +109,7 @@ function toPublicAccount(row) {
 function toAccountWithTokens(row) {
   return {
     ...toPublicAccount(row),
-    accessToken: decrypt(row.access_token_encrypted),
-    refreshToken: row.refresh_token_encrypted ? decrypt(row.refresh_token_encrypted) : null,
+    accessToken: safeDecryptToken(row.access_token_encrypted, row.platform),
+    refreshToken: row.refresh_token_encrypted ? safeDecryptToken(row.refresh_token_encrypted, row.platform) : null,
   };
 }

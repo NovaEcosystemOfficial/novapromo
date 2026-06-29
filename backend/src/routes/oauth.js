@@ -107,7 +107,7 @@ router.get('/instagram/callback', async (req, res) => {
       externalUserId: data.instagramAccountId,
       username: data.username,
       displayName: data.username,
-      accessToken: data.pageAccessToken || data.accessToken,
+      accessToken: data.accessToken,
       refreshToken: null,
       expiresAt: data.expiresIn ? new Date(Date.now() + data.expiresIn * 1000).toISOString() : null,
       scopes: data.scopes || ['instagram_business_basic', 'instagram_business_content_publish'],

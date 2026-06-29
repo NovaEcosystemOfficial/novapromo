@@ -14,10 +14,18 @@ const FRIENDLY_BY_CODE = {
     'Nessun account Instagram collegato alla tua Pagina Facebook. Collegalo da Meta Business Suite e riprova.',
   [META_ERROR_CODES.INSTAGRAM_NOT_BUSINESS_CREATOR]:
     'L’account Instagram collegato non è Business o Creator. Convertilo in un profilo professionale e riprova.',
+  [META_ERROR_CODES.INSTAGRAM_SCOPES_MISSING]:
+    null,
 };
+
+export { INSTAGRAM_TOKEN_MISSING_MESSAGE } from './instagramToken.js';
 
 export function toUserFriendlyMetaError(error) {
   if (!error) return 'Collegamento Instagram non riuscito. Riprova.';
+
+  if (error.code === 'INSTAGRAM_TOKEN_MISSING') {
+    return 'Instagram collegato ma token non disponibile: ricollega l\'account.';
+  }
 
   if (error.code === META_ERROR_CODES.INSTAGRAM_SCOPES_MISSING) {
     const missing = error.missingScopes?.length
@@ -56,6 +64,9 @@ export function toUserFriendlyMetaError(error) {
   }
   if (lower.includes('access denied') || lower.includes('annull')) {
     return 'Autorizzazione annullata su Meta. Puoi riprovare quando vuoi.';
+  }
+  if (lower.includes('cannot parse access token') || lower.includes('invalid graph access token')) {
+    return 'Token Instagram non valido per la pubblicazione. Vai su Account e ricollega Instagram.';
   }
   if (lower.includes('permission') || lower.includes('permess')) {
     return 'Permessi Instagram insufficienti. Riautorizza e concedi instagram_business_basic e instagram_business_content_publish. Una Pagina Facebook non è richiesta con Instagram Business Login.';
