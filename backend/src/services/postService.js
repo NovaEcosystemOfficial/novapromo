@@ -5,7 +5,7 @@ import { getAnalyticsMetrics, getContentSuggestions } from './analyticsService.j
 const POST_FIELDS = `
   id, project, platform, content_type AS contentType, tone, topic,
   caption, hashtags, cta, reel_idea AS reelIdea, overlay_title AS overlayTitle,
-  media_path AS mediaPath, media_mime_type AS mediaMimeType,
+  media_path AS mediaPath, media_mime_type AS mediaMimeType, media_public_url AS mediaPublicUrl,
   scheduled_at AS scheduledAt, status, error_message AS errorMessage,
   instagram_media_id AS instagramMediaId, instagram_container_id AS instagramContainerId,
   tiktok_publish_id AS tiktokPublishId, published_at AS publishedAt,
@@ -51,8 +51,8 @@ export function createPost(data) {
       `INSERT INTO posts (
         id, project, platform, content_type, tone, topic,
         caption, hashtags, cta, reel_idea, overlay_title,
-        media_path, media_mime_type, scheduled_at, status, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        media_path, media_mime_type, media_public_url, scheduled_at, status, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       id,
@@ -68,6 +68,7 @@ export function createPost(data) {
       data.overlayTitle || '',
       data.mediaPath || null,
       data.mediaMimeType || null,
+      data.mediaPublicUrl || null,
       data.scheduledAt || null,
       status,
       now,
@@ -105,6 +106,7 @@ export function updatePost(id, data) {
         overlay_title = COALESCE(?, overlay_title),
         media_path = COALESCE(?, media_path),
         media_mime_type = COALESCE(?, media_mime_type),
+        media_public_url = COALESCE(?, media_public_url),
         scheduled_at = COALESCE(?, scheduled_at),
         status = ?,
         error_message = COALESCE(?, error_message),
@@ -129,6 +131,7 @@ export function updatePost(id, data) {
       data.overlayTitle ?? null,
       data.mediaPath ?? null,
       data.mediaMimeType ?? null,
+      data.mediaPublicUrl ?? null,
       data.scheduledAt !== undefined ? data.scheduledAt : null,
       status,
       data.errorMessage !== undefined ? data.errorMessage : null,

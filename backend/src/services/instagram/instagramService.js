@@ -21,6 +21,15 @@ import {
   resolveInstagramPublishToken,
   logInstagramGraphRequest,
 } from './instagramToken.js';
+import {
+  buildInstagramMediaContainerFields,
+  logInstagramMediaPayload,
+} from './instagramMediaPayload.js';
+import {
+  ensurePostPublicMediaUrl,
+  assertInstagramCanFetchMedia,
+  PUBLIC_MEDIA_ERROR,
+} from '../media/publicMediaService.js';
 
 function getInstagramGraphApiBase() {
   return `${INSTAGRAM_GRAPH_URL}/${config.meta.graphApiVersion}`;
@@ -261,27 +270,29 @@ export async function refreshInstagramToken(currentToken) {
   };
 }
 
-export async function createMediaContainer({ accessToken, instagramAccountId, caption, mediaUrl, mediaType, contentType }) {
-  const isVideo = mediaType?.startsWith('video/') || contentType === 'reel';
-  const isStory = contentType === 'story';
+export async function createMediaContainer({
+  accessToken,
+  instagramAccountId,
+  caption,
+  mediaUrl,
+  mediaMimeType,
+  contentType,
+}) {
   const endpoint = `${getInstagramGraphApiBase()}/${instagramAccountId}/media`;
+  const mediaFields = buildInstagramMediaContainerFields({
+    mediaUrl,
+    mediaMimeType,
+    contentType,
+  });
 
   const form = new URLSearchParams({
     access_token: accessToken,
   });
 
   if (caption) form.set('caption', caption);
-
-  if (isStory) {
-    form.set('media_type', isVideo ? 'VIDEO' : 'STORIES');
-    if (isVideo) form.set('video_url', mediaUrl);
-    else form.set('image_url', mediaUrl);
-  } else if (isVideo || contentType === 'reel') {
-    form.set('media_type', 'REELS');
-    form.set('video_url', mediaUrl);
-  } else {
-    form.set('image_url', mediaUrl);
-  }
+  if (mediaFields.image_url) form.set('image_url', mediaFields.image_url);
+  if (mediaFields.video_url) form.set('video_url', mediaFields.video_url);
+  if (mediaFields.media_type) form.set('media_type', mediaFields.media_type);
 
   logInstagramGraphRequest({
     action: 'create_media_container',
@@ -290,12 +301,28 @@ export async function createMediaContainer({ accessToken, instagramAccountId, ca
     accessToken,
   });
 
+  logInstagramMediaPayload({
+    igUserId: instagramAccountId,
+    contentType,
+    mediaMimeType,
+    fields: mediaFields,
+  });
+
   const res = await fetch(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: form.toString(),
   });
   const data = await res.json();
+
+  logInstagramMediaPayload({
+    igUserId: instagramAccountId,
+    contentType,
+    mediaMimeType,
+    fields: mediaFields,
+    graphResponse: data?.error ? { error: data.error } : { id: data.id || null },
+  });
+
   if (!res.ok || data.error) {
     graphError(data, 'Creazione contenuto Instagram fallita');
   }
@@ -358,14 +385,23 @@ export async function publishToInstagram(post, account) {
   });
 
   const fullCaption = [post.caption, post.hashtags].filter(Boolean).join('\n\n');
-  const mediaUrl = `${config.backendUrl}/uploads/${post.mediaPath?.split(/[/\\]/).pop()}`;
+  const mediaUrl = await ensurePostPublicMediaUrl(post);
+  await assertInstagramCanFetchMedia(mediaUrl);
+
+  logger.info('Instagram publish: media resolved', {
+    postId: post.id,
+    hasImageUrl: !post.mediaMimeType?.startsWith('video/'),
+    imageUrlPrefix: mediaUrl.slice(0, 48),
+    contentType: post.contentType,
+    mediaMimeType: post.mediaMimeType || null,
+  });
 
   const { containerId } = await createMediaContainer({
     accessToken,
     instagramAccountId,
     caption: fullCaption,
     mediaUrl,
-    mediaType: post.mediaMimeType,
+    mediaMimeType: post.mediaMimeType,
     contentType: post.contentType,
   });
 

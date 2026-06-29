@@ -1,5 +1,6 @@
 import { config } from '../../config.js';
 import { META_ERROR_CODES } from './metaConfig.js';
+import { PUBLIC_MEDIA_ERROR } from '../media/publicMediaService.js';
 
 const FRIENDLY_BY_CODE = {
   [META_ERROR_CODES.INSTAGRAM_APP_ID_MISSING]:
@@ -25,6 +26,14 @@ export function toUserFriendlyMetaError(error) {
 
   if (error.code === 'INSTAGRAM_TOKEN_MISSING') {
     return 'Instagram collegato ma token non disponibile: ricollega l\'account.';
+  }
+
+  if (error.code === 'INSTAGRAM_MEDIA_TYPE') {
+    return error.message;
+  }
+
+  if (error.message === PUBLIC_MEDIA_ERROR) {
+    return PUBLIC_MEDIA_ERROR;
   }
 
   if (error.code === META_ERROR_CODES.INSTAGRAM_SCOPES_MISSING) {
@@ -64,6 +73,9 @@ export function toUserFriendlyMetaError(error) {
   }
   if (lower.includes('access denied') || lower.includes('annull')) {
     return 'Autorizzazione annullata su Meta. Puoi riprovare quando vuoi.';
+  }
+  if (lower.includes('only photo or video can be accepted as media type')) {
+    return PUBLIC_MEDIA_ERROR;
   }
   if (lower.includes('cannot parse access token') || lower.includes('invalid graph access token')) {
     return 'Token Instagram non valido per la pubblicazione. Vai su Account e ricollega Instagram.';

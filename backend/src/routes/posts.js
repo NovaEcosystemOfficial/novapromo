@@ -12,6 +12,7 @@ import { upload, validateContentTypeForPlatform, stageLocalMediaFile } from '../
 import { config } from '../config.js';
 import path from 'path';
 import { generateContent } from '../services/contentGeneratorService.js';
+import { persistUploadedMedia } from '../services/media/publicMediaService.js';
 
 const router = Router();
 
@@ -69,7 +70,7 @@ router.get('/:id', (req, res) => {
   res.json(post);
 });
 
-router.post('/draft', upload.single('media'), (req, res) => {
+router.post('/draft', upload.single('media'), async (req, res) => {
   try {
     const { project, platform, contentType, tone, caption, hashtags, scheduledAt, topic, cta, reelIdea, overlayTitle } = req.body;
 
@@ -79,11 +80,22 @@ router.post('/draft', upload.single('media'), (req, res) => {
 
     let mediaPath = req.file ? path.join(config.uploadDir, req.file.filename) : null;
     let mediaMimeType = req.file?.mimetype;
+    let mediaPublicUrl = null;
 
     if (!mediaPath && config.isDesktop && req.body.localMediaPath) {
       const staged = stageLocalMediaFile(req.body.localMediaPath);
       mediaPath = staged.mediaPath;
       mediaMimeType = staged.mediaMimeType;
+    }
+
+    if (req.file) {
+      mediaPublicUrl = await persistUploadedMedia(req.file);
+    } else if (mediaPath) {
+      mediaPublicUrl = await persistUploadedMedia({
+        path: mediaPath,
+        filename: path.basename(mediaPath),
+        mimetype: mediaMimeType,
+      });
     }
 
     const validationErrors = validateContentTypeForPlatform(platform, contentType, mediaMimeType);
@@ -104,6 +116,7 @@ router.post('/draft', upload.single('media'), (req, res) => {
       overlayTitle,
       mediaPath,
       mediaMimeType,
+      mediaPublicUrl,
       scheduledAt: scheduledAt || null,
     });
 
@@ -113,7 +126,7 @@ router.post('/draft', upload.single('media'), (req, res) => {
   }
 });
 
-router.put('/:id', upload.single('media'), (req, res) => {
+router.put('/:id', upload.single('media'), async (req, res) => {
   try {
     const existing = getPostById(req.params.id);
     if (!existing) return res.status(404).json({ error: 'Post non trovato' });
@@ -127,6 +140,11 @@ router.put('/:id', upload.single('media'), (req, res) => {
       return res.status(400).json({ error: validationErrors.join('; ') });
     }
 
+    let mediaPublicUrl;
+    if (req.file) {
+      mediaPublicUrl = await persistUploadedMedia(req.file);
+    }
+
     const post = updatePost(req.params.id, {
       project: req.body.project,
       platform: req.body.platform,
@@ -137,6 +155,7 @@ router.put('/:id', upload.single('media'), (req, res) => {
       scheduledAt: req.body.scheduledAt !== undefined ? req.body.scheduledAt || null : undefined,
       mediaPath: req.file ? path.join(config.uploadDir, req.file.filename) : undefined,
       mediaMimeType: req.file?.mimetype,
+      mediaPublicUrl,
       status: req.body.scheduledAt ? 'scheduled' : undefined,
     });
 

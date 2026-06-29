@@ -163,7 +163,8 @@ async function ensureValidToken(platform) {
   return account;
 }
 
-export function getPublicMediaUrl(mediaPath) {
+export function getPublicMediaUrl(mediaPath, mediaPublicUrl) {
+  if (mediaPublicUrl?.startsWith('https://')) return mediaPublicUrl;
   if (!mediaPath) return null;
   const filename = path.basename(mediaPath);
   return `${config.backendUrl}/uploads/${filename}`;

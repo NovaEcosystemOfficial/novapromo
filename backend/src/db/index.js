@@ -136,6 +136,12 @@ function migrateSchema(database) {
   }
 
   try {
+    database.exec(`ALTER TABLE posts ADD COLUMN media_public_url TEXT`);
+  } catch {
+    // column already exists
+  }
+
+  try {
     database.exec(`ALTER TABLE oauth_states ADD COLUMN code_verifier TEXT`);
   } catch {
     // column already exists
