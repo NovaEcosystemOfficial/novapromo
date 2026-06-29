@@ -65,6 +65,7 @@ export function getInstagramIntegrationStatus() {
       'instagram_business_basic',
       'instagram_business_content_publish',
     ],
+    facebookPageScopesNotRequired: true,
     oauthParams: {
       force_reauth: true,
       enable_fb_login: false,

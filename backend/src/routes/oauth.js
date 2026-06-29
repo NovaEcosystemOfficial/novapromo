@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { config, getTikTokConfigStatus, hasTikTokCredentials } from '../config.js';
+import { logger } from '../../utils/logger.js';
 import { buildAccountsRedirect } from '../utils/appRedirect.js';
 import { listAccounts, deleteAccount, upsertAccount, getAccountByPlatform } from '../services/accountService.js';
 import {
@@ -89,6 +90,18 @@ router.get('/instagram/callback', async (req, res) => {
     validateAndConsumeOAuthState(state);
     const data = await exchangeInstagramCode(code);
 
+    logger.info('Instagram OAuth callback: account ready to save', {
+      username: data.username,
+      instagramAccountId: data.instagramAccountId,
+      accountType: data.accountType,
+      grantedScopes: data.scopes,
+      connectionMode: data.connectionMode,
+      pageId: data.pageId,
+      pageName: data.pageName,
+      facebookUserId: data.facebookUserId,
+      tokenExpiresIn: data.expiresIn || null,
+    });
+
     upsertAccount({
       platform: 'instagram',
       externalUserId: data.instagramAccountId,
@@ -112,6 +125,12 @@ router.get('/instagram/callback', async (req, res) => {
 
     res.redirect(buildAccountsRedirect({ connected: 'instagram' }));
   } catch (err) {
+    logger.error('Instagram OAuth callback failed', {
+      message: err.message,
+      code: err.code,
+      metaCode: err.metaCode,
+      missingScopes: err.missingScopes || null,
+    });
     res.redirect(buildAccountsRedirect({ error: toUserFriendlyMetaError(err) }));
   }
 });

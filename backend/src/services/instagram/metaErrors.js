@@ -19,6 +19,13 @@ const FRIENDLY_BY_CODE = {
 export function toUserFriendlyMetaError(error) {
   if (!error) return 'Collegamento Instagram non riuscito. Riprova.';
 
+  if (error.code === META_ERROR_CODES.INSTAGRAM_SCOPES_MISSING) {
+    const missing = error.missingScopes?.length
+      ? error.missingScopes.join(', ')
+      : 'instagram_business_basic, instagram_business_content_publish';
+    return `Permessi Instagram mancanti: ${missing}. In Meta Developers → Instagram → API setup with Instagram login abilita questi permessi, poi riautorizza da Account.`;
+  }
+
   if (error.code && FRIENDLY_BY_CODE[error.code]) {
     return FRIENDLY_BY_CODE[error.code];
   }
@@ -33,10 +40,10 @@ export function toUserFriendlyMetaError(error) {
     return 'Il codice di autorizzazione è scaduto. Torna su Account e avvia di nuovo il collegamento.';
   }
   if (lower.includes('invalid client secret') || lower.includes('client secret')) {
-    return 'APP Secret non valido. Controlla META_APP_SECRET in .env.local e riavvia NovaPromo.';
+    return 'APP Secret non valido. Controlla INSTAGRAM_APP_SECRET in Vercel e riavvia il backend.';
   }
   if (lower.includes('invalid client') || lower.includes('client_id')) {
-    return 'APP ID non valido. Controlla META_APP_ID (o INSTAGRAM_APP_ID) e riavvia NovaPromo.';
+    return 'APP ID non valido. Controlla INSTAGRAM_APP_ID e riavvia il backend.';
   }
   if (lower.includes('invalid platform app')) {
     return 'Instagram App ID errato. Su Vercel imposta INSTAGRAM_APP_ID e INSTAGRAM_APP_SECRET dalla sezione Instagram > API setup with Instagram login (non il Facebook App ID in cima alla dashboard Meta).';
@@ -51,17 +58,17 @@ export function toUserFriendlyMetaError(error) {
     return 'Autorizzazione annullata su Meta. Puoi riprovare quando vuoi.';
   }
   if (lower.includes('permission') || lower.includes('permess')) {
-    return 'Permessi Meta insufficienti. Assicurati di autorizzare Pagine Facebook e Instagram durante il login.';
+    return 'Permessi Instagram insufficienti. Riautorizza e concedi instagram_business_basic e instagram_business_content_publish. Una Pagina Facebook non è richiesta con Instagram Business Login.';
   }
   if (lower.includes('unsupported get request') || lower.includes('graph')) {
-    return 'Risposta non valida dalle API Meta. Verifica che l’app Nova_Promo abbia Instagram Platform attivo.';
+    return 'Risposta non valida dalle API Meta. Verifica che l’app abbia Instagram Business Login attivo e che @novaecosystem sia Instagram Tester.';
   }
 
   if (message.length > 0 && message.length < 220 && !message.includes('Error:')) {
     return message;
   }
 
-  return 'Collegamento Instagram non riuscito. Verifica credenziali Meta, Redirect URI e profilo Instagram Business collegato a una Pagina.';
+  return 'Collegamento Instagram non riuscito. Verifica credenziali Meta, Redirect URI e profilo Instagram Business/Creator.';
 }
 
 export function mapOAuthDenial(error, errorDescription) {

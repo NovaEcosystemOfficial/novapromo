@@ -11,6 +11,7 @@ export const META_ERROR_CODES = {
   NO_FACEBOOK_PAGES: 'NO_FACEBOOK_PAGES',
   NO_INSTAGRAM_ON_PAGE: 'NO_INSTAGRAM_ON_PAGE',
   INSTAGRAM_NOT_BUSINESS_CREATOR: 'INSTAGRAM_NOT_BUSINESS_CREATOR',
+  INSTAGRAM_SCOPES_MISSING: 'INSTAGRAM_SCOPES_MISSING',
 };
 const ALLOWED_IG_ACCOUNT_TYPES = new Set(['BUSINESS', 'MEDIA_CREATOR']);
 
@@ -109,14 +110,28 @@ export function assertMetaRealOAuthReady() {
 }
 
 export function isAllowedInstagramAccountType(accountType) {
+  if (!accountType) {
+    // Instagram Business Login only allows professional accounts; field may be omitted.
+    return true;
+  }
   return ALLOWED_IG_ACCOUNT_TYPES.has(accountType);
+}
+
+export function buildInstagramScopesMissingError(missingScopes) {
+  const list = missingScopes.join(', ');
+  const err = new Error(
+    `Permessi Instagram mancanti: ${list}. In Meta Developers abilita questi permessi per l’app e riautorizza da Account.`
+  );
+  err.code = META_ERROR_CODES.INSTAGRAM_SCOPES_MISSING;
+  err.missingScopes = missingScopes;
+  return err;
 }
 
 export function buildInstagramNotBusinessError(accountType) {
   const err = new Error(
     accountType
-      ? `Account Instagram non Business/Creator (tipo: ${accountType}). Collega un profilo professionale a una Pagina Facebook.`
-      : 'Account Instagram non Business/Creator. Collega un profilo professionale a una Pagina Facebook.'
+      ? `Account Instagram non Business/Creator (tipo: ${accountType}). Usa un profilo professionale (Business o Creator).`
+      : 'Account Instagram non Business/Creator. Usa un profilo professionale (Business o Creator).'
   );
   err.code = META_ERROR_CODES.INSTAGRAM_NOT_BUSINESS_CREATOR;
   return err;

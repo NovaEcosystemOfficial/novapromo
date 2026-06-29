@@ -4,6 +4,7 @@ import {
   META_ERROR_CODES,
   assertMetaRealOAuthReady,
   buildInstagramNotBusinessError,
+  buildInstagramScopesMissingError,
   isAllowedInstagramAccountType,
 } from './metaConfig.js';
 import { toUserFriendlyMetaError } from './metaErrors.js';
@@ -13,6 +14,8 @@ import {
   INSTAGRAM_OAUTH_TOKEN_URL,
   INSTAGRAM_GRAPH_URL,
   INSTAGRAM_OAUTH_DEFAULT_OPTIONS,
+  normalizeGrantedScopes,
+  getMissingInstagramScopes,
 } from './metaScopes.js';
 
 const GRAPH_BASE = `https://graph.facebook.com/${config.meta.graphApiVersion}`;
@@ -29,7 +32,27 @@ function graphError(data, fallback) {
   const err = new Error(data?.error?.message || data?.error_message || fallback);
   err.metaCode = data?.error?.code || data?.code;
   err.metaType = data?.error?.type || data?.error_type;
+  err.metaSubcode = data?.error?.error_subcode;
   throw err;
+}
+
+function summarizeTokenResponse(tokenData) {
+  const entry = tokenData?.data?.[0] || tokenData;
+  return {
+    hasAccessToken: Boolean(entry?.access_token),
+    userId: entry?.user_id || null,
+    permissionsRaw: entry?.permissions ?? tokenData?.permissions ?? null,
+    permissionsType: entry?.permissions == null
+      ? 'none'
+      : Array.isArray(entry.permissions)
+        ? 'array'
+        : typeof entry.permissions,
+    responseShape: tokenData?.data ? 'data[]' : 'flat',
+  };
+}
+
+function logInstagramOAuthExchange(stage, meta) {
+  logger.info(`Instagram OAuth: ${stage}`, meta);
 }
 
 async function graphGet(path, accessToken, baseUrl = GRAPH_BASE) {
@@ -94,20 +117,75 @@ export async function exchangeInstagramCode(code) {
       body: form.toString(),
     });
     tokenData = await tokenRes.json();
+    logInstagramOAuthExchange('token response', summarizeTokenResponse(tokenData));
+
     if (!tokenRes.ok || tokenData.error || tokenData.error_type) {
       graphError(tokenData, 'Scambio authorization code fallito');
     }
   } catch (err) {
+    logger.error('Instagram OAuth: token exchange failed', {
+      message: err.message,
+      code: err.code,
+      metaCode: err.metaCode,
+    });
     throw Object.assign(new Error(toUserFriendlyMetaError(err)), { code: err.code });
   }
 
   const { accessToken: shortToken, userId, permissions } = parseShortLivedTokenResponse(tokenData);
-  const longLived = await exchangeInstagramLongLivedToken(shortToken);
-  const profile = await fetchInstagramProfile(userId, longLived.access_token);
+  const grantedScopes = normalizeGrantedScopes(permissions);
+  const missingScopes = getMissingInstagramScopes(grantedScopes);
+
+  logInstagramOAuthExchange('scopes parsed', {
+    grantedScopes,
+    missingScopes,
+    requiredScopes: INSTAGRAM_OAUTH_SCOPES,
+    facebookPageRequired: false,
+  });
+
+  if (grantedScopes.length > 0 && missingScopes.length > 0) {
+    throw buildInstagramScopesMissingError(missingScopes);
+  }
+
+  let longLived;
+  try {
+    longLived = await exchangeInstagramLongLivedToken(shortToken);
+    logInstagramOAuthExchange('long-lived token', {
+      expiresIn: longLived.expires_in || null,
+      hasAccessToken: Boolean(longLived.access_token),
+    });
+  } catch (err) {
+    logger.error('Instagram OAuth: long-lived exchange failed', {
+      message: err.message,
+      metaCode: err.metaCode,
+    });
+    throw err;
+  }
+
+  let profile;
+  try {
+    profile = await fetchInstagramProfile(longLived.access_token, userId);
+    logInstagramOAuthExchange('profile loaded', {
+      instagramAccountId: profile.id || userId,
+      username: profile.username,
+      accountType: profile.account_type || null,
+      pageId: null,
+      pageName: null,
+      facebookUserId: null,
+    });
+  } catch (err) {
+    logger.error('Instagram OAuth: profile fetch failed', {
+      message: err.message,
+      metaCode: err.metaCode,
+      userId,
+    });
+    throw err;
+  }
 
   if (!isAllowedInstagramAccountType(profile.account_type)) {
     throw buildInstagramNotBusinessError(profile.account_type);
   }
+
+  const resolvedScopes = grantedScopes.length > 0 ? grantedScopes : [...INSTAGRAM_OAUTH_SCOPES];
 
   return {
     accessToken: longLived.access_token,
@@ -115,14 +193,12 @@ export async function exchangeInstagramCode(code) {
     facebookUserId: null,
     facebookUserName: null,
     username: profile.username,
-    instagramAccountId: profile.id || userId,
+    instagramAccountId: profile.id || profile.user_id || userId,
     pageId: null,
     pageName: null,
     pageAccessToken: null,
-    accountType: profile.account_type,
-    scopes: permissions
-      ? String(permissions).split(',').map((s) => s.trim()).filter(Boolean)
-      : [...INSTAGRAM_OAUTH_SCOPES],
+    accountType: profile.account_type || null,
+    scopes: resolvedScopes,
     connectionMode: 'INSTAGRAM_LOGIN',
   };
 }
@@ -141,9 +217,20 @@ async function exchangeInstagramLongLivedToken(shortToken) {
   return data;
 }
 
-async function fetchInstagramProfile(userId, accessToken) {
-  const fields = 'id,username,account_type';
-  const data = await graphGet(`/${userId}?fields=${fields}`, accessToken, INSTAGRAM_GRAPH_URL);
+async function fetchInstagramProfile(accessToken, fallbackUserId) {
+  const fields = 'id,username,account_type,user_id';
+  let data;
+
+  try {
+    data = await graphGet(`/me?fields=${fields}`, accessToken, INSTAGRAM_GRAPH_URL);
+  } catch (err) {
+    logger.warn('Instagram OAuth: /me profile fetch failed, retrying by user id', {
+      message: err.message,
+      metaCode: err.metaCode,
+      fallbackUserId,
+    });
+    data = await graphGet(`/${fallbackUserId}?fields=${fields}`, accessToken, INSTAGRAM_GRAPH_URL);
+  }
 
   if (!data.username) {
     throw new Error('Impossibile leggere lo username Instagram. Riprova il collegamento.');
