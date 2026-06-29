@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { isTikTokEnabled, isDemoMode } from '../lib/features.js';
@@ -12,6 +12,7 @@ export default function Login() {
   const location = useLocation();
   const { user, loading, enterLocalApp } = useAuth();
   const demo = isDemoMode();
+  const [error, setError] = useState('');
 
   const goAfterAuth = useCallback(() => {
     navigate(resolveAuthReturnPath(location), { replace: true });
@@ -35,6 +36,7 @@ export default function Login() {
       goAfterAuth();
     } catch (err) {
       console.warn('[Login] enterLocalApp failed:', err.message);
+      setError(err.message || 'Impossibile avviare la sessione. Riprova tra qualche secondo.');
     }
   };
 
@@ -79,6 +81,12 @@ export default function Login() {
         {!isTikTokEnabled() && (
           <div style={{ marginBottom: '1rem' }}>
             <TikTokPausedBadge />
+          </div>
+        )}
+
+        {error && (
+          <div className="alert alert-error" style={{ marginBottom: '1rem', fontSize: '0.9rem' }}>
+            {error}
           </div>
         )}
 

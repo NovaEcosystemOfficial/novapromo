@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { config, getTikTokConfigStatus, hasTikTokCredentials } from '../config.js';
-import { logger } from '../../utils/logger.js';
+import { logger } from '../utils/logger.js';
 import { buildAccountsRedirect } from '../utils/appRedirect.js';
 import { listAccounts, deleteAccount, upsertAccount, getAccountByPlatform } from '../services/accountService.js';
 import {
