@@ -62,10 +62,12 @@ function computeTokenStatus(session, tokens) {
 
 function instagramAuthPayload(integration) {
   return {
-    connected: integration.tokenPresent,
+    connected: integration.connected,
     mode: integration.mode,
     connectionStatus: integration.connectionStatus,
     username: integration.accountUsername,
+    instagramAccountId: integration.instagramAccountId,
+    accountId: integration.accountId,
     tokenExpiresAt: integration.tokenExpiresAt,
     profile: integration.profile,
     redirectUri: integration.redirectUri,

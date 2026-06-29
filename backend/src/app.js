@@ -7,6 +7,7 @@ import postsRoutes from './routes/posts.js';
 import oauthRoutes from './routes/oauth.js';
 import authRoutes from './routes/auth.js';
 import tiktokReviewRoutes from './routes/tiktokReview.js';
+import { getAllIntegrationsStatus } from './services/integrationService.js';
 import { logger } from './utils/logger.js';
 
 function resolveCorsOrigin(origin, callback) {
@@ -51,6 +52,10 @@ app.get('/api/health', (_req, res) => {
 
 app.get('/api/config/features', (_req, res) => {
   res.json(getAppFeatures());
+});
+
+app.get('/api/integrations/status', (_req, res) => {
+  res.json(getAllIntegrationsStatus());
 });
 
 app.get('/api/auth/tiktok/setup', (_req, res) => {

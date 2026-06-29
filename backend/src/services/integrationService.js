@@ -8,26 +8,74 @@ export function recordApiCheck(platform) {
   lastChecks[platform] = new Date().toISOString();
 }
 
-function buildInstagramProfileSummary(account) {
-  if (!account) return null;
+function isTokenExpired(expiresAt) {
+  if (!expiresAt) return false;
+  return new Date(expiresAt).getTime() <= Date.now();
+}
+
+/**
+ * Single source of truth for Instagram connection state (token + account row in DB).
+ */
+export function evaluateInstagramConnection(account) {
+  if (!account) {
+    return {
+      connected: false,
+      connectionStatus: 'disconnected',
+      accountId: null,
+      accountUsername: null,
+      instagramAccountId: null,
+      tokenExpiresAt: null,
+      tokenPresent: false,
+      profile: null,
+    };
+  }
+
   const meta = account.metadata || {};
-  return {
+  const instagramAccountId = meta.instagramAccountId || account.externalUserId || null;
+  const hasToken = Boolean(account.accessToken);
+  const hasUsername = Boolean(account.username?.trim());
+  const hasBusinessId = Boolean(instagramAccountId);
+  const tokenExpired = isTokenExpired(account.tokenExpiresAt);
+  const connected = hasToken && hasUsername && hasBusinessId && !tokenExpired;
+
+  let connectionStatus = 'disconnected';
+  if (connected) {
+    connectionStatus = 'connected';
+  } else if (hasToken && hasUsername && hasBusinessId && tokenExpired) {
+    connectionStatus = 'token_expired';
+  }
+
+  const profile = {
     username: account.username,
-    instagramAccountId: meta.instagramAccountId || account.externalUserId,
+    instagramAccountId,
     pageId: meta.pageId || null,
     pageName: meta.pageName || null,
     accountType: meta.accountType || null,
     facebookUserId: meta.facebookUserId || null,
     facebookUserName: meta.facebookUserName || null,
-    connectionStatus: 'connected',
+    connectionMode: meta.connectionMode || 'INSTAGRAM_LOGIN',
+    connectionStatus,
+  };
+
+  return {
+    connected,
+    connectionStatus,
+    accountId: account.id,
+    accountUsername: account.username,
+    instagramAccountId,
+    tokenExpiresAt: account.tokenExpiresAt || null,
+    tokenPresent: hasToken,
+    profile,
+    connectedAt: account.connectedAt || null,
+    updatedAt: account.updatedAt || null,
   };
 }
 
-function buildMetaNextStep({ account, metaStatus }) {
+function buildMetaNextStep({ connected, metaStatus }) {
   if (!metaStatus.credentialsPresent) {
     return metaStatus.credentialsError || 'Configura INSTAGRAM_APP_ID e INSTAGRAM_APP_SECRET su Vercel (sezione Instagram Login in Meta Developers)';
   }
-  if (!account) return 'Collega Instagram Business/Creator via OAuth Meta';
+  if (!connected) return 'Collega Instagram Business/Creator via OAuth Meta';
   return 'Integrazione Instagram pronta';
 }
 
@@ -46,21 +94,17 @@ export function getInstagramIntegrationStatus() {
   recordApiCheck('instagram');
   const account = getAccountByPlatform('instagram');
   const metaStatus = getMetaCredentialsStatus();
-  const profile = buildInstagramProfileSummary(account);
+  const connection = evaluateInstagramConnection(account);
 
   return {
     platform: 'instagram',
     name: 'Instagram (Meta)',
     mode: 'REAL',
     ...metaStatus,
+    ...connection,
     canStartOAuth: metaStatus.credentialsPresent,
-    tokenPresent: Boolean(account),
-    accountUsername: account?.username || null,
-    tokenExpiresAt: account?.tokenExpiresAt || null,
-    connectionStatus: account ? 'connected' : 'disconnected',
-    profile,
     lastApiCheck: lastChecks.instagram,
-    nextStep: buildMetaNextStep({ account, metaStatus }),
+    nextStep: buildMetaNextStep({ connected: connection.connected, metaStatus }),
     requiredScopes: [
       'instagram_business_basic',
       'instagram_business_content_publish',

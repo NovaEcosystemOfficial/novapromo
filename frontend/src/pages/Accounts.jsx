@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../api/client.js';
 import { openOAuthUrl } from '../lib/electron.js';
@@ -7,17 +7,12 @@ import { isDemoMode } from '../lib/features.js';
 import { getDemoIntegrationsStatus, DEMO_BACKEND_MESSAGE } from '../lib/demo.js';
 import { markOAuthReturn } from '../lib/postAuthRedirect.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import { isInstagramConnected, getInstagramConnectionLabel } from '../lib/instagramStatus.js';
 import IntegrationStatusPanel from '../components/accounts/IntegrationStatusPanel.jsx';
 import TikTokPausedBadge from '../components/TikTokPausedBadge.jsx';
 
-const CONNECTION_LABELS = {
-  connected: 'Collegato',
-  disconnected: 'Non collegato',
-};
-
 export default function Accounts() {
   const { refreshUser } = useAuth();
-  const [accounts, setAccounts] = useState([]);
   const [integrations, setIntegrations] = useState({});
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -25,42 +20,51 @@ export default function Accounts() {
   const [disconnecting, setDisconnecting] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const load = async () => {
+  const load = useCallback(async () => {
     try {
-      const [accs, status] = await Promise.all([api.getAccounts(), api.getIntegrationsStatus()]);
-      setAccounts(accs);
+      const status = await api.getIntegrationsStatus();
       setIntegrations(status);
       try {
         await refreshUser();
       } catch (err) {
         console.warn('[Accounts] refreshUser skipped:', err.message);
       }
+      return status;
     } catch (err) {
       if (isDemoMode()) {
-        setAccounts([]);
-        setIntegrations(getDemoIntegrationsStatus());
-      } else {
-        throw err;
+        const demo = getDemoIntegrationsStatus();
+        setIntegrations(demo);
+        return demo;
       }
+      throw err;
     }
-  };
+  }, [refreshUser]);
 
   useEffect(() => {
-    load().catch((err) => setError(err.message));
-
     const connected = searchParams.get('connected');
-    const err = searchParams.get('error');
+    const errParam = searchParams.get('error');
 
-    if (connected === 'instagram') {
-      setMessage('✅ Instagram collegato con successo.');
-      load();
-      setSearchParams({});
-    }
-    if (err) {
-      setError(decodeURIComponent(err));
-      setSearchParams({});
-    }
+    load()
+      .then(() => {
+        if (connected === 'instagram') {
+          setMessage('✅ Instagram collegato con successo.');
+        }
+        if (errParam) {
+          setError(decodeURIComponent(errParam));
+        }
+        if (connected || errParam) {
+          setSearchParams({}, { replace: true });
+        }
+      })
+      .catch((err) => setError(err.message));
+    // Run once on mount (OAuth return params are read from the initial URL).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const ig = integrations.instagram || {};
+  const profile = ig.profile || {};
+  const isConnected = isInstagramConnected(ig);
+  const connectionLabel = getInstagramConnectionLabel(ig);
 
   const connectInstagram = async () => {
     if (isDemoMode()) {
@@ -86,11 +90,11 @@ export default function Accounts() {
   };
 
   const disconnectInstagram = async () => {
-    if (!igAccount) return;
+    if (!ig.accountId) return;
     setDisconnecting(true);
     setError('');
     try {
-      await api.deleteAccount(igAccount.id);
+      await api.deleteAccount(ig.accountId);
       setMessage('Instagram scollegato.');
       await load();
     } catch (err) {
@@ -99,12 +103,6 @@ export default function Accounts() {
       setDisconnecting(false);
     }
   };
-
-  const igAccount = accounts.find((a) => a.platform === 'instagram');
-  const igIntegration = integrations.instagram || {};
-  const isConnected = Boolean(igAccount);
-  const profile = igAccount?.metadata || igIntegration.profile || {};
-  const connectionStatus = isConnected ? 'connected' : (igIntegration.connectionStatus || 'disconnected');
 
   return (
     <>
@@ -127,19 +125,19 @@ export default function Accounts() {
           {isConnected ? (
             <span className="integration-mode-badge integration-mode-badge--real">✅ Instagram collegato</span>
           ) : (
-            <span className="integration-mode-badge integration-mode-badge--mock">Non collegato</span>
+            <span className="integration-mode-badge integration-mode-badge--mock">{connectionLabel}</span>
           )}
         </div>
 
         <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '0.75rem' }}>
-          Redirect URI backend: <code>{igIntegration.redirectUri || '—'}</code>
+          Redirect URI backend: <code>{ig.redirectUri || '—'}</code>
         </p>
 
-        {igIntegration.errors?.length > 0 && !isConnected && (
+        {ig.errors?.length > 0 && !isConnected && (
           <div className="alert alert-error" style={{ marginTop: '0.75rem' }}>
             <strong>Configurazione Meta incompleta</strong>
             <ul style={{ margin: '0.5rem 0 0', paddingLeft: '1.25rem' }}>
-              {igIntegration.errors.map((item) => (
+              {ig.errors.map((item) => (
                 <li key={item.code}>{item.message}</li>
               ))}
             </ul>
@@ -148,17 +146,17 @@ export default function Accounts() {
 
         {isConnected ? (
           <div className="account-connected" style={{ marginTop: '1rem' }}>
-            <div className="account-connected-user">@{igAccount.username}</div>
+            <div className="account-connected-user">@{profile.username || ig.accountUsername}</div>
             <div className="account-connected-meta" style={{ display: 'grid', gap: '0.35rem', marginTop: '0.5rem' }}>
               <div>
-                <strong>Stato connessione:</strong> {CONNECTION_LABELS[connectionStatus] || connectionStatus}
+                <strong>Stato connessione:</strong> {connectionLabel}
               </div>
               <div>
-                <strong>Username:</strong> @{igAccount.username}
+                <strong>Username:</strong> @{profile.username || ig.accountUsername}
               </div>
               <div>
                 <strong>Instagram Business ID:</strong>{' '}
-                {profile.instagramAccountId || igAccount.externalUserId || '—'}
+                {profile.instagramAccountId || ig.instagramAccountId || '—'}
               </div>
               {profile.pageName && (
                 <div>
@@ -180,13 +178,18 @@ export default function Accounts() {
         ) : (
           <div style={{ marginTop: '1rem' }}>
             <p style={{ color: 'var(--text-muted)', marginTop: 0 }}>
-              Stato connessione: <strong>{CONNECTION_LABELS.disconnected}</strong>
+              Stato connessione: <strong>{connectionLabel}</strong>
             </p>
-            {igIntegration.testerSetup?.length > 0 && (
+            {ig.connectionStatus === 'token_expired' && (
+              <div className="alert alert-warning" style={{ marginTop: '0.75rem' }}>
+                Il token Instagram è scaduto. Ricollega l&apos;account per ripristinare la pubblicazione.
+              </div>
+            )}
+            {ig.testerSetup?.length > 0 && (
               <div className="alert alert-info" style={{ marginTop: '0.75rem' }}>
                 <strong>Per collegare @novaecosystem</strong>
                 <ol style={{ margin: '0.5rem 0 0', paddingLeft: '1.25rem' }}>
-                  {igIntegration.testerSetup.map((step) => (
+                  {ig.testerSetup.map((step) => (
                     <li key={step}>{step}</li>
                   ))}
                 </ol>
@@ -199,7 +202,7 @@ export default function Accounts() {
               type="button"
               className="btn btn-primary"
               onClick={connectInstagram}
-              disabled={connecting || isDemoMode() || !igIntegration.canStartOAuth}
+              disabled={connecting || isDemoMode() || !ig.canStartOAuth}
               title={isDemoMode() ? DEMO_BACKEND_MESSAGE : undefined}
             >
               {isDemoMode() ? 'OAuth disponibile con backend' : connecting ? 'Apertura login Meta…' : 'Collega Instagram'}

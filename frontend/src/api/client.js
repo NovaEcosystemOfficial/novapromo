@@ -126,7 +126,7 @@ export const api = {
 
   getAccounts: () => request('/api/oauth/accounts'),
 
-  getIntegrationsStatus: () => request('/api/oauth/integrations/status'),
+  getIntegrationsStatus: () => request('/api/integrations/status'),
 
   deleteAccount: (id) => request(`/api/oauth/accounts/${id}`, { method: 'DELETE' }),
 

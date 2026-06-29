@@ -63,9 +63,13 @@ export function getDemoIntegrationsStatus() {
       platform: 'instagram',
       name: 'Instagram (Meta)',
       mode: 'REAL',
+      connected: false,
       connectionStatus: 'disconnected',
       tokenPresent: false,
+      accountId: null,
       accountUsername: null,
+      instagramAccountId: null,
+      profile: null,
       canStartOAuth: false,
       credentialsError: null,
       redirectUri: null,
@@ -101,6 +105,7 @@ export function resolveDemoResponse(path, method = 'GET') {
   if (path === '/api/dashboard/stats' && m === 'GET') return getDemoDashboardStats();
   if (path === '/api/dashboard/events' && m === 'GET') return { event: null };
   if (path === '/api/oauth/accounts' && m === 'GET') return [];
+  if (path === '/api/integrations/status' && m === 'GET') return getDemoIntegrationsStatus();
   if (path === '/api/oauth/integrations/status' && m === 'GET') return getDemoIntegrationsStatus();
   if (path.startsWith('/api/posts') && m === 'GET') {
     if (path === '/api/posts' || path.startsWith('/api/posts?')) return [];
