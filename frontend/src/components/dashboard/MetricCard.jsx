@@ -6,42 +6,48 @@ const QUALITY_LABELS = {
   pending: 'In attesa',
 };
 
-export default function MetricCard({ label, value, description, quality = 'real', trend, icon, accent = 'violet', compact, delay = 0 }) {
-  const displayValue = value ?? '—';
+export default function MetricCard({
+  label,
+  value,
+  description,
+  quality = 'real',
+  trend,
+  icon,
+  featured = false,
+  delay = 0,
+}) {
   const qualityTag = QUALITY_LABELS[quality];
 
   return (
     <article
-      className={`cc-metric cc-metric--${accent}${compact ? ' cc-metric--compact' : ''}`}
+      className={`ndl-metric${featured ? ' ndl-metric--featured' : ''}`}
       style={{ animationDelay: `${delay}ms` }}
     >
-      <div className="cc-metric__head">
-        <span className="cc-metric__label">{label}</span>
-        <div className="cc-metric__icon" aria-hidden>
+      <div className="ndl-metric__top">
+        <div className="ndl-metric__icon" aria-hidden>
           <MetricIcon name={icon} />
         </div>
-      </div>
-
-      <div className={`cc-metric__value${compact ? ' cc-metric__value--sm' : ''}`}>
-        {quality === 'pending' && !value ? (
-          <span className="cc-metric__pending">In attesa dati</span>
-        ) : (
-          displayValue
-        )}
-      </div>
-
-      <p className="cc-metric__desc">{description}</p>
-
-      <div className="cc-metric__footer">
         {trend && (
-          <span className={`cc-metric__trend cc-metric__trend--${trend.direction}`}>
+          <span className={`ndl-metric__trend ndl-metric__trend--${trend.direction}`}>
             {trend.label}
           </span>
         )}
-        {qualityTag && (
-          <span className={`cc-metric__quality cc-metric__quality--${quality}`}>{qualityTag}</span>
+      </div>
+
+      <div className="ndl-metric__value">
+        {quality === 'pending' && !value ? (
+          <span className="ndl-metric__pending">—</span>
+        ) : (
+          value ?? '—'
         )}
       </div>
+
+      <p className="ndl-metric__label">{label}</p>
+      <p className="ndl-metric__desc">{description}</p>
+
+      {qualityTag && (
+        <span className={`ndl-metric__tag ndl-metric__tag--${quality}`}>{qualityTag}</span>
+      )}
     </article>
   );
 }

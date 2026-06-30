@@ -2,30 +2,33 @@ import { Link } from 'react-router-dom';
 
 export default function NextActionsPanel({ actions = [] }) {
   return (
-    <section className="cc-panel">
-      <header className="cc-panel__header">
-        <h2 className="cc-panel__title">Prossime azioni</h2>
+    <section className="ndl-panel">
+      <header className="ndl-panel__head">
+        <div>
+          <h2 className="ndl-panel__title">Prossime azioni</h2>
+          <p className="ndl-panel__sub">Priorità operative</p>
+        </div>
       </header>
 
       {actions.length === 0 ? (
-        <div className="cc-empty">
-          <p className="cc-empty__title">Sei in linea</p>
-          <p className="cc-empty__body">Nessuna azione urgente. Continua con il piano editoriale.</p>
+        <div className="ndl-empty ndl-empty--compact">
+          <p className="ndl-empty__title">Sei in linea</p>
+          <p>Nessuna azione urgente. Continua con il piano editoriale.</p>
         </div>
       ) : (
-        <ul className="cc-actions">
+        <ul className="ndl-actions">
           {actions.map((action) => (
-            <li key={action.id} className="cc-action">
-              <div className="cc-action__copy">
-                <p className="cc-action__title">{action.title}</p>
-                <p className="cc-action__body">{action.body}</p>
+            <li key={action.id} className="ndl-action">
+              <div>
+                <p className="ndl-action__title">{action.title}</p>
+                <p className="ndl-action__body">{action.body}</p>
               </div>
               {action.href ? (
-                <Link to={action.href} className="cc-action__btn">
+                <Link to={action.href} className="ndl-action__btn">
                   {action.cta}
                 </Link>
               ) : (
-                <button type="button" className="cc-action__btn" onClick={action.onClick}>
+                <button type="button" className="ndl-action__btn" onClick={action.onClick}>
                   {action.cta}
                 </button>
               )}

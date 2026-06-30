@@ -1,21 +1,4 @@
-:root {
-  --bg: #07080d;
-  --bg-elevated: #0e1018;
-  --bg-card: #131722;
-  --border: rgba(255, 255, 255, 0.06);
-  --text: #eef0f6;
-  --text-muted: #8b93a8;
-  --accent: #6c5ce7;
-  --accent-hover: #a29bfe;
-  --nova-orange: #f97316;
-  --success: #34d399;
-  --warning: #fbbf24;
-  --danger: #f87171;
-  --info: #60a5fa;
-  --radius: 12px;
-  --font: 'DM Sans', system-ui, sans-serif;
-  --mono: 'JetBrains Mono', monospace;
-}
+@import './nova-tokens.css';
 
 * {
   box-sizing: border-box;
@@ -25,10 +8,7 @@
 
 body {
   font-family: var(--font);
-  background:
-    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(108, 92, 231, 0.12), transparent),
-    radial-gradient(ellipse 60% 40% at 100% 0%, rgba(0, 184, 148, 0.06), transparent),
-    var(--bg);
+  background: var(--ndl-bg);
   color: var(--text);
   line-height: 1.5;
   min-height: 100vh;
@@ -57,8 +37,8 @@ textarea {
 }
 
 .sidebar {
-  width: 252px;
-  background: rgba(10, 12, 18, 0.92);
+  width: 248px;
+  background: var(--ndl-bg-elevated);
   border-right: 1px solid var(--border);
   padding: 1.25rem 0.85rem;
   display: flex;
@@ -67,7 +47,6 @@ textarea {
   position: fixed;
   height: 100vh;
   overflow-y: auto;
-  backdrop-filter: blur(16px);
 }
 
 .sidebar-brand--premium {
@@ -78,34 +57,31 @@ textarea {
 }
 
 .sidebar-brand__mark {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 800;
-  font-size: 0.95rem;
+  font-weight: 700;
+  font-size: 0.9rem;
   color: #fff;
-  background: linear-gradient(135deg, #7c6df0 0%, #5b4cdb 55%, #f97316 120%);
-  box-shadow: 0 8px 20px rgba(124, 109, 240, 0.25);
+  background: var(--ndl-orange);
+  box-shadow: 0 0 20px var(--ndl-orange-glow);
 }
 
 .sidebar-brand h1 {
   font-size: 1.05rem;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: -0.02em;
-  background: linear-gradient(135deg, #e8e4ff, #a29bfe);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--ndl-text);
 }
 
 .sidebar-brand p {
   font-size: 0.68rem;
   color: var(--text-muted);
   margin-top: 0.1rem;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
@@ -138,9 +114,14 @@ textarea {
 }
 
 .nav-link.active {
-  background: rgba(108, 92, 231, 0.12);
-  color: var(--accent-hover);
-  box-shadow: inset 0 0 0 1px rgba(108, 92, 231, 0.2);
+  background: var(--ndl-orange-soft);
+  color: var(--ndl-orange);
+  box-shadow: inset 0 0 0 1px rgba(249, 115, 22, 0.15);
+}
+
+.nav-link.active svg {
+  opacity: 1;
+  color: var(--ndl-orange);
 }
 
 .sidebar-cta--premium {
@@ -163,7 +144,6 @@ textarea {
 .sidebar-cta--premium:hover {
   background: rgba(249, 115, 22, 0.14);
   border-color: rgba(249, 115, 22, 0.4);
-  transform: translateY(-1px);
 }
 
 .user-chip--premium {
@@ -174,7 +154,7 @@ textarea {
 }
 
 .main-content--wide {
-  margin-left: 252px;
+  margin-left: 248px;
   padding: 1.75rem 2rem 2.5rem;
   max-width: none;
 }
@@ -192,19 +172,18 @@ textarea {
   margin-top: auto;
   padding: 0.75rem 1rem;
   border-radius: 12px;
-  border: none;
-  background: linear-gradient(135deg, rgba(108, 92, 231, 0.3), rgba(108, 92, 231, 0.15));
-  border: 1px solid rgba(108, 92, 231, 0.35);
-  color: var(--accent-hover);
+  border: 1px solid rgba(249, 115, 22, 0.28);
+  background: rgba(249, 115, 22, 0.08);
+  color: #fdba74;
   font-weight: 600;
   font-size: 0.875rem;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background 0.18s, border-color 0.18s;
 }
 
 .sidebar-cta:hover {
-  background: linear-gradient(135deg, rgba(108, 92, 231, 0.45), rgba(108, 92, 231, 0.25));
-  transform: translateY(-1px);
+  background: rgba(249, 115, 22, 0.14);
+  border-color: rgba(249, 115, 22, 0.4);
 }
 
 /* Account page cards */

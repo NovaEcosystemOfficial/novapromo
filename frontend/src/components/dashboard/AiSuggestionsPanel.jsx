@@ -5,26 +5,28 @@ export default function AiSuggestionsPanel({ suggestions = [] }) {
   const { openModal } = useContentModal();
 
   return (
-    <section className="cc-panel">
-      <header className="cc-panel__header">
-        <div className="cc-panel__title-row">
-          <IconSpark />
-          <h2 className="cc-panel__title">Suggerimenti AI</h2>
+    <section className="ndl-panel">
+      <header className="ndl-panel__head">
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <IconSpark />
+            <h2 className="ndl-panel__title">Suggerimenti AI</h2>
+          </div>
+          <p className="ndl-panel__sub">Basati sul ritmo editoriale reale</p>
         </div>
       </header>
 
       {suggestions.length === 0 ? (
-        <div className="cc-empty cc-empty--inline">
-          <p className="cc-empty__body">Tutti i progetti sono aggiornati. Ottimo ritmo editoriale.</p>
+        <div className="ndl-empty ndl-empty--compact">
+          <p>Tutti i progetti sono aggiornati. Ottimo ritmo editoriale.</p>
         </div>
       ) : (
-        <ul className="cc-suggestions">
+        <ul className="ndl-suggestions">
           {suggestions.map((s) => (
             <li key={s.project}>
               <button
                 type="button"
-                className="cc-suggestion"
-                style={{ '--sug-color': s.projectColor }}
+                className={`ndl-suggestion${s.priority >= 2 ? ' ndl-suggestion--priority' : ''}`}
                 onClick={() =>
                   openModal({
                     project: s.project,
@@ -33,13 +35,13 @@ export default function AiSuggestionsPanel({ suggestions = [] }) {
                   })
                 }
               >
-                <div className="cc-suggestion__top">
-                  <span className="cc-suggestion__project">{s.project}</span>
-                  {s.recommendedToday && <span className="cc-suggestion__tag">Oggi</span>}
+                <div className="ndl-suggestion__head">
+                  <span className="ndl-suggestion__project">{s.project}</span>
+                  {s.recommendedToday && <span className="ndl-suggestion__badge">Oggi</span>}
                 </div>
-                <p className="cc-suggestion__meta">{s.lastPostLabel}</p>
-                <p className="cc-suggestion__type">
-                  {s.contentTypeLabel} · {s.platformLabel}
+                <p className="ndl-suggestion__reason">{s.reason}</p>
+                <p className="ndl-suggestion__meta">
+                  {s.lastPostLabel} · {s.contentTypeLabel} · {s.platformLabel}
                 </p>
               </button>
             </li>

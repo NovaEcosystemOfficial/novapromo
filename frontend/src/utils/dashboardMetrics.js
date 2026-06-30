@@ -85,11 +85,11 @@ export function buildMetricCards(stats, posts) {
       id: 'published',
       label: 'Post pubblicati',
       value: String(publishedTotal),
-      description: 'Totale su Firestore',
+      description: 'Totale contenuti live sui canali',
       quality: 'real',
       trend,
       icon: 'publish',
-      accent: 'violet',
+      featured: true,
     },
     {
       id: 'views',
@@ -103,7 +103,6 @@ export function buildMetricCards(stats, posts) {
       quality: hasPublished && totalViews > 0 ? 'estimate' : 'pending',
       trend: null,
       icon: 'views',
-      accent: 'blue',
     },
     {
       id: 'engagement',
@@ -113,7 +112,6 @@ export function buildMetricCards(stats, posts) {
       quality: 'pending',
       trend: null,
       icon: 'engagement',
-      accent: 'orange',
     },
     {
       id: 'scheduled',
@@ -123,7 +121,6 @@ export function buildMetricCards(stats, posts) {
       quality: 'real',
       trend: null,
       icon: 'calendar',
-      accent: 'cyan',
     },
     {
       id: 'streak',
@@ -133,7 +130,6 @@ export function buildMetricCards(stats, posts) {
       quality: 'real',
       trend: null,
       icon: 'streak',
-      accent: 'orange',
     },
     {
       id: 'last',
@@ -145,8 +141,6 @@ export function buildMetricCards(stats, posts) {
       quality: lastPub ? 'real' : 'pending',
       trend: null,
       icon: 'clock',
-      accent: 'pink',
-      compact: true,
     },
   ];
 }
@@ -218,6 +212,24 @@ function formatCount(n) {
 function formatShortDate(iso) {
   if (!iso) return '';
   return new Date(iso).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
+}
+
+export function enrichSuggestions(suggestions = []) {
+  return [...suggestions]
+    .map((s) => {
+      const days = s.daysSinceLastPost ?? 0;
+      const isUrgent = days >= 7 || s.recommendedToday;
+      return {
+        ...s,
+        priority: isUrgent ? 2 : 1,
+        reason: isUrgent
+          ? days >= 7
+            ? `${days} giorni senza pubblicare — priorità alta`
+            : 'Slot consigliato per oggi'
+          : 'Mantieni il ritmo editoriale costante',
+      };
+    })
+    .sort((a, b) => (b.priority || 0) - (a.priority || 0));
 }
 
 export function getGreeting() {
