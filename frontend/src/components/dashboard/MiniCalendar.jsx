@@ -13,7 +13,7 @@ import { PLATFORM_LABELS } from '../../utils/labels.js';
 
 const WEEKDAYS = ['L', 'M', 'M', 'G', 'V', 'S', 'D'];
 
-const PLATFORM_ICON = { instagram: '📸', tiktok: '🎵', both: '✦' };
+const PLATFORM_ICON = { instagram: '📸', facebook: '📘', tiktok: '🎵', both: '◇', multi: '✦' };
 
 export default function MiniCalendar({ posts = [] }) {
   const [month, setMonth] = useState(new Date());

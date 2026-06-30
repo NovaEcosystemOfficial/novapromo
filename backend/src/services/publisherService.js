@@ -8,12 +8,14 @@ import {
 } from './postService.js';
 import { publishToInstagram, refreshInstagramToken } from './instagram/instagramService.js';
 import { INSTAGRAM_TOKEN_MISSING_MESSAGE } from './instagram/instagramToken.js';
+import { publishToFacebook } from './facebook/facebookService.js';
 import { publishToTikTok, refreshTikTokToken } from './tiktok/tiktokService.js';
 import { logger } from '../utils/logger.js';
 import { recordPublishEvent } from './desktopEvents.js';
 
 const PLATFORM_MAP = {
-  instagram: ['instagram', 'both'],
+  instagram: ['instagram', 'both', 'multi'],
+  facebook: ['facebook', 'multi'],
   tiktok: ['tiktok', 'both'],
 };
 
@@ -23,6 +25,7 @@ export async function publishPost(post) {
 
   const targets = [];
   if (PLATFORM_MAP.instagram.includes(post.platform)) targets.push('instagram');
+  if (PLATFORM_MAP.facebook.includes(post.platform)) targets.push('facebook');
   if (PLATFORM_MAP.tiktok.includes(post.platform)) targets.push('tiktok');
 
   for (const platform of targets) {
@@ -48,6 +51,10 @@ export async function publishPost(post) {
           instagramContainerId: result.containerId,
           instagramMediaId: result.mediaId,
         });
+      } else if (platform === 'facebook') {
+        if (!post.mediaPath && !post.mediaPublicUrl) throw new Error('Immagine richiesta per Facebook');
+        result = await publishToFacebook(post, account);
+        await updatePost(post.id, { facebookPostId: result.postId });
       } else {
         result = await publishToTikTok(post, account);
         await updatePost(post.id, { tiktokPublishId: result.publishId });
@@ -116,6 +123,10 @@ async function ensureValidToken(platform) {
 
   if (platform === 'instagram' && !account.accessToken) {
     throw new Error(INSTAGRAM_TOKEN_MISSING_MESSAGE);
+  }
+
+  if (platform === 'facebook' && !account.accessToken) {
+    throw new Error('Token Pagina Facebook mancante — ricollega da Account');
   }
 
   const expiresAt = account.tokenExpiresAt ? new Date(account.tokenExpiresAt) : null;

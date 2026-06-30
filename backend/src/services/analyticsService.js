@@ -13,8 +13,10 @@ const CONTENT_LABELS = {
 
 const PLATFORM_LABELS = {
   instagram: 'Instagram',
+  facebook: 'Facebook',
   tiktok: 'TikTok',
-  both: 'Entrambi',
+  both: 'Entrambi (IG+TT)',
+  multi: 'Instagram + Facebook',
 };
 
 function startOfDay(d) {

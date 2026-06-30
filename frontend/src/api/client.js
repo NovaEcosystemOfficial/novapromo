@@ -164,6 +164,8 @@ export const api = {
 
   startInstagramOAuth: () => request('/api/oauth/instagram/start'),
 
+  startFacebookOAuth: () => request('/api/oauth/facebook/start'),
+
   startTikTokContentOAuth: () => request('/api/oauth/tiktok/start'),
 
   refreshInstagramToken: () => request('/api/oauth/instagram/refresh', { method: 'POST' }),

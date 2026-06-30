@@ -16,7 +16,7 @@ import { useContentModal } from '../context/ContentModalContext.jsx';
 import '../styles/calendar.css';
 
 const WEEKDAYS = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
-const PLATFORM_ICON = { instagram: '📸', tiktok: '🎵', both: '✦' };
+const PLATFORM_ICON = { instagram: '📸', facebook: '📘', tiktok: '🎵', both: '◇', multi: '✦' };
 
 export default function Calendar() {
   const { openModal } = useContentModal();

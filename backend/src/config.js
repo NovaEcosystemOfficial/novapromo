@@ -63,6 +63,9 @@ function resolveAppUrls() {
       metaRedirectUri: stripTrailingSlash(
         process.env.META_REDIRECT_URI || `${backendUrl}/api/oauth/instagram/callback`
       ),
+      facebookRedirectUri: stripTrailingSlash(
+        process.env.FACEBOOK_REDIRECT_URI || `${backendUrl}/api/oauth/facebook/callback`
+      ),
       tiktokLoginRedirectUri: stripTrailingSlash(
         process.env.TIKTOK_LOGIN_REDIRECT_URI || `${appUrl}/auth/callback`
       ),
@@ -89,6 +92,9 @@ function resolveAppUrls() {
     backendUrl,
     metaRedirectUri: stripTrailingSlash(
       process.env.META_REDIRECT_URI || `${backendUrl}/api/oauth/instagram/callback`
+    ),
+    facebookRedirectUri: stripTrailingSlash(
+      process.env.FACEBOOK_REDIRECT_URI || `${backendUrl}/api/oauth/facebook/callback`
     ),
     tiktokLoginRedirectUri: stripTrailingSlash(
       process.env.TIKTOK_LOGIN_REDIRECT_URI || `${appUrl}/auth/callback`
@@ -161,6 +167,7 @@ export const config = {
     instagramAppId: process.env.INSTAGRAM_APP_ID || '',
     instagramAppSecret: process.env.INSTAGRAM_APP_SECRET || '',
     redirectUri: urls.metaRedirectUri,
+    facebookRedirectUri: urls.facebookRedirectUri,
     graphApiVersion: process.env.META_GRAPH_API_VERSION || 'v21.0',
   },
 
@@ -263,6 +270,7 @@ export function getAppFeatures() {
   return {
     tiktokEnabled: config.tiktokEnabled,
     instagramEnabled: true,
+    facebookEnabled: true,
     runtime: config.runtime,
     isDesktop: config.isDesktop,
     isVercel: config.isVercel,

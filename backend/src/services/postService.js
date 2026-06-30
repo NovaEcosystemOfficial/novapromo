@@ -10,7 +10,7 @@ const POST_FIELDS = `
   media_path AS mediaPath, media_mime_type AS mediaMimeType, media_public_url AS mediaPublicUrl,
   scheduled_at AS scheduledAt, status, error_message AS errorMessage,
   instagram_media_id AS instagramMediaId, instagram_container_id AS instagramContainerId,
-  tiktok_publish_id AS tiktokPublishId, published_at AS publishedAt,
+  facebook_post_id AS facebookPostId, tiktok_publish_id AS tiktokPublishId, published_at AS publishedAt,
   view_count AS viewCount, created_at AS createdAt, updated_at AS updatedAt
 `;
 
@@ -27,8 +27,14 @@ export async function listPosts({ status, platform, from, to } = {}) {
     params.push(status);
   }
   if (platform) {
-    sql += ' AND (platform = ? OR platform = \'both\')';
-    params.push(platform);
+    if (platform === 'instagram') {
+      sql += " AND (platform = 'instagram' OR platform = 'both' OR platform = 'multi')";
+    } else if (platform === 'facebook') {
+      sql += " AND (platform = 'facebook' OR platform = 'multi')";
+    } else {
+      sql += ' AND (platform = ? OR platform = \'both\')';
+      params.push(platform);
+    }
   }
   if (from) {
     sql += ' AND (scheduled_at >= ? OR published_at >= ? OR created_at >= ?)';
@@ -129,6 +135,7 @@ export async function updatePost(id, data) {
         error_message = COALESCE(?, error_message),
         instagram_media_id = COALESCE(?, instagram_media_id),
         instagram_container_id = COALESCE(?, instagram_container_id),
+        facebook_post_id = COALESCE(?, facebook_post_id),
         tiktok_publish_id = COALESCE(?, tiktok_publish_id),
         published_at = COALESCE(?, published_at),
         view_count = COALESCE(?, view_count),
@@ -154,6 +161,7 @@ export async function updatePost(id, data) {
       data.errorMessage !== undefined ? data.errorMessage : null,
       data.instagramMediaId ?? null,
       data.instagramContainerId ?? null,
+      data.facebookPostId ?? null,
       data.tiktokPublishId ?? null,
       data.publishedAt ?? null,
       data.viewCount ?? null,

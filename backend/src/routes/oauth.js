@@ -9,6 +9,10 @@ import {
   refreshInstagramToken,
 } from '../services/instagram/instagramService.js';
 import {
+  getFacebookAuthUrl,
+  exchangeFacebookCode,
+} from '../services/facebook/facebookService.js';
+import {
   getTikTokContentAuthUrl,
   refreshTikTokToken,
 } from '../services/tiktok/tiktokService.js';
@@ -151,6 +155,92 @@ router.post('/instagram/refresh', async (_req, res) => {
     res.json({ success: true, account: { id: updated.id, username: updated.username } });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+});
+
+router.get('/facebook/start', async (req, res) => {
+  try {
+    await assertCanStartOAuth('facebook');
+    const { state } = createOAuthState('facebook');
+    const url = getFacebookAuthUrl(state);
+
+    res.json({
+      url,
+      mode: 'REAL',
+      redirectUri: config.meta.facebookRedirectUri,
+      label: 'Collega Pagina Facebook',
+      setupHints: [
+        'Usa l’app Meta principale (META_APP_ID) — diverso dall’Instagram App ID.',
+        'Devi essere admin della Pagina Facebook da collegare.',
+        'Abilita Facebook Login nel prodotto Meta e aggiungi il redirect URI Facebook.',
+        'Permessi richiesti: pages_show_list, pages_manage_posts, pages_read_engagement.',
+      ],
+    });
+  } catch (err) {
+    res.status(err.status || 500).json({
+      error: toUserFriendlyMetaError(err),
+      code: err.code,
+      details: err.details,
+      redirectUri: config.meta.facebookRedirectUri,
+    });
+  }
+});
+
+router.get('/facebook/callback', async (req, res) => {
+  const { code, state, error, error_description: errorDesc } = req.query;
+
+  if (error) {
+    return res.redirect(
+      buildAccountsRedirect({ error: mapOAuthDenial(error, errorDesc) })
+    );
+  }
+
+  if (!code) {
+    return res.redirect(
+      buildAccountsRedirect({ error: 'Autorizzazione Facebook incompleta. Riprova da Account.' })
+    );
+  }
+
+  try {
+    validateAndConsumeOAuthState(state);
+    const data = await exchangeFacebookCode(code);
+
+    logger.info('Facebook OAuth callback: page ready to save', {
+      facebookPageId: data.facebookPageId,
+      pageName: data.pageName,
+      status: data.status,
+    });
+
+    await upsertAccount({
+      platform: 'facebook',
+      externalUserId: data.facebookPageId,
+      username: data.pageName,
+      displayName: data.pageName,
+      accessToken: data.pageAccessToken,
+      refreshToken: null,
+      expiresAt: data.expiresIn
+        ? new Date(Date.now() + data.expiresIn * 1000).toISOString()
+        : null,
+      scopes: data.scopes,
+      metadata: {
+        facebookPageId: data.facebookPageId,
+        pageName: data.pageName,
+        status: data.status,
+        connectedAt: data.connectedAt,
+        connectionMode: data.connectionMode,
+      },
+    });
+
+    res.redirect(buildAccountsRedirect({ connected: 'facebook' }));
+  } catch (err) {
+    logger.error('Facebook OAuth callback failed', {
+      message: err.message,
+      code: err.code,
+      metaCode: err.metaCode,
+    });
+    res.redirect(buildAccountsRedirect({ error: toUserFriendlyMetaError(err) }));
   }
 });
 

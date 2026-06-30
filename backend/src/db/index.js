@@ -147,6 +147,46 @@ function migrateSchema(database) {
     // column already exists
   }
 
+  try {
+    database.exec(`ALTER TABLE posts ADD COLUMN facebook_post_id TEXT`);
+  } catch {
+    // column already exists
+  }
+
+  try {
+    database.exec(`
+      CREATE TABLE IF NOT EXISTS connected_accounts_new (
+        id TEXT PRIMARY KEY,
+        platform TEXT NOT NULL CHECK(platform IN ('instagram', 'tiktok', 'facebook')),
+        external_user_id TEXT NOT NULL,
+        username TEXT,
+        display_name TEXT,
+        access_token_encrypted TEXT NOT NULL,
+        refresh_token_encrypted TEXT,
+        token_expires_at TEXT,
+        scopes TEXT,
+        metadata_json TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        UNIQUE(platform, external_user_id)
+      )
+    `);
+    const row = database.prepare(
+      "SELECT sql FROM sqlite_master WHERE type='table' AND name='connected_accounts'"
+    ).get();
+    if (row?.sql && !row.sql.includes("'facebook'")) {
+      database.exec(`
+        INSERT INTO connected_accounts_new SELECT * FROM connected_accounts;
+        DROP TABLE connected_accounts;
+        ALTER TABLE connected_accounts_new RENAME TO connected_accounts;
+      `);
+    } else {
+      database.exec('DROP TABLE IF EXISTS connected_accounts_new');
+    }
+  } catch {
+    // migration skipped or already applied
+  }
+
   database.exec(`
     CREATE TABLE IF NOT EXISTS user_plans (
       user_doc_id TEXT PRIMARY KEY,

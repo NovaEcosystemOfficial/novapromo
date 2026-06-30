@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api/client.js';
 import PostTable from '../components/PostTable.jsx';
-import { formatDateTime } from '../utils/labels.js';
+import { formatDateTime, PLATFORM_LABELS } from '../utils/labels.js';
 
 export default function History() {
   const [posts, setPosts] = useState([]);
@@ -62,7 +62,7 @@ export default function History() {
             <tbody>
               {logs.map((log) => (
                 <tr key={log.id}>
-                  <td>{log.platform}</td>
+                  <td>{PLATFORM_LABELS[log.platform] || log.platform}</td>
                   <td>{log.action}</td>
                   <td>{log.status}</td>
                   <td>{log.message}</td>

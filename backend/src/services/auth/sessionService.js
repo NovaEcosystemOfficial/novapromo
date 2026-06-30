@@ -10,7 +10,7 @@ const OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
 const REFRESH_BUFFER_MS = 5 * 60 * 1000;
 
 const PKCE_PLATFORMS = new Set(['tiktok_login', 'tiktok_content']);
-const STATELESS_PLATFORMS = new Set(['instagram']);
+const STATELESS_PLATFORMS = new Set(['instagram', 'facebook']);
 
 function useStatelessOAuthState(platform) {
   return STATELESS_PLATFORMS.has(platform) && (config.isVercel || (config.isProduction && !config.isDesktop));

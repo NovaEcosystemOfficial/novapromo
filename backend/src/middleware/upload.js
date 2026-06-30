@@ -92,5 +92,19 @@ export function validateContentTypeForPlatform(platform, contentType, mimeType) 
     errors.push('I post Instagram immagine non accettano video (usa reel)');
   }
 
+  if (platform === 'facebook' || platform === 'multi') {
+    const fbTypes = ['post', 'annuncio', 'roadmap', 'behind_scenes'];
+    if (!fbTypes.includes(contentType)) {
+      errors.push('Facebook supporta solo post con immagine in questa release');
+    }
+    if (mimeType && !mimeType.startsWith('image/')) {
+      errors.push('Facebook Page richiede un\'immagine (JPEG, PNG o WebP)');
+    }
+  }
+
+  if (platform === 'multi' && contentType === 'story') {
+    errors.push('Le storie non sono supportate in pubblicazione multi (Instagram + Facebook)');
+  }
+
   return errors;
 }

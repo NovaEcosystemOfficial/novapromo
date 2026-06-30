@@ -15,13 +15,13 @@ export function getProjectColor(project) {
 }
 
 export const CONTENT_TYPES = [
-  { id: 'post', label: 'Instagram Post', platforms: ['instagram', 'both'] },
-  { id: 'story', label: 'Instagram Story', platforms: ['instagram', 'both'] },
-  { id: 'reel', label: 'Instagram Reel', platforms: ['instagram', 'both'] },
+  { id: 'post', label: 'Post', platforms: ['instagram', 'facebook', 'both', 'multi'] },
+  { id: 'story', label: 'Instagram Story', platforms: ['instagram', 'both', 'multi'] },
+  { id: 'reel', label: 'Instagram Reel', platforms: ['instagram', 'both', 'multi'] },
   { id: 'tiktok_video', label: 'TikTok Video', platforms: ['tiktok', 'both'] },
-  { id: 'behind_scenes', label: 'Dietro le quinte', platforms: ['instagram', 'tiktok', 'both'] },
-  { id: 'roadmap', label: 'Roadmap', platforms: ['instagram', 'tiktok', 'both'] },
-  { id: 'annuncio', label: 'Annuncio aggiornamento', platforms: ['instagram', 'tiktok', 'both'] },
+  { id: 'behind_scenes', label: 'Dietro le quinte', platforms: ['instagram', 'facebook', 'tiktok', 'both', 'multi'] },
+  { id: 'roadmap', label: 'Roadmap', platforms: ['instagram', 'facebook', 'tiktok', 'both', 'multi'] },
+  { id: 'annuncio', label: 'Annuncio aggiornamento', platforms: ['instagram', 'facebook', 'tiktok', 'both', 'multi'] },
 ];
 
 export const TONES = [

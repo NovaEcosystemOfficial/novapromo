@@ -25,6 +25,7 @@ function docToPost(id, data) {
     errorMessage: data.errorMessage || null,
     instagramMediaId: data.instagramMediaId || null,
     instagramContainerId: data.instagramContainerId || null,
+    facebookPostId: data.facebookPostId || null,
     tiktokPublishId: data.tiktokPublishId || null,
     publishedAt: data.publishedAt || null,
     viewCount: data.viewCount || 0,
@@ -35,7 +36,15 @@ function docToPost(id, data) {
 
 function matchesFilters(post, { status, platform, from, to }) {
   if (status && post.status !== status) return false;
-  if (platform && post.platform !== platform && post.platform !== 'both') return false;
+  if (platform) {
+    const p = post.platform;
+    const matches =
+      p === platform
+      || (platform === 'instagram' && (p === 'both' || p === 'multi'))
+      || (platform === 'facebook' && p === 'multi')
+      || (platform === 'tiktok' && p === 'both');
+    if (!matches) return false;
+  }
   if (from) {
     const ts = post.scheduledAt || post.publishedAt || post.createdAt;
     if (!ts || ts < from) return false;
@@ -92,6 +101,7 @@ export async function createPost(data) {
     errorMessage: null,
     instagramMediaId: null,
     instagramContainerId: null,
+    facebookPostId: null,
     tiktokPublishId: null,
     publishedAt: null,
     viewCount: 0,
@@ -124,7 +134,7 @@ export async function updatePost(id, data) {
   const fields = [
     'project', 'platform', 'contentType', 'tone', 'topic', 'caption', 'hashtags', 'cta',
     'reelIdea', 'overlayTitle', 'mediaPath', 'mediaMimeType', 'mediaPublicUrl', 'mediaStoragePath',
-    'scheduledAt', 'errorMessage', 'instagramMediaId', 'instagramContainerId', 'tiktokPublishId',
+    'scheduledAt', 'errorMessage', 'instagramMediaId', 'instagramContainerId', 'facebookPostId', 'tiktokPublishId',
     'publishedAt', 'viewCount',
   ];
 

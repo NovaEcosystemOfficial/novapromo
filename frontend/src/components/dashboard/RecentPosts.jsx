@@ -3,13 +3,17 @@ import { PLATFORM_LABELS, CONTENT_TYPE_LABELS, formatDateTime } from '../../util
 
 const PLATFORM_ICONS = {
   instagram: '📸',
+  facebook: '📘',
   tiktok: '🎵',
-  both: '✦',
+  both: '◇',
+  multi: '✦',
 };
 
 function platformIconClass(platform) {
   if (platform === 'instagram') return 'instagram';
+  if (platform === 'facebook') return 'facebook';
   if (platform === 'tiktok') return 'tiktok';
+  if (platform === 'multi') return 'both';
   return 'both';
 }
 

@@ -17,7 +17,11 @@ export const INSTAGRAM_REQUIRED_SCOPES = [...INSTAGRAM_OAUTH_SCOPES];
 export const FACEBOOK_PAGE_OAUTH_SCOPES = [
   'pages_show_list',
   'pages_read_engagement',
+  'pages_manage_posts',
+  'public_profile',
 ];
+
+export const FACEBOOK_REQUIRED_SCOPES = [...FACEBOOK_PAGE_OAUTH_SCOPES];
 
 export function normalizeGrantedScopes(permissions) {
   if (!permissions) return [];

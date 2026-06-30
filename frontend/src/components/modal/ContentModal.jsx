@@ -12,8 +12,10 @@ import '../../styles/premium.css';
 
 const ALL_PLATFORMS = [
   { id: 'instagram', label: 'Instagram', icon: '📸' },
+  { id: 'facebook', label: 'Facebook', icon: '📘' },
+  { id: 'multi', label: 'Entrambi', icon: '✦' },
   { id: 'tiktok', label: 'TikTok', icon: '🎵' },
-  { id: 'both', label: 'Entrambi', icon: '✦' },
+  { id: 'both', label: 'IG + TikTok', icon: '◇' },
 ];
 
 const VARIANT_LABELS = {
@@ -24,9 +26,13 @@ const VARIANT_LABELS = {
   twitter_post: 'X / Twitter',
 };
 
+function platformNeedsMedia(platform) {
+  return platform === 'instagram' || platform === 'facebook' || platform === 'multi' || platform === 'both';
+}
+
 function getPlatforms() {
   if (isTikTokEnabled()) return ALL_PLATFORMS;
-  return ALL_PLATFORMS.filter((p) => p.id === 'instagram');
+  return ALL_PLATFORMS.filter((p) => ['instagram', 'facebook', 'multi'].includes(p.id));
 }
 
 const STEPS = ['Progetto', 'Piattaforma', 'Tipo', 'Tono', 'Argomento'];
@@ -185,7 +191,7 @@ export default function ContentModal() {
       scheduledAt: scheduledAt || null,
     };
 
-    const needsMedia = form.platform === 'instagram' || form.platform === 'both';
+    const needsMedia = platformNeedsMedia(form.platform);
     if (needsMedia && !media) {
       const post = await api.createPost(payload);
       setSavedPostId(post.id);
@@ -240,9 +246,14 @@ export default function ContentModal() {
     setLoading(true);
     setError('');
     try {
-      const needsMedia = form.platform === 'instagram' || form.platform === 'both';
+      const needsMedia = platformNeedsMedia(form.platform);
       if (needsMedia && !media && !savedPostId) {
-        setError('Instagram richiede un\'immagine o video. Aggiungi media prima di pubblicare.');
+        const label = form.platform === 'facebook'
+          ? 'Facebook richiede un\'immagine. Aggiungi media prima di pubblicare.'
+          : form.platform === 'multi'
+            ? 'Instagram + Facebook richiedono un\'immagine. Aggiungi media prima di pubblicare.'
+            : 'Instagram richiede un\'immagine o video. Aggiungi media prima di pubblicare.';
+        setError(label);
         setLoading(false);
         return;
       }
@@ -455,8 +466,18 @@ export default function ContentModal() {
                 </div>
               )}
 
-              {(form.platform === 'instagram' || form.platform === 'both') && (
-                <MediaPicker value={media} onChange={setMedia} label="Media per Instagram (obbligatorio per pubblicare)" />
+              {platformNeedsMedia(form.platform) && (
+                <MediaPicker
+                  value={media}
+                  onChange={setMedia}
+                  label={
+                    form.platform === 'facebook'
+                      ? 'Immagine per Facebook (obbligatoria per pubblicare)'
+                      : form.platform === 'multi'
+                        ? 'Immagine per Instagram + Facebook (obbligatoria per pubblicare)'
+                        : 'Media per Instagram (obbligatorio per pubblicare)'
+                  }
+                />
               )}
 
               {showSchedule && (
