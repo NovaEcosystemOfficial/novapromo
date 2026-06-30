@@ -5,7 +5,9 @@
 | Variabile | Obbligatoria | Default | Descrizione |
 |-----------|--------------|---------|-------------|
 | `OPENAI_API_KEY` | No* | — | Chiave OpenAI — solo backend |
-| `OPENAI_MODEL` | No | `gpt-4o-mini` | Modello chat completions |
+| `OPENAI_MODEL` | No | `gpt-4o-mini` | Modello (`gpt-5.5` usa Responses API) |
+| `OPENAI_TEMPERATURE` | No | `0.7` | Solo modelli non-reasoning (gpt-4o, ecc.) |
+| `OPENAI_REASONING_EFFORT` | No | `medium` | Per gpt-5 / o-series: `low`, `medium`, `high` |
 
 \* Se manca: l'app non crasha; UI mostra **AI non configurata**.
 

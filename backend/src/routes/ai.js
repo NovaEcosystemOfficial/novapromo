@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { requireSession } from '../middleware/sessionUser.js';
-import { isOpenAIConfigured } from '../services/openaiService.js';
+import { isOpenAIConfigured, getOpenAIClientInfo } from '../services/openaiService.js';
 import {
   generateCaption,
   generateHashtags,
@@ -48,10 +48,14 @@ router.post('/generate-carousel-idea', aiHandler(generateCarouselIdea));
 router.post('/generate-content-pack', aiHandler(generateContentPack));
 router.post('/transform-content', aiHandler(transformContent));
 
-router.get('/status', async (req, res) => {
+router.get('/status', async (_req, res) => {
+  const info = isOpenAIConfigured() ? getOpenAIClientInfo() : null;
   res.json({
     configured: isOpenAIConfigured(),
-    model: isOpenAIConfigured() ? process.env.OPENAI_MODEL || 'gpt-4o-mini' : null,
+    model: info?.model ?? null,
+    api: info?.api ?? null,
+    supportsTemperature: info?.supportsTemperature ?? null,
+    reasoningEffort: info?.reasoningEffort ?? null,
   });
 });
 
