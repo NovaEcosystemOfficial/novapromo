@@ -90,9 +90,9 @@ function buildTikTokNextStep({ account, credentialsPresent, paused }) {
   return 'Integrazione TikTok Content API pronta';
 }
 
-export function getInstagramIntegrationStatus() {
+export async function getInstagramIntegrationStatus() {
   recordApiCheck('instagram');
-  const account = getAccountByPlatform('instagram');
+  const account = await getAccountByPlatform('instagram');
   const metaStatus = getMetaCredentialsStatus();
   const connection = evaluateInstagramConnection(account);
 
@@ -122,7 +122,7 @@ export function getInstagramIntegrationStatus() {
   };
 }
 
-export function getTikTokIntegrationStatus() {
+export async function getTikTokIntegrationStatus() {
   recordApiCheck('tiktok');
 
   if (!config.tiktokEnabled) {
@@ -145,7 +145,7 @@ export function getTikTokIntegrationStatus() {
     };
   }
 
-  const account = getAccountByPlatform('tiktok');
+  const account = await getAccountByPlatform('tiktok');
   const credentialsPresent = hasTikTokCredentials();
 
   return {
@@ -167,17 +167,17 @@ export function getTikTokIntegrationStatus() {
   };
 }
 
-export function getAllIntegrationsStatus() {
+export async function getAllIntegrationsStatus() {
   return {
-    instagram: getInstagramIntegrationStatus(),
-    tiktok: getTikTokIntegrationStatus(),
+    instagram: await getInstagramIntegrationStatus(),
+    tiktok: await getTikTokIntegrationStatus(),
   };
 }
 
-export function assertCanStartOAuth(platform) {
+export async function assertCanStartOAuth(platform) {
   const status = platform === 'instagram'
-    ? getInstagramIntegrationStatus()
-    : getTikTokIntegrationStatus();
+    ? await getInstagramIntegrationStatus()
+    : await getTikTokIntegrationStatus();
 
   if (platform === 'instagram' && !status.canStartOAuth) {
     const err = new Error(status.credentialsError || 'Credenziali Meta mancanti');

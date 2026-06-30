@@ -42,7 +42,7 @@ export async function publishPost(post) {
 
       let result;
       if (platform === 'instagram') {
-        if (!post.mediaPath) throw new Error('Media richiesto per Instagram');
+        if (!post.mediaPath && !post.mediaPublicUrl) throw new Error('Media richiesto per Instagram');
         result = await publishToInstagram(post, account);
         await updatePost(post.id, {
           instagramContainerId: result.containerId,
@@ -111,7 +111,7 @@ export async function publishPost(post) {
 }
 
 async function ensureValidToken(platform) {
-  const account = getAccountByPlatform(platform);
+  const account = await getAccountByPlatform(platform);
   if (!account) return null;
 
   if (platform === 'instagram' && !account.accessToken) {
@@ -129,7 +129,7 @@ async function ensureValidToken(platform) {
         throw new Error(INSTAGRAM_TOKEN_MISSING_MESSAGE);
       }
       const refreshed = await refreshInstagramToken(account.accessToken);
-      return upsertAccount({
+      return await upsertAccount({
         platform,
         externalUserId: account.externalUserId,
         username: account.username,
@@ -144,7 +144,7 @@ async function ensureValidToken(platform) {
 
     if (platform === 'tiktok' && account.refreshToken) {
       const refreshed = await refreshTikTokToken(account.refreshToken);
-      return upsertAccount({
+      return await upsertAccount({
         platform,
         externalUserId: account.externalUserId,
         username: account.username,

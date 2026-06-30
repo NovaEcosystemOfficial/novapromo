@@ -1,7 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
-import { config, getTikTokConfigStatus, getAppFeatures } from './config.js';
+import { config, getTikTokConfigStatus, getAppFeatures, hasFirebaseAdminCredentials, hasFirebaseStorage } from './config.js';
+import { useFirebaseDataStore } from './services/firebase/dataStore.js';
 import dashboardRoutes from './routes/dashboard.js';
 import postsRoutes from './routes/posts.js';
 import oauthRoutes from './routes/oauth.js';
@@ -51,11 +52,18 @@ app.get('/api/health', (_req, res) => {
 });
 
 app.get('/api/config/features', (_req, res) => {
-  res.json(getAppFeatures());
+  res.json({
+    ...getAppFeatures(),
+    firebase: {
+      dataStore: useFirebaseDataStore() ? 'firestore' : 'sqlite',
+      storageConfigured: hasFirebaseStorage(),
+      adminConfigured: hasFirebaseAdminCredentials(),
+    },
+  });
 });
 
-app.get('/api/integrations/status', (_req, res) => {
-  res.json(getAllIntegrationsStatus());
+app.get('/api/integrations/status', async (_req, res) => {
+  res.json(await getAllIntegrationsStatus());
 });
 
 app.get('/api/auth/tiktok/setup', (_req, res) => {

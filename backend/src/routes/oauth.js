@@ -13,33 +13,30 @@ import {
   refreshTikTokToken,
 } from '../services/tiktok/tiktokService.js';
 import { exchangeContentAuthorizationCode } from '../services/tiktok/tiktokLoginService.js';
-import {
-  getAllIntegrationsStatus,
-  assertCanStartOAuth,
-} from '../services/integrationService.js';
+import { getInstagramIntegrationStatus, getAllIntegrationsStatus, assertCanStartOAuth } from '../services/integrationService.js';
 import { createOAuthState, validateAndConsumeOAuthState } from '../services/auth/sessionService.js';
 import { requireTikTokEnabled } from '../middleware/tiktokPaused.js';
 import { mapOAuthDenial, toUserFriendlyMetaError } from '../services/instagram/metaErrors.js';
 
 const router = Router();
 
-router.get('/integrations/status', (_req, res) => {
-  res.json(getAllIntegrationsStatus());
+router.get('/integrations/status', async (_req, res) => {
+  res.json(await getAllIntegrationsStatus());
 });
 
-router.get('/accounts', (_req, res) => {
-  res.json(listAccounts());
+router.get('/accounts', async (_req, res) => {
+  res.json(await listAccounts());
 });
 
-router.delete('/accounts/:id', (req, res) => {
-  const result = deleteAccount(req.params.id);
+router.delete('/accounts/:id', async (req, res) => {
+  const result = await deleteAccount(req.params.id);
   if (result.changes === 0) return res.status(404).json({ error: 'Account non trovato' });
   res.json({ success: true });
 });
 
-router.get('/instagram/start', (req, res) => {
+router.get('/instagram/start', async (req, res) => {
   try {
-    assertCanStartOAuth('instagram');
+    await assertCanStartOAuth('instagram');
     const { state } = createOAuthState('instagram');
     const forceReauth = req.query.force_reauth !== 'false';
     const enableFbLogin = req.query.enable_fb_login === 'true';
@@ -102,7 +99,7 @@ router.get('/instagram/callback', async (req, res) => {
       tokenExpiresIn: data.expiresIn || null,
     });
 
-    upsertAccount({
+    await upsertAccount({
       platform: 'instagram',
       externalUserId: data.instagramAccountId,
       username: data.username,
@@ -137,10 +134,10 @@ router.get('/instagram/callback', async (req, res) => {
 
 router.post('/instagram/refresh', async (_req, res) => {
   try {
-    const account = getAccountByPlatform('instagram');
+    const account = await getAccountByPlatform('instagram');
     if (!account) return res.status(404).json({ error: 'Account Instagram non collegato' });
     const refreshed = await refreshInstagramToken(account.accessToken);
-    const updated = upsertAccount({
+    const updated = await upsertAccount({
       platform: 'instagram',
       externalUserId: account.externalUserId,
       username: account.username,
@@ -195,7 +192,7 @@ router.get('/tiktok/callback', requireTikTokEnabled, async (req, res) => {
     const { codeVerifier } = validateAndConsumeOAuthState(state);
     const data = await exchangeContentAuthorizationCode(code, codeVerifier);
 
-    upsertAccount({
+    await upsertAccount({
       platform: 'tiktok',
       externalUserId: data.openId,
       username: data.username,
@@ -222,12 +219,12 @@ router.get('/tiktok/callback', requireTikTokEnabled, async (req, res) => {
 
 router.post('/tiktok/refresh', requireTikTokEnabled, async (_req, res) => {
   try {
-    const account = getAccountByPlatform('tiktok');
+    const account = await getAccountByPlatform('tiktok');
     if (!account) return res.status(404).json({ error: 'Account TikTok non collegato' });
     if (!account.refreshToken) return res.status(400).json({ error: 'Refresh token non disponibile' });
 
     const refreshed = await refreshTikTokToken(account.refreshToken);
-    const updated = upsertAccount({
+    const updated = await upsertAccount({
       platform: 'tiktok',
       externalUserId: account.externalUserId,
       username: account.username,

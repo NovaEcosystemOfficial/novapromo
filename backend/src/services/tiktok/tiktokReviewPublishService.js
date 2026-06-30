@@ -15,7 +15,7 @@ function step(steps, name, status, message, data = null) {
 
 export async function runTikTokUploadFlow({ filePath, caption, privacyLevel = 'PUBLIC_TO_EVERYONE' }) {
   const steps = [];
-  const account = getAccountByPlatform('tiktok');
+  const account = await getAccountByPlatform('tiktok');
 
   if (!account?.accessToken) {
     step(steps, 'auth', 'error', 'Account TikTok Content API non collegato — vai su Account → Collega TikTok reale');

@@ -177,8 +177,13 @@ export const config = {
     projectId: process.env.FIREBASE_PROJECT_ID || '',
     clientEmail: process.env.FIREBASE_CLIENT_EMAIL || '',
     privateKey: (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
+    storageBucket: process.env.FIREBASE_STORAGE_BUCKET || '',
   },
 };
+
+export function hasFirebaseStorage() {
+  return hasFirebaseAdminCredentials() && Boolean(config.firebase.storageBucket?.trim());
+}
 
 export function isEncryptionConfigured() {
   return config.encryptionKey.length >= 32;

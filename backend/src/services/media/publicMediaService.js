@@ -1,9 +1,17 @@
 import fs from 'fs';
 import path from 'path';
-import { put } from '@vercel/blob';
 import { config } from '../../config.js';
 import { logger } from '../../utils/logger.js';
 import { updatePost } from '../postService.js';
+import {
+  hasFirebaseStorage,
+  useFirebaseDataStore,
+  FIREBASE_STORAGE_NOT_CONFIGURED,
+} from '../firebase/dataStore.js';
+import {
+  uploadMediaToFirebaseStorage,
+  backfillLocalFileToFirebaseStorage,
+} from '../firebase/storageService.js';
 
 export const PUBLIC_MEDIA_ERROR =
   'Immagine non pubblicabile: serve URL HTTPS pubblico raggiungibile da Instagram.';
@@ -13,7 +21,7 @@ function isHttpsUrl(url) {
 }
 
 /**
- * Persist upload to a URL Instagram servers can fetch (Vercel Blob when configured).
+ * Persist upload to Firebase Storage (production) or local HTTPS URL (desktop dev only).
  */
 export async function persistUploadedMedia(file) {
   if (!file?.path && !file?.buffer) {
@@ -24,17 +32,15 @@ export async function persistUploadedMedia(file) {
   const mimeType = file.mimetype || 'application/octet-stream';
   const buffer = file.buffer || fs.readFileSync(file.path);
 
-  if (process.env.BLOB_READ_WRITE_TOKEN) {
-    const blob = await put(`novapromo/${filename}`, buffer, {
-      access: 'public',
-      contentType: mimeType,
-      token: process.env.BLOB_READ_WRITE_TOKEN,
-    });
-    logger.info('Media stored in Vercel Blob', {
-      urlPrefix: blob.url.slice(0, 48),
-      contentType: mimeType,
-    });
-    return blob.url;
+  if (hasFirebaseStorage()) {
+    const { publicUrl, storagePath } = await uploadMediaToFirebaseStorage({ buffer, filename, mimeType });
+    return { publicUrl, storagePath };
+  }
+
+  if (useFirebaseDataStore()) {
+    const err = new Error(FIREBASE_STORAGE_NOT_CONFIGURED);
+    err.code = 'FIREBASE_STORAGE_NOT_CONFIGURED';
+    throw err;
   }
 
   if (!isHttpsUrl(config.backendUrl)) {
@@ -42,47 +48,40 @@ export async function persistUploadedMedia(file) {
   }
 
   const localUrl = `${config.backendUrl}/uploads/${filename}`;
-  logger.info('Media using backend static URL', { urlPrefix: localUrl.slice(0, 48) });
-  return localUrl;
+  logger.info('Media using local backend URL (dev/desktop)', { urlPrefix: localUrl.slice(0, 48) });
+  return { publicUrl: localUrl, storagePath: null };
 }
 
 export function resolvePostMediaPublicUrl(post) {
   if (isHttpsUrl(post?.mediaPublicUrl)) {
     return post.mediaPublicUrl;
   }
-  if (!post?.mediaPath) return null;
-
-  const filename = path.basename(post.mediaPath);
-  if (!isHttpsUrl(config.backendUrl)) {
-    return null;
-  }
-  return `${config.backendUrl}/uploads/${filename}`;
+  return null;
 }
 
-/**
- * Ensure post has a public HTTPS media URL before Instagram publish.
- */
 export async function ensurePostPublicMediaUrl(post) {
-  const existing = resolvePostMediaPublicUrl(post);
   if (isHttpsUrl(post?.mediaPublicUrl)) {
     return post.mediaPublicUrl;
   }
 
-  if (post?.mediaPath && fs.existsSync(post.mediaPath) && process.env.BLOB_READ_WRITE_TOKEN) {
-    const buffer = fs.readFileSync(post.mediaPath);
-    const filename = path.basename(post.mediaPath);
-    const mimeType = post.mediaMimeType || 'application/octet-stream';
-    const url = await put(`novapromo/${filename}`, buffer, {
-      access: 'public',
-      contentType: mimeType,
-      token: process.env.BLOB_READ_WRITE_TOKEN,
+  if (post?.mediaPath && fs.existsSync(post.mediaPath) && hasFirebaseStorage()) {
+    const { publicUrl, storagePath } = await backfillLocalFileToFirebaseStorage({
+      filePath: post.mediaPath,
+      mimeType: post.mediaMimeType,
     });
-    updatePost(post.id, { mediaPublicUrl: url });
-    logger.info('Media backfilled to Vercel Blob for publish', { postId: post.id, urlPrefix: url.slice(0, 48) });
-    return url;
+    await updatePost(post.id, { mediaPublicUrl: publicUrl, mediaStoragePath: storagePath });
+    logger.info('Media backfilled to Firebase Storage for publish', {
+      postId: post.id,
+      urlPrefix: publicUrl.slice(0, 56),
+    });
+    return publicUrl;
   }
 
+  const existing = resolvePostMediaPublicUrl(post);
   if (!isHttpsUrl(existing)) {
+    if (useFirebaseDataStore()) {
+      throw new Error(FIREBASE_STORAGE_NOT_CONFIGURED);
+    }
     throw new Error(PUBLIC_MEDIA_ERROR);
   }
 
@@ -118,7 +117,7 @@ export async function assertInstagramCanFetchMedia(url) {
       throw new Error(PUBLIC_MEDIA_ERROR);
     }
   } catch (err) {
-    if (err.message === PUBLIC_MEDIA_ERROR) throw err;
+    if (err.message === PUBLIC_MEDIA_ERROR || err.message === FIREBASE_STORAGE_NOT_CONFIGURED) throw err;
     logger.warn('Media HEAD check skipped after network error', { message: err.message });
   }
 }

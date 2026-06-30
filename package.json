@@ -21,7 +21,10 @@
     "build:desktop": "cross-env ELECTRON_BUILD=1 VITE_RUNTIME=desktop VITE_TIKTOK_ENABLED=false VITE_DESKTOP_API_URL=http://localhost:3001 npm run build -w frontend",
     "dist": "npm run build:desktop && electron-builder --win",
     "dist:dir": "npm run build:desktop && electron-builder --win dir",
-    "install:all": "npm install"
+    "install:all": "npm install",
+    "test:firebase": "node scripts/test-firebase-integration.mjs",
+    "setup:firebase": "node scripts/setup-firebase-env.mjs",
+    "bootstrap:firebase": "node scripts/bootstrap-firebase-project.mjs"
   },
   "dependencies": {
     "express": "^4.21.2"

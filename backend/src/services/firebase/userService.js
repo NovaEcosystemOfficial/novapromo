@@ -1,35 +1,8 @@
-import { config, hasFirebaseAdminCredentials } from '../../config.js';
 import { logger } from '../../utils/logger.js';
-
-let adminApp = null;
-
-async function getAdmin() {
-  if (!hasFirebaseAdminCredentials()) {
-    return null;
-  }
-  if (adminApp) return adminApp;
-
-  const { initializeApp, cert, getApps } = await import('firebase-admin/app');
-  const { getFirestore } = await import('firebase-admin/firestore');
-  const { getAuth } = await import('firebase-admin/auth');
-
-  if (getApps().length === 0) {
-    adminApp = initializeApp({
-      credential: cert({
-        projectId: config.firebase.projectId,
-        clientEmail: config.firebase.clientEmail,
-        privateKey: config.firebase.privateKey,
-      }),
-    });
-  } else {
-    adminApp = getApps()[0];
-  }
-
-  return { app: adminApp, db: getFirestore(), auth: getAuth() };
-}
+import { getFirebaseAdmin } from './admin.js';
 
 export async function upsertTikTokUser(profile, tokens) {
-  const admin = await getAdmin();
+  const admin = await getFirebaseAdmin();
   const now = new Date().toISOString();
   const uid = `tiktok:${profile.openId}`;
 
@@ -83,14 +56,14 @@ export async function upsertTikTokUser(profile, tokens) {
 }
 
 export async function getFirestoreUser(openId) {
-  const admin = await getAdmin();
+  const admin = await getFirebaseAdmin();
   if (!admin) return null;
   const snap = await admin.db.collection('users').doc(openId).get();
   return snap.exists ? snap.data() : null;
 }
 
 export async function createCustomTokenForSession(session) {
-  const admin = await getAdmin();
+  const admin = await getFirebaseAdmin();
   if (!admin) return null;
 
   try {

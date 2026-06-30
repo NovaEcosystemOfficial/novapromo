@@ -1,0 +1,14 @@
+rules_version = '2';
+
+// Upload solo dal backend (Admin SDK). Lettura pubblica per media Instagram Graph API.
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /novapromo/media/{fileName} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -76,9 +76,9 @@ function instagramAuthPayload(integration) {
   };
 }
 
-router.post('/local/enter', (_req, res) => {
+router.post('/local/enter', async (_req, res) => {
   setLocalSession(res);
-  const instagram = getInstagramIntegrationStatus();
+  const instagram = await getInstagramIntegrationStatus();
   res.json({
     authenticated: true,
     mode: 'local',
@@ -219,7 +219,7 @@ router.post('/tiktok/exchange', requireTikTokEnabled, async (req, res) => {
 
 router.get('/me', async (req, res) => {
   if (!config.tiktokEnabled && hasLocalSession(req)) {
-    const instagram = getInstagramIntegrationStatus();
+    const instagram = await getInstagramIntegrationStatus();
     return res.json({
       authenticated: true,
       mode: 'local',
