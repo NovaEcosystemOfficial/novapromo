@@ -179,6 +179,11 @@ export const config = {
     privateKey: (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
     storageBucket: process.env.FIREBASE_STORAGE_BUCKET || '',
   },
+
+  openai: {
+    apiKey: process.env.OPENAI_API_KEY || '',
+    model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+  },
 };
 
 export function hasFirebaseStorage() {
@@ -263,5 +268,8 @@ export function getAppFeatures() {
     backendUrl: config.backendUrl,
     metaRedirectUri: config.meta.redirectUri,
     electronPaused: true,
+    aiConfigured: Boolean(config.openai.apiKey?.trim()),
+    aiModel: config.openai.model,
+    premiumEnabled: true,
   };
 }

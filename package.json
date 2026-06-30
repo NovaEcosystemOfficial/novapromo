@@ -23,6 +23,7 @@
     "dist:dir": "npm run build:desktop && electron-builder --win dir",
     "install:all": "npm install",
     "test:firebase": "node scripts/test-firebase-integration.mjs",
+    "test:premium-ai": "node scripts/test-premium-ai.mjs",
     "setup:firebase": "node scripts/setup-firebase-env.mjs",
     "bootstrap:firebase": "node scripts/bootstrap-firebase-project.mjs",
     "deploy:firebase-rules": "node scripts/deploy-firebase-rules-admin.mjs",

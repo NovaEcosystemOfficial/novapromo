@@ -80,6 +80,38 @@ export const api = {
 
   getPost: (id) => request(`/api/posts/${id}`),
 
+  getBillingStatus: () => request('/api/billing/status'),
+
+  getAiStatus: () => request('/api/ai/status'),
+
+  aiGenerateCaption: (body) =>
+    request('/api/ai/generate-caption', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }),
+
+  aiGenerateHashtags: (body) =>
+    request('/api/ai/generate-hashtags', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }),
+
+  aiGenerateContentPack: (body) =>
+    request('/api/ai/generate-content-pack', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }),
+
+  aiTransformContent: (body) =>
+    request('/api/ai/transform-content', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }),
+
   generateContent: (body) =>
     request('/api/posts/generate', {
       method: 'POST',

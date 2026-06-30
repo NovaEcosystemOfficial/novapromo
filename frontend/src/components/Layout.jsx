@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { isTikTokEnabled } from '../lib/features.js';
 import DemoModeBanner from './DemoModeBanner.jsx';
 import { IconNav, IconPlus } from './icons/DashboardIcons.jsx';
+import { useBilling } from '../context/BillingContext.jsx';
 
 const NAV_ITEMS = [
   { to: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
@@ -11,6 +12,7 @@ const NAV_ITEMS = [
   { to: '/calendar', label: 'Calendario', icon: 'calendar' },
   { to: '/drafts', label: 'Bozze', icon: 'drafts' },
   ...(isTikTokEnabled() ? [{ to: '/review-demo', label: 'Review demo', icon: 'generator' }] : []),
+  { to: '/premium', label: 'Premium', icon: 'premium' },
   { to: '/accounts', label: 'Account', icon: 'accounts' },
   { to: '/history', label: 'Storico', icon: 'history' },
 ];
@@ -18,6 +20,7 @@ const NAV_ITEMS = [
 export default function Layout() {
   const { openModal } = useContentModal();
   const { user, logout } = useAuth();
+  const { billing } = useBilling();
 
   return (
     <div className="app-layout">
@@ -50,6 +53,9 @@ export default function Layout() {
               >
                 <IconNav name={item.icon} />
                 {item.label}
+                {item.to === '/premium' && billing?.isPremium && (
+                  <span className="sidebar-premium-badge">Pro</span>
+                )}
               </NavLink>
             )
           )}

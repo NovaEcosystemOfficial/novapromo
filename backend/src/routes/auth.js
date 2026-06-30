@@ -27,6 +27,7 @@ import {
   LOCAL_USER,
 } from '../services/localAuthService.js';
 import { getInstagramIntegrationStatus } from '../services/integrationService.js';
+import { ensureUserPlan } from '../services/planService.js';
 
 const router = Router();
 
@@ -78,6 +79,7 @@ function instagramAuthPayload(integration) {
 
 router.post('/local/enter', async (_req, res) => {
   setLocalSession(res);
+  await ensureUserPlan('local-desktop', { uid: LOCAL_USER.uid, displayName: LOCAL_USER.displayName, username: LOCAL_USER.username });
   const instagram = await getInstagramIntegrationStatus();
   res.json({
     authenticated: true,
@@ -187,6 +189,12 @@ router.post('/tiktok/exchange', requireTikTokEnabled, async (req, res) => {
     const tokens = await exchangeLoginCode(code, codeVerifier);
     const profile = await fetchUserProfile(tokens.accessToken);
     const { uid, customToken } = await upsertTikTokUser(profile, tokens);
+
+    await ensureUserPlan(profile.openId, {
+      uid,
+      displayName: profile.displayName,
+      username: profile.username,
+    });
 
     const sessionId = saveUserSession({
       uid,

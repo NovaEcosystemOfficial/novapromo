@@ -1,6 +1,7 @@
 import { logger } from '../../utils/logger.js';
 import { getFirebaseAdmin } from './admin.js';
-
+import { ensureUserPlan } from '../planService.js';
+import { currentCreditsMonth, PLAN_DEFINITIONS } from '../../constants/plans.js';
 export async function upsertTikTokUser(profile, tokens) {
   const admin = await getFirebaseAdmin();
   const now = new Date().toISOString();
@@ -20,9 +21,23 @@ export async function upsertTikTokUser(profile, tokens) {
   if (admin) {
     const ref = admin.db.collection('users').doc(profile.openId);
     const existing = await ref.get();
+    const month = currentCreditsMonth();
+    const planDefaults = {
+      plan: existing.exists ? existing.data()?.plan || 'free' : 'free',
+      aiCreditsLimit: existing.exists
+        ? existing.data()?.aiCreditsLimit ?? PLAN_DEFINITIONS.free.aiCreditsLimit
+        : PLAN_DEFINITIONS.free.aiCreditsLimit,
+      aiCreditsUsedThisMonth: existing.exists && existing.data()?.aiCreditsMonth === month
+        ? existing.data()?.aiCreditsUsedThisMonth ?? 0
+        : 0,
+      aiCreditsMonth: month,
+      businessActive: existing.exists ? Boolean(existing.data()?.businessActive) : false,
+    };
+
     await ref.set(
       {
         ...userDoc,
+        ...planDefaults,
         createdAt: existing.exists ? existing.data()?.createdAt || now : now,
       },
       { merge: true }

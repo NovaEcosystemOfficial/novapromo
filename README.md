@@ -69,3 +69,12 @@ Su Vercel il backend usa SQLite in `/tmp` (effimero). Per persistenza account In
 ## Licenza
 
 Private — NovaPromo
+
+## Premium + AI Studio
+
+Vedi [docs/PREMIUM_AI.md](docs/PREMIUM_AI.md) per:
+
+- Variabili `OPENAI_API_KEY` / `OPENAI_MODEL`
+- Piani Free / Premium / Business e limiti AI
+- Attivazione manuale Premium in Firestore
+- Test AI Studio e pagamenti futuri
