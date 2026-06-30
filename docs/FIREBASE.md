@@ -172,8 +172,10 @@ Ultimo run: **5/5 test passati** (Admin, Firestore, Storage HTTPS URL, Auth cust
 
 ### Vercel env
 
-Backend `novapromo-backend`: `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`, `FIREBASE_STORAGE_BUCKET`, `DATA_STORE=firebase`  
-Frontend `novapromo`: `VITE_FIREBASE_*` (vedi `.env.example`)
+Vedi [VERCEL.md](./VERCEL.md) — genera file import con `npm run generate:vercel-env`.
+
+Backend `novapromo-backend`: `FIREBASE_*`, `DATA_STORE=firebase`, `INSTAGRAM_APP_*`  
+Frontend `novapromo`: `VITE_FIREBASE_*`
 
 ---
 

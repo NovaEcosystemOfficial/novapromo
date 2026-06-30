@@ -25,7 +25,11 @@
     "test:firebase": "node scripts/test-firebase-integration.mjs",
     "setup:firebase": "node scripts/setup-firebase-env.mjs",
     "bootstrap:firebase": "node scripts/bootstrap-firebase-project.mjs",
-    "deploy:firebase-rules": "node scripts/deploy-firebase-rules.mjs"
+    "deploy:firebase-rules": "node scripts/deploy-firebase-rules-admin.mjs",
+    "deploy:firebase-rules:api": "node scripts/deploy-firebase-rules.mjs",
+    "check:firebase-rules": "node scripts/check-firebase-rules.mjs",
+    "generate:vercel-env": "node scripts/generate-vercel-env.mjs",
+    "validate:vercel-env": "node scripts/validate-vercel-env.mjs"
   },
   "dependencies": {
     "express": "^4.21.2"

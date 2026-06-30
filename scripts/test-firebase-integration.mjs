@@ -140,6 +140,45 @@ async function run() {
     fail('Backend dataStore flags', err);
   }
 
+  // Vercel runtime uses Firestore when Firebase creds present
+  try {
+    process.env.VERCEL = '1';
+    process.env.DATA_STORE = 'firebase';
+    const { useFirebaseDataStore } = await import('../backend/src/services/firebase/dataStore.js');
+    if (!useFirebaseDataStore()) throw new Error('useFirebaseDataStore() false on Vercel');
+    delete process.env.VERCEL;
+    ok('Vercel runtime → Firestore (not SQLite)');
+  } catch (err) {
+    delete process.env.VERCEL;
+    fail('Vercel runtime → Firestore (not SQLite)', err);
+  }
+
+  // Media upload → mediaPublicUrl (Instagram publish path)
+  try {
+    const { uploadMediaToFirebaseStorage } = await import('../backend/src/services/firebase/storageService.js');
+    const { v4: uuidv4 } = await import('uuid');
+    const testId = uuidv4().slice(0, 8);
+    const buffer = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46]); // JPEG header stub
+    const { publicUrl, storagePath } = await uploadMediaToFirebaseStorage({
+      buffer,
+      filename: `test-${testId}.jpg`,
+      mimeType: 'image/jpeg',
+    });
+    if (!publicUrl?.startsWith('https://firebasestorage.googleapis.com/')) {
+      throw new Error('publicUrl not HTTPS Firebase Storage');
+    }
+    if (!storagePath?.startsWith('novapromo/media/')) {
+      throw new Error('storagePath wrong prefix');
+    }
+    const head = await fetch(publicUrl, { method: 'HEAD' });
+    if (!head.ok) throw new Error(`mediaPublicUrl not reachable: ${head.status}`);
+    const bucket = storage.bucket(storageBucket);
+    await bucket.file(storagePath).delete();
+    ok('Media upload → mediaPublicUrl (Instagram-ready HTTPS)');
+  } catch (err) {
+    fail('Media upload → mediaPublicUrl (Instagram-ready HTTPS)', err);
+  }
+
   await deleteApp(app);
 
   console.log(`\n${passed} passed, ${failed} failed\n`);

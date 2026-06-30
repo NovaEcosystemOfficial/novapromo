@@ -8,8 +8,11 @@ firebase-debug.log
 .env.*.local
 !.env.example
 !.env.local.example
+!.env.vercel.backend.example
 .env*
 !frontend/.env.example
+.env.vercel.backend
+frontend/.env.vercel
 
 # Build outputs
 dist/
@@ -53,4 +56,3 @@ desktop.ini
 *.swp
 *.swo
 .vercel
-.env*
