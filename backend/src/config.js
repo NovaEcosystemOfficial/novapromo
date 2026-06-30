@@ -46,6 +46,26 @@ function resolveWebAppUrl() {
   return DEFAULT_WEB_APP_URL;
 }
 
+function defaultFacebookRedirectUri(frontendUrl, backendUrl) {
+  if (process.env.FACEBOOK_REDIRECT_URI?.trim()) {
+    return stripTrailingSlash(process.env.FACEBOOK_REDIRECT_URI.trim());
+  }
+
+  try {
+    const front = new URL(frontendUrl);
+    const back = new URL(backendUrl);
+    // Facebook Login is strict: redirect should match the public Site URL domain.
+    // Frontend proxies /api/* to the backend (see frontend/vercel.json).
+    if (front.protocol === 'https:' && front.hostname !== back.hostname) {
+      return `${stripTrailingSlash(frontendUrl)}/api/oauth/facebook/callback`;
+    }
+  } catch {
+    // fall through to backend URL
+  }
+
+  return `${stripTrailingSlash(backendUrl)}/api/oauth/facebook/callback`;
+}
+
 function resolveAppUrls() {
   if (isDesktop) {
     const viteHost = process.env.DESKTOP_HOST || 'localhost';
@@ -63,9 +83,7 @@ function resolveAppUrls() {
       metaRedirectUri: stripTrailingSlash(
         process.env.META_REDIRECT_URI || `${backendUrl}/api/oauth/instagram/callback`
       ),
-      facebookRedirectUri: stripTrailingSlash(
-        process.env.FACEBOOK_REDIRECT_URI || `${backendUrl}/api/oauth/facebook/callback`
-      ),
+      facebookRedirectUri: defaultFacebookRedirectUri(frontendUrl, backendUrl),
       tiktokLoginRedirectUri: stripTrailingSlash(
         process.env.TIKTOK_LOGIN_REDIRECT_URI || `${appUrl}/auth/callback`
       ),
@@ -93,9 +111,7 @@ function resolveAppUrls() {
     metaRedirectUri: stripTrailingSlash(
       process.env.META_REDIRECT_URI || `${backendUrl}/api/oauth/instagram/callback`
     ),
-    facebookRedirectUri: stripTrailingSlash(
-      process.env.FACEBOOK_REDIRECT_URI || `${backendUrl}/api/oauth/facebook/callback`
-    ),
+    facebookRedirectUri: defaultFacebookRedirectUri(frontendUrl, backendUrl),
     tiktokLoginRedirectUri: stripTrailingSlash(
       process.env.TIKTOK_LOGIN_REDIRECT_URI || `${appUrl}/auth/callback`
     ),
