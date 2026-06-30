@@ -1,7 +1,7 @@
 import { config, hasTikTokCredentials } from '../config.js';
 import { getAccountByPlatform } from './accountService.js';
 import { getMetaCredentialsStatus } from './instagram/metaConfig.js';
-import { getFacebookCredentialsStatus } from './facebook/metaFacebookConfig.js';
+import { getFacebookCredentialsStatus, getFacebookSetupChecklist } from './facebook/metaFacebookConfig.js';
 
 const lastChecks = { instagram: null, facebook: null, tiktok: null };
 
@@ -139,14 +139,17 @@ export async function getFacebookIntegrationStatus() {
     lastApiCheck: lastChecks.facebook,
     nextStep: connection.connected
       ? 'Pagina Facebook pronta per la pubblicazione'
-      : fbStatus.credentialsPresent
-        ? 'Collega una Pagina Facebook via Meta Login'
-        : fbStatus.credentialsError,
+      : !fbStatus.facebookConfigIdConfigured
+        ? 'Crea Configurazione in Meta (Facebook Login for Business) e imposta META_FACEBOOK_CONFIG_ID su Vercel'
+        : fbStatus.credentialsPresent
+          ? 'Collega una Pagina Facebook via Meta Login'
+          : fbStatus.credentialsError,
     requiredScopes: [
       'pages_show_list',
       'pages_manage_posts',
       'pages_read_engagement',
     ],
+    setupChecklist: getFacebookSetupChecklist(),
   };
 }
 

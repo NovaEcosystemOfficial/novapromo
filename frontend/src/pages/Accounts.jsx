@@ -282,6 +282,13 @@ export default function Accounts() {
           </div>
         )}
 
+        {fb.facebookConfigIdConfigured === false && !isFbConnected && (
+          <div className="alert alert-warning" style={{ marginTop: '0.75rem' }}>
+            <strong>Manca META_FACEBOOK_CONFIG_ID</strong> — Nova_Promo usa Facebook Login for Business.
+            Crea una Configurazione in Meta, copia il Configuration ID in Vercel e redeploy del backend.
+          </div>
+        )}
+
         {isFbConnected ? (
           <div className="account-connected" style={{ marginTop: '1rem' }}>
             <div className="account-connected-user">{fbProfile.pageName || fb.pageName || fb.accountUsername}</div>
@@ -320,6 +327,19 @@ export default function Accounts() {
             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
               Usa l&apos;app Meta principale (META_APP_ID). Devi essere admin della Pagina da collegare.
             </p>
+            {fb.setupChecklist?.length > 0 && (
+              <div className="alert alert-info" style={{ marginTop: '0.75rem' }}>
+                <strong>Configurazione Meta richiesta (Facebook Login)</strong>
+                <ol style={{ margin: '0.5rem 0 0', paddingLeft: '1.25rem' }}>
+                  {fb.setupChecklist.map((step) => (
+                    <li key={step}>{step}</li>
+                  ))}
+                </ol>
+                <p style={{ margin: '0.75rem 0 0', fontSize: '0.9rem' }}>
+                  Se vedi &quot;connessione non sicura&quot; o &quot;dominio non incluso&quot;, completa i passaggi sopra nel pannello Meta Developers per l&apos;app <strong>Nova_Promo</strong>.
+                </p>
+              </div>
+            )}
             <button
               type="button"
               className="btn btn-primary"

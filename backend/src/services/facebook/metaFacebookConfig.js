@@ -56,6 +56,8 @@ export function getFacebookCredentialsStatus() {
     errors,
     credentialsError: errors[0]?.message || null,
     redirectUri: config.meta.facebookRedirectUri,
+    facebookConfigId: config.meta.facebookConfigId || null,
+    facebookConfigIdConfigured: Boolean(config.meta.facebookConfigId?.trim()),
     appIdPreview: appIdPresent
       ? `${config.meta.appId.slice(0, 4)}…${config.meta.appId.slice(-4)}`
       : null,
@@ -74,19 +76,20 @@ export function getFacebookSetupChecklist() {
   }
 
   const frontendRedirect = `${config.frontendUrl}/api/oauth/facebook/callback`;
+  const configId = config.meta.facebookConfigId?.trim();
 
   return [
-    'Impostazioni app → Di base → Aggiungi piattaforma → Sito web → URL: ' + config.frontendUrl,
-    `Domini app: ${frontendHost}${backendHost !== frontendHost ? `, ${backendHost}` : ''}`,
-    'Menu sinistro → Facebook Login for Business → Impostazioni (non solo Di base)',
-    `URI OAuth validi — aggiungi ENTRAMBI (copia-incolla):`,
-    `  • ${frontendRedirect}`,
-    backendHost !== frontendHost ? `  • https://${backendHost}/api/oauth/facebook/callback` : null,
-    `NovaPromo userà: ${redirectUri || frontendRedirect}`,
-    'Attiva Accesso OAuth client + Accesso OAuth Web; URL del sito = ' + config.frontendUrl,
-    'Privacy policy e Termini devono essere HTTPS pubblici',
-    'Devi essere admin della Pagina e concedere pages_manage_posts',
-  ].filter(Boolean);
+    'App Nova_Promo usa Facebook Login for Business — serve una Configuration + config_id',
+    'Menu → Facebook Login for Business → Configurazioni → Crea configurazione',
+    'Tipo: User access token · Asset: Pagine Facebook',
+    'Permessi: pages_show_list, pages_read_engagement, pages_manage_posts',
+    `Redirect nella configurazione: ${redirectUri || frontendRedirect}`,
+    configId
+      ? `META_FACEBOOK_CONFIG_ID su Vercel: ${configId} (configurato)`
+      : 'Copia il Configuration ID in Vercel come META_FACEBOOK_CONFIG_ID e redeploy backend',
+    'Impostazioni OAuth client → URI validi (già ok se hai novapromo.vercel.app/.../callback)',
+    'Accesso OAuth client + OAuth web attivi; Applica HTTPS = Sì',
+  ];
 }
 
 export function assertFacebookOAuthReady() {

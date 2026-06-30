@@ -184,6 +184,7 @@ export const config = {
     instagramAppSecret: process.env.INSTAGRAM_APP_SECRET || '',
     redirectUri: urls.metaRedirectUri,
     facebookRedirectUri: urls.facebookRedirectUri,
+    facebookConfigId: (process.env.META_FACEBOOK_CONFIG_ID || '').trim(),
     graphApiVersion: process.env.META_GRAPH_API_VERSION || 'v21.0',
   },
 

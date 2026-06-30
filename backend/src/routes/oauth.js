@@ -21,6 +21,7 @@ import { getInstagramIntegrationStatus, getAllIntegrationsStatus, assertCanStart
 import { createOAuthState, validateAndConsumeOAuthState } from '../services/auth/sessionService.js';
 import { requireTikTokEnabled } from '../middleware/tiktokPaused.js';
 import { mapOAuthDenial, toUserFriendlyMetaError } from '../services/instagram/metaErrors.js';
+import { getFacebookSetupChecklist } from '../services/facebook/metaFacebookConfig.js';
 
 const router = Router();
 
@@ -168,6 +169,7 @@ router.get('/facebook/start', async (req, res) => {
       url,
       mode: 'REAL',
       redirectUri: config.meta.facebookRedirectUri,
+      facebookConfigIdConfigured: Boolean(config.meta.facebookConfigId?.trim()),
       label: 'Collega Pagina Facebook',
       setupHints: [
         'Usa l’app Meta principale (META_APP_ID) — diverso dall’Instagram App ID.',
@@ -175,6 +177,7 @@ router.get('/facebook/start', async (req, res) => {
         'Abilita Facebook Login nel prodotto Meta e aggiungi il redirect URI Facebook.',
         'Permessi richiesti: pages_show_list, pages_manage_posts, pages_read_engagement.',
       ],
+      setupChecklist: getFacebookSetupChecklist(),
     });
   } catch (err) {
     res.status(err.status || 500).json({

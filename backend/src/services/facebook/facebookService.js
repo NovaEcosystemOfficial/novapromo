@@ -62,9 +62,18 @@ export function getFacebookAuthUrl(state) {
     client_id: config.meta.appId,
     redirect_uri: config.meta.facebookRedirectUri,
     state,
-    scope: FACEBOOK_PAGE_OAUTH_SCOPES.join(','),
     response_type: 'code',
   });
+
+  const configId = config.meta.facebookConfigId?.trim();
+  if (configId) {
+    // Facebook Login for Business (app tipo Business) richiede config_id.
+    params.set('config_id', configId);
+    params.set('override_default_response_type', 'true');
+  } else {
+    params.set('scope', FACEBOOK_PAGE_OAUTH_SCOPES.join(','));
+  }
+
   return `${FACEBOOK_OAUTH_DIALOG_URL}/${config.meta.graphApiVersion}/dialog/oauth?${params.toString()}`;
 }
 
