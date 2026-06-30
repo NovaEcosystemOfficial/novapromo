@@ -24,7 +24,8 @@
     "install:all": "npm install",
     "test:firebase": "node scripts/test-firebase-integration.mjs",
     "setup:firebase": "node scripts/setup-firebase-env.mjs",
-    "bootstrap:firebase": "node scripts/bootstrap-firebase-project.mjs"
+    "bootstrap:firebase": "node scripts/bootstrap-firebase-project.mjs",
+    "deploy:firebase-rules": "node scripts/deploy-firebase-rules.mjs"
   },
   "dependencies": {
     "express": "^4.21.2"

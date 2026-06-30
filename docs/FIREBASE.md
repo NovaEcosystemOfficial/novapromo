@@ -142,13 +142,33 @@ npm run setup:firebase -- path/to/service-account.json
 npm run test:firebase
 ```
 
-### Deploy regole (account Google con accesso al progetto)
+### Deploy regole (obbligatorio una tantum)
+
+Il service account Admin **non** ha permesso `firebaserules.releases.create`. Due opzioni:
+
+**Opzione A — Firebase CLI (consigliata)** con l’account Google **Owner** del progetto NovaEcosystem:
 
 ```bash
 npx -y firebase-tools@latest login
 npx -y firebase-tools@latest use novaecosystem-b8a4b
-npx -y firebase-tools@latest deploy --only firestore:rules,storage
+npm run deploy:firebase-rules
+# oppure: npx -y firebase-tools@latest deploy --only firestore:rules,storage
 ```
+
+**Opzione B — Console Firebase** (copia da `firestore.rules` e `storage.rules` nel repo):
+
+1. [Firestore Rules](https://console.firebase.google.com/project/novaecosystem-b8a4b/firestore/rules)
+2. [Storage Rules](https://console.firebase.google.com/project/novaecosystem-b8a4b/storage/rules)
+
+**Opzione C — IAM** (per deploy automatico futuro): in [IAM](https://console.cloud.google.com/iam-admin/iam?project=novaecosystem-b8a4b) assegna al service account `firebase-adminsdk-fbsvc@...` il ruolo **Firebase Rules Admin** o **Editor**.
+
+### Verifica integrazione
+
+```bash
+npm run test:firebase
+```
+
+Ultimo run: **5/5 test passati** (Admin, Firestore, Storage HTTPS URL, Auth custom token, dataStore flags).
 
 ### Vercel env
 

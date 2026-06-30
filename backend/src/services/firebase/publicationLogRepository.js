@@ -26,7 +26,7 @@ export async function listPublicationLogs({ postId, limit = 100 } = {}) {
   const db = await getFirestoreDb();
   const snap = postId
     ? await db.collection(COLLECTION).where('postId', '==', postId).get()
-    : await db.collection(COLLECTION).orderBy('createdAt', 'desc').limit(limit).get();
+    : await db.collection(COLLECTION).get();
 
   const logs = snap.docs.map((doc) => {
     const data = doc.data();
