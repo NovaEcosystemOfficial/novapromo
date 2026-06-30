@@ -68,8 +68,8 @@ export default function Login() {
         <h2>Benvenuto</h2>
         <p className="auth-sub">
           {isDesktopApp()
-            ? 'App desktop — pubblica su Instagram'
-            : 'Genera, programma e pubblica contenuti Instagram'}
+            ? 'App desktop — pubblica su Instagram e Facebook'
+            : 'Genera, programma e pubblica su Instagram e Facebook Page'}
         </p>
 
         {demo && (
@@ -101,7 +101,7 @@ export default function Login() {
         )}
 
         <p className="auth-footnote" style={{ marginTop: '1rem' }}>
-          Collega Instagram da Account dopo l&apos;accesso
+          Collega Instagram e Facebook da Account dopo l&apos;accesso
         </p>
       </div>
     </div>

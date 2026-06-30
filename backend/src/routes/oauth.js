@@ -158,8 +158,6 @@ router.post('/instagram/refresh', async (_req, res) => {
   }
 });
 
-});
-
 router.get('/facebook/start', async (req, res) => {
   try {
     await assertCanStartOAuth('facebook');
