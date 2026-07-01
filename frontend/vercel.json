@@ -1,6 +1,6 @@
 {
-  "installCommand": "npm install",
-  "buildCommand": "npx vite build",
+  "installCommand": "cd .. && npm install",
+  "buildCommand": "cd .. && npm run build -w frontend",
   "outputDirectory": "dist",
   "headers": [
     {
