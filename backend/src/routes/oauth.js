@@ -232,6 +232,9 @@ router.get('/facebook/callback', async (req, res) => {
         connectedAt: data.connectedAt,
         connectionMode: data.connectionMode,
         grantedScopes: data.grantedScopes || data.scopes,
+        missingPublishScopes: data.missingPublishScopes || [],
+        canPublish: data.canPublish === true,
+        publishingStatus: data.publishingStatus || (data.canPublish ? 'ready' : 'pending_meta_permission'),
         tokenType: 'page',
       },
     });

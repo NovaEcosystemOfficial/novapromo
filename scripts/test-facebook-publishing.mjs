@@ -82,6 +82,35 @@ async function run() {
     fail('Instagram evaluateInstagramConnection (connected) unchanged', igConnected);
   }
 
+  const { evaluateFacebookPublishReadiness, FACEBOOK_PUBLISH_PENDING_MESSAGE } = await backendImport(
+    'backend/src/services/facebook/facebookPublishReadiness.js'
+  );
+
+  const pending = evaluateFacebookPublishReadiness(['pages_show_list', 'pages_read_engagement']);
+  if (!pending.canPublish && pending.publishingStatus === 'pending_meta_permission') {
+    ok('evaluateFacebookPublishReadiness marks pending without pages_manage_posts');
+  } else {
+    fail('evaluateFacebookPublishReadiness marks pending without pages_manage_posts', pending);
+  }
+  if (pending.missingPublishScopes.includes('pages_manage_posts')) {
+    ok('missing pages_manage_posts detected in readiness check');
+  } else {
+    fail('missing pages_manage_posts detected in readiness check', pending.missingPublishScopes);
+  }
+
+  const ready = evaluateFacebookPublishReadiness(['pages_show_list', 'pages_manage_posts', 'pages_read_engagement']);
+  if (ready.canPublish && ready.publishingStatus === 'ready') {
+    ok('evaluateFacebookPublishReadiness marks ready with all publish scopes');
+  } else {
+    fail('evaluateFacebookPublishReadiness marks ready with all publish scopes', ready);
+  }
+
+  if (FACEBOOK_PUBLISH_PENDING_MESSAGE.includes('App Review')) {
+    ok('FACEBOOK_PUBLISH_PENDING_MESSAGE mentions App Review');
+  } else {
+    fail('FACEBOOK_PUBLISH_PENDING_MESSAGE mentions App Review', FACEBOOK_PUBLISH_PENDING_MESSAGE);
+  }
+
   const { getFacebookIntegrationStatus } = await backendImport('backend/src/services/integrationService.js');
   const fbStatus = await getFacebookIntegrationStatus();
   if (fbStatus.platform === 'facebook' && fbStatus.name === 'Facebook Page') {

@@ -8,7 +8,8 @@ import {
 } from './postService.js';
 import { publishToInstagram, refreshInstagramToken } from './instagram/instagramService.js';
 import { INSTAGRAM_TOKEN_MISSING_MESSAGE } from './instagram/instagramToken.js';
-import { publishToFacebook, refreshFacebookPageToken } from './facebook/facebookService.js';
+import { publishToFacebook, refreshFacebookPageToken, canPublishToFacebook } from './facebook/facebookService.js';
+import { FACEBOOK_PUBLISH_PENDING_MESSAGE } from './facebook/facebookPublishReadiness.js';
 import { publishToTikTok, refreshTikTokToken } from './tiktok/tiktokService.js';
 import { logger } from '../utils/logger.js';
 import { recordPublishEvent } from './desktopEvents.js';
@@ -52,6 +53,33 @@ export async function publishPost(post) {
           instagramMediaId: result.mediaId,
         });
       } else if (platform === 'facebook') {
+        const publishCheck = await canPublishToFacebook(account);
+        if (!publishCheck.canPublish) {
+          const skipMessage = FACEBOOK_PUBLISH_PENDING_MESSAGE;
+          logger.info('Facebook publish skipped — missing Meta permission', {
+            postId: post.id,
+            grantedScopes: publishCheck.grantedScopes,
+            missingPublishScopes: publishCheck.missingPublishScopes,
+          });
+          addPublicationLog({
+            postId: post.id,
+            platform,
+            action: 'publish_skipped',
+            status: 'warning',
+            message: skipMessage,
+            details: {
+              grantedScopes: publishCheck.grantedScopes,
+              missingPublishScopes: publishCheck.missingPublishScopes,
+            },
+          });
+          recordPublishEvent({
+            postId: post.id,
+            platform,
+            status: 'skipped',
+            message: skipMessage,
+          });
+          continue;
+        }
         if (!post.mediaPath && !post.mediaPublicUrl) throw new Error('Immagine richiesta per Facebook');
         result = await publishToFacebook(post, account);
         await updatePost(post.id, { facebookPostId: result.postId });
@@ -143,7 +171,10 @@ async function ensureValidToken(platform) {
         scopes: refreshed.scopes || account.scopes,
         metadata: {
           ...account.metadata,
-          grantedScopes: refreshed.scopes || account.metadata?.grantedScopes,
+          grantedScopes: refreshed.grantedScopes || refreshed.scopes || account.metadata?.grantedScopes,
+          missingPublishScopes: refreshed.missingPublishScopes ?? account.metadata?.missingPublishScopes,
+          canPublish: refreshed.canPublish === true,
+          publishingStatus: refreshed.publishingStatus || account.metadata?.publishingStatus,
           tokenType: 'page',
         },
       });

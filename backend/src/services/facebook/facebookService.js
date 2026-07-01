@@ -11,6 +11,10 @@ import {
   getFacebookGraphApiBase,
 } from './metaFacebookConfig.js';
 import { META_ERROR_CODES } from '../instagram/metaConfig.js';
+import {
+  evaluateFacebookPublishReadiness,
+  FACEBOOK_PUBLISH_PENDING_MESSAGE,
+} from './facebookPublishReadiness.js';
 import { toUserFriendlyMetaError } from '../instagram/metaErrors.js';
 import {
   ensurePostPublicMediaUrl,
@@ -89,29 +93,55 @@ export function buildFacebookScopesMissingError(missingScopes, { phase = 'publis
   return err;
 }
 
-async function assertFacebookPageTokenCanPublish(pageToken, { phase = 'publish' } = {}) {
+export { evaluateFacebookPublishReadiness, FACEBOOK_PUBLISH_PENDING_MESSAGE } from './facebookPublishReadiness.js';
+
+async function inspectFacebookPageToken(pageToken, { phase = 'inspect', pageId = null, pageName = null } = {}) {
   const debug = await debugFacebookToken(pageToken);
-  if (!debug.isValid) {
+  const readiness = evaluateFacebookPublishReadiness(debug.scopes);
+
+  logger.info('Facebook token permissions', {
+    phase,
+    pageId,
+    pageName,
+    tokenType: debug.type,
+    isValid: debug.isValid,
+    grantedScopes: debug.scopes,
+    missingPublishScopes: readiness.missingPublishScopes,
+    canPublish: readiness.canPublish,
+    publishingStatus: readiness.publishingStatus,
+  });
+
+  return {
+    ...debug,
+    ...readiness,
+  };
+}
+
+async function assertFacebookPageTokenCanPublish(pageToken, { phase = 'publish' } = {}) {
+  const inspected = await inspectFacebookPageToken(pageToken, { phase });
+  if (!inspected.isValid) {
     const err = new Error('Token Pagina Facebook non valido — ricollega da Account');
     err.code = 'FACEBOOK_TOKEN_INVALID';
     throw err;
   }
 
-  const missing = getMissingFacebookPublishScopes(debug.scopes);
+  const missing = inspected.missingPublishScopes;
   if (missing.length > 0) {
     logger.warn('Facebook page token missing publish scopes', {
       phase,
-      tokenType: debug.type,
-      grantedScopes: debug.scopes,
+      tokenType: inspected.type,
+      grantedScopes: inspected.scopes,
       missingScopes: missing,
     });
-    throw buildFacebookScopesMissingError(missing, { phase });
+    const err = buildFacebookScopesMissingError(missing, { phase });
+    err.code = phase === 'publish' ? 'FACEBOOK_PUBLISH_PENDING' : err.code;
+    throw err;
   }
 
-  if (debug.type && debug.type !== 'PAGE') {
+  if (inspected.type && inspected.type !== 'PAGE') {
     logger.warn('Facebook publish token is not PAGE type', {
-      tokenType: debug.type,
-      profileId: debug.profileId,
+      tokenType: inspected.type,
+      profileId: inspected.profileId,
     });
     const err = new Error(
       'Serve un Page Access Token (da /me/accounts), non un User Access Token. Scollega e ricollega la Pagina Facebook da Account.'
@@ -120,7 +150,7 @@ async function assertFacebookPageTokenCanPublish(pageToken, { phase = 'publish' 
     throw err;
   }
 
-  return debug;
+  return inspected;
 }
 
 function pickManagedPage(pages, preferredPageId = null) {
@@ -217,14 +247,27 @@ export async function exchangeFacebookCode(code) {
   const longLived = await exchangeForLongLivedUserToken(shortToken);
 
   const page = await fetchPageFromUserToken(longLived.accessToken);
-  const pageDebug = await assertFacebookPageTokenCanPublish(page.access_token, { phase: 'oauth' });
-
-  logger.info('Facebook OAuth: page selected', {
+  const pageDebug = await inspectFacebookPageToken(page.access_token, {
+    phase: 'oauth',
     pageId: page.id,
     pageName: page.name,
-    tokenType: pageDebug.type,
-    grantedScopes: pageDebug.scopes,
   });
+
+  if (!pageDebug.isValid) {
+    const err = new Error('Token Pagina Facebook non valido dopo OAuth — riprova il collegamento');
+    err.code = 'FACEBOOK_TOKEN_INVALID';
+    throw err;
+  }
+
+  if (!pageDebug.canPublish) {
+    logger.warn('Facebook Page connected without publish permission', {
+      pageId: page.id,
+      pageName: page.name,
+      grantedScopes: pageDebug.grantedScopes,
+      missingPublishScopes: pageDebug.missingPublishScopes,
+      hint: 'Advanced Access / App Review required for pages_manage_posts',
+    });
+  }
 
   const now = new Date().toISOString();
 
@@ -235,8 +278,11 @@ export async function exchangeFacebookCode(code) {
     accessToken: page.access_token,
     userAccessToken: longLived.accessToken,
     expiresIn: longLived.expiresIn,
-    scopes: pageDebug.scopes,
-    grantedScopes: pageDebug.scopes,
+    scopes: pageDebug.grantedScopes,
+    grantedScopes: pageDebug.grantedScopes,
+    missingPublishScopes: pageDebug.missingPublishScopes,
+    canPublish: pageDebug.canPublish,
+    publishingStatus: pageDebug.publishingStatus,
     connectedAt: now,
     status: 'connected',
     connectionMode: 'FACEBOOK_PAGE',
@@ -272,7 +318,41 @@ async function resolveFacebookPageToken(account) {
   return account.accessToken;
 }
 
+export async function canPublishToFacebook(account) {
+  const meta = account.metadata || {};
+  const pageId = meta.facebookPageId || account.externalUserId;
+  const pageToken = await resolveFacebookPageToken(account);
+
+  if (!pageId || !pageToken) {
+    return {
+      canPublish: false,
+      publishingStatus: 'pending_meta_permission',
+      missingPublishScopes: ['pages_manage_posts', 'pages_read_engagement'],
+      grantedScopes: [],
+    };
+  }
+
+  try {
+    return await inspectFacebookPageToken(pageToken, {
+      phase: 'publish_precheck',
+      pageId,
+      pageName: meta.pageName || account.displayName,
+    });
+  } catch (err) {
+    logger.warn('Facebook publish precheck failed', { pageId, error: err.message });
+    return evaluateFacebookPublishReadiness(meta.grantedScopes || account.scopes || []);
+  }
+}
+
 export async function publishToFacebook(post, account) {
+  const publishCheck = await canPublishToFacebook(account);
+  if (!publishCheck.canPublish) {
+    const err = new Error(FACEBOOK_PUBLISH_PENDING_MESSAGE);
+    err.code = 'FACEBOOK_PUBLISH_PENDING';
+    err.missingScopes = publishCheck.missingPublishScopes;
+    throw err;
+  }
+
   const meta = account.metadata || {};
   const pageId = meta.facebookPageId || account.externalUserId;
   const pageToken = await resolveFacebookPageToken(account);
@@ -325,20 +405,30 @@ export async function refreshFacebookPageToken(account) {
   const meta = account.metadata || {};
   const pageId = meta.facebookPageId || account.externalUserId;
 
-  if (!account.refreshToken) {
-    if (!account.accessToken) {
-      throw new Error('Token pagina Facebook mancante — ricollega la Pagina');
-    }
-    await assertFacebookPageTokenCanPublish(account.accessToken, { phase: 'publish' });
-    return { accessToken: account.accessToken, expiresIn: null, scopes: meta.grantedScopes || [] };
+  let pageToken = account.accessToken;
+  let pageName = meta.pageName || account.displayName;
+
+  if (account.refreshToken) {
+    const page = await fetchPageFromUserToken(account.refreshToken, pageId);
+    pageToken = page.access_token;
+    pageName = page.name;
+  } else if (!pageToken) {
+    throw new Error('Token pagina Facebook mancante — ricollega la Pagina');
   }
 
-  const page = await fetchPageFromUserToken(account.refreshToken, pageId);
-  const pageDebug = await assertFacebookPageTokenCanPublish(page.access_token, { phase: 'publish' });
+  const inspected = await inspectFacebookPageToken(pageToken, {
+    phase: 'token_refresh',
+    pageId,
+    pageName,
+  });
 
   return {
-    accessToken: page.access_token,
+    accessToken: pageToken,
     expiresIn: null,
-    scopes: pageDebug.scopes,
+    scopes: inspected.grantedScopes,
+    grantedScopes: inspected.grantedScopes,
+    missingPublishScopes: inspected.missingPublishScopes,
+    canPublish: inspected.canPublish,
+    publishingStatus: inspected.publishingStatus,
   };
 }

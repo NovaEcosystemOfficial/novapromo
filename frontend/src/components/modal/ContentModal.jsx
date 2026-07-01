@@ -5,6 +5,7 @@ import { PROJECTS, CONTENT_TYPES, TONES, TOPIC_EXAMPLES } from '../../constants/
 import { useContentModal } from '../../context/ContentModalContext.jsx';
 import { useBilling } from '../../context/BillingContext.jsx';
 import { isTikTokEnabled } from '../../lib/features.js';
+import { isFacebookPublishReady, isFacebookPublishPending, FACEBOOK_PUBLISH_PENDING_UI_MESSAGE } from '../../lib/facebookStatus.js';
 import MediaPicker, { appendMediaToFormData } from '../MediaPicker.jsx';
 import PremiumLock from '../ai/PremiumLock.jsx';
 import '../../styles/modal.css';
@@ -77,6 +78,7 @@ export default function ContentModal() {
   const [generated, setGenerated] = useState(null);
   const [savedPostId, setSavedPostId] = useState(null);
   const [media, setMedia] = useState(null);
+  const [integrations, setIntegrations] = useState({});
 
   useEffect(() => {
     if (isOpen) {
@@ -90,6 +92,7 @@ export default function ContentModal() {
       setShowSchedule(false);
       setScheduleAt('');
       setSourceMode('template');
+      setIntegrations({});
       setForm({
         project: prefill?.project || '',
         platform: prefill?.platform || 'instagram',
@@ -97,6 +100,9 @@ export default function ContentModal() {
         tone: 'professionale',
         topic: prefill?.topic || '',
       });
+      api.getIntegrationsStatus()
+        .then(setIntegrations)
+        .catch(() => setIntegrations({}));
     }
   }, [isOpen, prefill]);
 
@@ -174,6 +180,11 @@ export default function ContentModal() {
   };
 
   const platforms = getPlatforms();
+  const fbIntegration = integrations.facebook || {};
+  const fbPublishReady = isFacebookPublishReady(fbIntegration);
+  const fbPublishPending = isFacebookPublishPending(fbIntegration);
+  const fbOnlyBlocked = form.platform === 'facebook' && !fbPublishReady;
+  const multiFbPending = form.platform === 'multi' && fbPublishPending;
 
   const savePostWithMedia = async (scheduledAt = null) => {
     if (savedPostId) {
@@ -246,6 +257,14 @@ export default function ContentModal() {
     setLoading(true);
     setError('');
     try {
+      if (form.platform === 'facebook' && !fbPublishReady) {
+        setError(
+          'Pubblicazione Facebook non disponibile: permesso pages_manage_posts in attesa da Meta (Advanced Access / App Review). Vai su Account per i dettagli.'
+        );
+        setLoading(false);
+        return;
+      }
+
       const needsMedia = platformNeedsMedia(form.platform);
       if (needsMedia && !media && !savedPostId) {
         const label = form.platform === 'facebook'
@@ -314,6 +333,14 @@ export default function ContentModal() {
         )}
 
         {error && <div className="alert alert-error modal-alert">{error}</div>}
+        {fbOnlyBlocked && phase === 'wizard' && step === 1 && (
+          <div className="alert alert-warning modal-alert">{FACEBOOK_PUBLISH_PENDING_UI_MESSAGE}</div>
+        )}
+        {multiFbPending && phase === 'wizard' && step === 1 && (
+          <div className="alert alert-info modal-alert">
+            Modalità Entrambi: Instagram verrà pubblicato; Facebook resta in attesa permesso Meta finché non approvi pages_manage_posts.
+          </div>
+        )}
         {aiLock && <PremiumLock reason={aiLock.reason} code={aiLock.code} compact />}
 
         <div className="modal-body">
@@ -472,12 +499,23 @@ export default function ContentModal() {
                   onChange={setMedia}
                   label={
                     form.platform === 'facebook'
-                      ? 'Immagine per Facebook (obbligatoria per pubblicare)'
+                      ? 'Immagine per Facebook (obbligatoria quando la pubblicazione è attiva)'
                       : form.platform === 'multi'
-                        ? 'Immagine per Instagram + Facebook (obbligatoria per pubblicare)'
+                        ? 'Immagine per Instagram (e Facebook quando disponibile)'
                         : 'Media per Instagram (obbligatorio per pubblicare)'
                   }
                 />
+              )}
+
+              {fbOnlyBlocked && (
+                <div className="alert alert-warning" style={{ marginTop: '1rem' }}>
+                  {FACEBOOK_PUBLISH_PENDING_UI_MESSAGE}
+                </div>
+              )}
+              {multiFbPending && (
+                <div className="alert alert-info" style={{ marginTop: '1rem' }}>
+                  Con &quot;Entrambi&quot;, NovaPromo pubblicherà su Instagram. Facebook verrà saltato finché Meta non concede pages_manage_posts.
+                </div>
               )}
 
               {showSchedule && (
@@ -492,7 +530,13 @@ export default function ContentModal() {
               )}
 
               <div className="modal-result-actions">
-                <button type="button" className="btn btn-primary" onClick={handlePublish} disabled={loading}>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={handlePublish}
+                  disabled={loading || fbOnlyBlocked}
+                  title={fbOnlyBlocked ? 'Pubblicazione Facebook in attesa permesso Meta' : undefined}
+                >
                   Pubblica subito
                 </button>
                 <button type="button" className="btn btn-secondary" onClick={handleSchedule} disabled={loading}>

@@ -1,6 +1,7 @@
 import { config } from '../../config.js';
 import { META_ERROR_CODES } from './metaConfig.js';
 import { PUBLIC_MEDIA_ERROR } from '../media/publicMediaService.js';
+import { FACEBOOK_PUBLISH_PENDING_MESSAGE } from '../facebook/facebookPublishReadiness.js';
 
 const FRIENDLY_BY_CODE = {
   [META_ERROR_CODES.INSTAGRAM_APP_ID_MISSING]:
@@ -42,6 +43,10 @@ export function toUserFriendlyMetaError(error) {
       ? error.missingScopes.join(', ')
       : 'instagram_business_basic, instagram_business_content_publish';
     return `Permessi Instagram mancanti: ${missing}. In Meta Developers → Instagram → API setup with Instagram login abilita questi permessi, poi riautorizza da Account.`;
+  }
+
+  if (error.code === 'FACEBOOK_PUBLISH_PENDING') {
+    return FACEBOOK_PUBLISH_PENDING_MESSAGE;
   }
 
   if (error.code === META_ERROR_CODES.FACEBOOK_SCOPES_MISSING) {

@@ -94,6 +94,10 @@ export function getDemoIntegrationsStatus() {
       redirectUri: null,
       nextStep: 'Backend non deployato — collega Pagina Facebook',
       errors: [],
+      setupChecklist: [
+        'Meta Developers → Nova_Promo → Domini app: novapromo.vercel.app, novapromo-backend.vercel.app',
+        'Facebook Login → URI OAuth: https://novapromo-backend.vercel.app/api/oauth/facebook/callback',
+      ],
     },
     tiktok: {
       platform: 'tiktok',

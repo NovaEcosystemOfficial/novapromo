@@ -2,6 +2,7 @@ import { config, hasTikTokCredentials } from '../config.js';
 import { getAccountByPlatform } from './accountService.js';
 import { getMetaCredentialsStatus } from './instagram/metaConfig.js';
 import { getFacebookCredentialsStatus, getFacebookSetupChecklist } from './facebook/metaFacebookConfig.js';
+import { evaluateFacebookPublishReadiness } from './facebook/facebookPublishReadiness.js';
 
 const lastChecks = { instagram: null, facebook: null, tiktok: null };
 
@@ -138,7 +139,9 @@ export async function getFacebookIntegrationStatus() {
     canStartOAuth: fbStatus.credentialsPresent,
     lastApiCheck: lastChecks.facebook,
     nextStep: connection.connected
-      ? 'Pagina Facebook pronta per la pubblicazione'
+      ? connection.canPublish
+        ? 'Pagina Facebook pronta per la pubblicazione'
+        : 'Pagina collegata — pubblicazione in attesa Advanced Access (pages_manage_posts) via App Review Meta'
       : !fbStatus.facebookConfigIdConfigured
         ? 'Crea Configurazione in Meta (Facebook Login for Business) e imposta META_FACEBOOK_CONFIG_ID su Vercel'
         : fbStatus.credentialsPresent
@@ -175,6 +178,12 @@ function evaluateFacebookConnection(account) {
   const tokenExpired = isTokenExpired(account.tokenExpiresAt);
   const connected = hasToken && Boolean(pageId) && status === 'connected' && !tokenExpired;
 
+  const grantedScopes = meta.grantedScopes || account.scopes || [];
+  const publishReadiness = evaluateFacebookPublishReadiness(grantedScopes);
+  const canPublish = meta.canPublish != null ? Boolean(meta.canPublish) : publishReadiness.canPublish;
+  const publishingStatus = meta.publishingStatus || publishReadiness.publishingStatus;
+  const missingPublishScopes = meta.missingPublishScopes || publishReadiness.missingPublishScopes;
+
   let connectionStatus = 'disconnected';
   if (connected) connectionStatus = 'connected';
   else if (hasToken && pageId && tokenExpired) connectionStatus = 'token_expired';
@@ -182,6 +191,11 @@ function evaluateFacebookConnection(account) {
   return {
     connected,
     connectionStatus,
+    canPublish,
+    publishingStatus,
+    publishingStatusLabel: canPublish ? 'Pubblicazione attiva' : 'In attesa permesso Meta',
+    missingPublishScopes,
+    grantedScopes,
     accountId: account.id,
     accountUsername: account.username || meta.pageName,
     facebookPageId: pageId,
@@ -195,6 +209,10 @@ function evaluateFacebookConnection(account) {
       status: meta.status || connectionStatus,
       connectionMode: meta.connectionMode || 'FACEBOOK_PAGE',
       connectionStatus,
+      canPublish,
+      publishingStatus,
+      grantedScopes,
+      missingPublishScopes,
     },
   };
 }

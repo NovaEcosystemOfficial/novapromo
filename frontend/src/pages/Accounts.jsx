@@ -8,7 +8,7 @@ import { getDemoIntegrationsStatus, DEMO_BACKEND_MESSAGE } from '../lib/demo.js'
 import { markOAuthReturn } from '../lib/postAuthRedirect.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { isInstagramConnected, getInstagramConnectionLabel } from '../lib/instagramStatus.js';
-import { isFacebookConnected, getFacebookConnectionLabel } from '../lib/facebookStatus.js';
+import { isFacebookConnected, getFacebookConnectionLabel, getFacebookPublishingLabel, isFacebookPublishPending, isFacebookPublishReady, FACEBOOK_PUBLISH_PENDING_UI_MESSAGE } from '../lib/facebookStatus.js';
 import IntegrationStatusPanel from '../components/accounts/IntegrationStatusPanel.jsx';
 import TikTokPausedBadge from '../components/TikTokPausedBadge.jsx';
 
@@ -51,7 +51,7 @@ export default function Accounts() {
           setMessage('✅ Instagram collegato con successo.');
         }
         if (connected === 'facebook') {
-          setMessage('✅ Pagina Facebook collegata con successo.');
+          setMessage('✅ Pagina Facebook collegata. La pubblicazione resta in attesa finché Meta non concede pages_manage_posts (Advanced Access).');
         }
         if (errParam) {
           setError(decodeURIComponent(errParam));
@@ -73,6 +73,9 @@ export default function Accounts() {
   const isFbConnected = isFacebookConnected(fb);
   const connectionLabel = getInstagramConnectionLabel(ig);
   const fbConnectionLabel = getFacebookConnectionLabel(fb);
+  const fbPublishLabel = getFacebookPublishingLabel(fb);
+  const fbPublishPending = isFacebookPublishPending(fb);
+  const fbPublishReady = isFacebookPublishReady(fb);
 
   const connectInstagram = async () => {
     if (isDemoMode()) {
@@ -261,7 +264,7 @@ export default function Accounts() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
           <h3 style={{ margin: 0 }}>Facebook Page</h3>
           {isFbConnected ? (
-            <span className="integration-mode-badge integration-mode-badge--real">✅ Pagina collegata</span>
+            <span className="integration-mode-badge integration-mode-badge--real">✅ Facebook collegato</span>
           ) : (
             <span className="integration-mode-badge integration-mode-badge--mock">{fbConnectionLabel}</span>
           )}
@@ -294,7 +297,13 @@ export default function Accounts() {
             <div className="account-connected-user">{fbProfile.pageName || fb.pageName || fb.accountUsername}</div>
             <div className="account-connected-meta" style={{ display: 'grid', gap: '0.35rem', marginTop: '0.5rem' }}>
               <div>
-                <strong>Stato connessione:</strong> {fbConnectionLabel}
+                <strong>Stato connessione:</strong> Collegato
+              </div>
+              <div>
+                <strong>Pubblicazione:</strong>{' '}
+                <span className={fbPublishPending ? 'integration-status-value--warn' : 'integration-status-value--ok'}>
+                  {fbPublishLabel}
+                </span>
               </div>
               <div>
                 <strong>Pagina:</strong> {fbProfile.pageName || fb.pageName || '—'}
@@ -302,7 +311,42 @@ export default function Accounts() {
               <div>
                 <strong>Facebook Page ID:</strong> {fbProfile.facebookPageId || fb.facebookPageId || '—'}
               </div>
+              {fb.grantedScopes?.length > 0 && (
+                <div>
+                  <strong>Permessi ricevuti:</strong>{' '}
+                  <code style={{ fontSize: '0.85rem' }}>{fb.grantedScopes.join(', ')}</code>
+                </div>
+              )}
+              {fb.missingPublishScopes?.length > 0 && (
+                <div>
+                  <strong>Permessi mancanti per pubblicare:</strong>{' '}
+                  <code style={{ fontSize: '0.85rem' }}>{fb.missingPublishScopes.join(', ')}</code>
+                </div>
+              )}
             </div>
+
+            {fbPublishPending && (
+              <div className="alert alert-warning" style={{ marginTop: '1rem' }}>
+                <strong>Pubblicazione in attesa permesso Meta</strong>
+                <p style={{ margin: '0.5rem 0 0' }}>{FACEBOOK_PUBLISH_PENDING_UI_MESSAGE}</p>
+                <ol style={{ margin: '0.75rem 0 0', paddingLeft: '1.25rem', fontSize: '0.9rem' }}>
+                  <li>Meta Developers → App Nova_Promo → App Review → Permissions and Features</li>
+                  <li>Richiedi <strong>Advanced Access</strong> per <code>pages_manage_posts</code> e <code>pages_read_engagement</code></li>
+                  <li>Se la Configurazione Facebook Login for Business non mostra questi permessi, aggiungili all&apos;app e ripeti App Review</li>
+                  <li>Dopo l&apos;approvazione, scollega e ricollega la Pagina da questa schermata</li>
+                </ol>
+                <p style={{ margin: '0.75rem 0 0', fontSize: '0.9rem' }}>
+                  Instagram resta completamente funzionante. NovaPromo non tenta la pubblicazione Facebook finché Meta non concede i permessi.
+                </p>
+              </div>
+            )}
+
+            {fbPublishReady && (
+              <div className="alert alert-success" style={{ marginTop: '1rem' }}>
+                Permessi di pubblicazione attivi — puoi pubblicare post sulla Pagina Facebook.
+              </div>
+            )}
+
             <div className="actions" style={{ marginTop: '0.75rem' }}>
               <button
                 type="button"
