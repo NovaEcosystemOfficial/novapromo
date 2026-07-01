@@ -8,7 +8,7 @@ import {
 } from './postService.js';
 import { publishToInstagram, refreshInstagramToken } from './instagram/instagramService.js';
 import { INSTAGRAM_TOKEN_MISSING_MESSAGE } from './instagram/instagramToken.js';
-import { publishToFacebook } from './facebook/facebookService.js';
+import { publishToFacebook, refreshFacebookPageToken } from './facebook/facebookService.js';
 import { publishToTikTok, refreshTikTokToken } from './tiktok/tiktokService.js';
 import { logger } from '../utils/logger.js';
 import { recordPublishEvent } from './desktopEvents.js';
@@ -127,6 +127,30 @@ async function ensureValidToken(platform) {
 
   if (platform === 'facebook' && !account.accessToken) {
     throw new Error('Token Pagina Facebook mancante — ricollega da Account');
+  }
+
+  if (platform === 'facebook') {
+    try {
+      const refreshed = await refreshFacebookPageToken(account);
+      return await upsertAccount({
+        platform: 'facebook',
+        externalUserId: account.externalUserId,
+        username: account.username,
+        displayName: account.displayName,
+        accessToken: refreshed.accessToken,
+        refreshToken: account.refreshToken,
+        expiresAt: account.tokenExpiresAt,
+        scopes: refreshed.scopes || account.scopes,
+        metadata: {
+          ...account.metadata,
+          grantedScopes: refreshed.scopes || account.metadata?.grantedScopes,
+          tokenType: 'page',
+        },
+      });
+    } catch (err) {
+      logger.error('Facebook page token resolve failed', { error: err.message, code: err.code });
+      throw err;
+    }
   }
 
   const expiresAt = account.tokenExpiresAt ? new Date(account.tokenExpiresAt) : null;

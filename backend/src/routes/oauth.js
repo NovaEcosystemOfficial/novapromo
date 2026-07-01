@@ -220,17 +220,19 @@ router.get('/facebook/callback', async (req, res) => {
       username: data.pageName,
       displayName: data.pageName,
       accessToken: data.pageAccessToken,
-      refreshToken: null,
+      refreshToken: data.userAccessToken,
       expiresAt: data.expiresIn
         ? new Date(Date.now() + data.expiresIn * 1000).toISOString()
         : null,
-      scopes: data.scopes,
+      scopes: data.grantedScopes || data.scopes,
       metadata: {
         facebookPageId: data.facebookPageId,
         pageName: data.pageName,
         status: data.status,
         connectedAt: data.connectedAt,
         connectionMode: data.connectionMode,
+        grantedScopes: data.grantedScopes || data.scopes,
+        tokenType: 'page',
       },
     });
 

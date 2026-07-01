@@ -11,6 +11,7 @@ const FRIENDLY_BY_CODE = {
     'INSTAGRAM_APP_ID errato: non usare il Facebook App ID. Copia l’Instagram App ID da Meta Dashboard > Instagram > API setup with Instagram login.',
   [META_ERROR_CODES.NO_FACEBOOK_PAGES]:
     'Nessuna Pagina Facebook trovata. Crea una Pagina Facebook o concedi l’accesso alle Pagine durante il login Meta.',
+  [META_ERROR_CODES.FACEBOOK_SCOPES_MISSING]: null,
   [META_ERROR_CODES.NO_INSTAGRAM_ON_PAGE]:
     'Nessun account Instagram collegato alla tua Pagina Facebook. Collegalo da Meta Business Suite e riprova.',
   [META_ERROR_CODES.INSTAGRAM_NOT_BUSINESS_CREATOR]:
@@ -41,6 +42,17 @@ export function toUserFriendlyMetaError(error) {
       ? error.missingScopes.join(', ')
       : 'instagram_business_basic, instagram_business_content_publish';
     return `Permessi Instagram mancanti: ${missing}. In Meta Developers → Instagram → API setup with Instagram login abilita questi permessi, poi riautorizza da Account.`;
+  }
+
+  if (error.code === META_ERROR_CODES.FACEBOOK_SCOPES_MISSING) {
+    const missing = error.missingScopes?.length
+      ? error.missingScopes.join(', ')
+      : 'pages_read_engagement, pages_manage_posts';
+    return `Permessi Facebook mancanti sul token Pagina: ${missing}. In Meta → Facebook Login for Business → Configurazioni, aggiungi pages_manage_posts e pages_read_engagement, poi scollega e ricollega la Pagina. Per utenti esterni serve Advanced Access (App Review).`;
+  }
+
+  if (error.code === 'FACEBOOK_WRONG_TOKEN_TYPE') {
+    return error.message;
   }
 
   if (error.code && FRIENDLY_BY_CODE[error.code]) {
@@ -79,6 +91,9 @@ export function toUserFriendlyMetaError(error) {
   }
   if (lower.includes('cannot parse access token') || lower.includes('invalid graph access token')) {
     return 'Token Instagram non valido per la pubblicazione. Vai su Account e ricollega Instagram.';
+  }
+  if (lower.includes('pages_manage_posts') || lower.includes('pages_read_engagement')) {
+    return 'Permesso Facebook insufficiente per pubblicare. La Configurazione Meta deve includere pages_manage_posts e pages_read_engagement; ricollega la Pagina da Account. Se pubblichi per utenti non admin dell’app, richiedi Advanced Access in App Review.';
   }
   if (lower.includes('permission') || lower.includes('permess')) {
     return 'Permessi Instagram insufficienti. Riautorizza e concedi instagram_business_basic e instagram_business_content_publish. Una Pagina Facebook non è richiesta con Instagram Business Login.';

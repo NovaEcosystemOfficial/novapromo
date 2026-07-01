@@ -82,7 +82,7 @@ export function getFacebookSetupChecklist() {
     'App Nova_Promo usa Facebook Login for Business — serve una Configuration + config_id',
     'Menu → Facebook Login for Business → Configurazioni → Crea configurazione',
     'Tipo: User access token · Asset: Pagine Facebook',
-    'Permessi: pages_show_list, pages_read_engagement, pages_manage_posts',
+    'Permessi obbligatori nella Configurazione: pages_show_list, pages_read_engagement, pages_manage_posts',
     `Redirect nella configurazione: ${redirectUri || frontendRedirect}`,
     configId
       ? `META_FACEBOOK_CONFIG_ID su Vercel: ${configId} (configurato)`

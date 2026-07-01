@@ -23,6 +23,17 @@ export const FACEBOOK_PAGE_OAUTH_SCOPES = [
 
 export const FACEBOOK_REQUIRED_SCOPES = [...FACEBOOK_PAGE_OAUTH_SCOPES];
 
+/** Required on the Page access token for POST /{page-id}/photos (Graph API v21+). */
+export const FACEBOOK_PUBLISH_REQUIRED_SCOPES = [
+  'pages_read_engagement',
+  'pages_manage_posts',
+];
+
+export function getMissingFacebookPublishScopes(grantedScopes) {
+  const granted = new Set(grantedScopes.map((scope) => scope.toLowerCase()));
+  return FACEBOOK_PUBLISH_REQUIRED_SCOPES.filter((scope) => !granted.has(scope.toLowerCase()));
+}
+
 export function normalizeGrantedScopes(permissions) {
   if (!permissions) return [];
 

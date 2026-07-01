@@ -3,11 +3,14 @@ import { logger } from '../../utils/logger.js';
 import { assertFacebookOAuthReady } from './metaFacebookConfig.js';
 import {
   FACEBOOK_PAGE_OAUTH_SCOPES,
+  FACEBOOK_PUBLISH_REQUIRED_SCOPES,
+  getMissingFacebookPublishScopes,
 } from '../instagram/metaScopes.js';
 import {
   FACEBOOK_OAUTH_DIALOG_URL,
   getFacebookGraphApiBase,
 } from './metaFacebookConfig.js';
+import { META_ERROR_CODES } from '../instagram/metaConfig.js';
 import { toUserFriendlyMetaError } from '../instagram/metaErrors.js';
 import {
   ensurePostPublicMediaUrl,
@@ -56,6 +59,102 @@ async function graphPost(path, accessToken, body = {}) {
   return data;
 }
 
+function getAppAccessToken() {
+  return `${config.meta.appId}|${config.meta.appSecret}`;
+}
+
+export async function debugFacebookToken(token) {
+  const data = await graphGet('/debug_token', getAppAccessToken(), {
+    input_token: token,
+  });
+  const info = data.data || {};
+  return {
+    isValid: Boolean(info.is_valid),
+    type: info.type || null,
+    scopes: info.scopes || [],
+    profileId: info.profile_id || null,
+    expiresAt: info.expires_at ? new Date(info.expires_at * 1000).toISOString() : null,
+  };
+}
+
+export function buildFacebookScopesMissingError(missingScopes, { phase = 'publish' } = {}) {
+  const list = missingScopes.join(', ');
+  const err = new Error(
+    phase === 'oauth'
+      ? `Permessi Facebook mancanti sul token Pagina: ${list}. Aggiorna la Configurazione Meta (Facebook Login for Business) con pages_manage_posts e pages_read_engagement, poi scollega e ricollega la Pagina.`
+      : `Permesso Facebook mancante per la pubblicazione: ${list}. La Configurazione Meta deve includere pages_manage_posts e pages_read_engagement; poi ricollega la Pagina da Account.`
+  );
+  err.code = META_ERROR_CODES.FACEBOOK_SCOPES_MISSING;
+  err.missingScopes = missingScopes;
+  return err;
+}
+
+async function assertFacebookPageTokenCanPublish(pageToken, { phase = 'publish' } = {}) {
+  const debug = await debugFacebookToken(pageToken);
+  if (!debug.isValid) {
+    const err = new Error('Token Pagina Facebook non valido — ricollega da Account');
+    err.code = 'FACEBOOK_TOKEN_INVALID';
+    throw err;
+  }
+
+  const missing = getMissingFacebookPublishScopes(debug.scopes);
+  if (missing.length > 0) {
+    logger.warn('Facebook page token missing publish scopes', {
+      phase,
+      tokenType: debug.type,
+      grantedScopes: debug.scopes,
+      missingScopes: missing,
+    });
+    throw buildFacebookScopesMissingError(missing, { phase });
+  }
+
+  if (debug.type && debug.type !== 'PAGE') {
+    logger.warn('Facebook publish token is not PAGE type', {
+      tokenType: debug.type,
+      profileId: debug.profileId,
+    });
+    const err = new Error(
+      'Serve un Page Access Token (da /me/accounts), non un User Access Token. Scollega e ricollega la Pagina Facebook da Account.'
+    );
+    err.code = 'FACEBOOK_WRONG_TOKEN_TYPE';
+    throw err;
+  }
+
+  return debug;
+}
+
+function pickManagedPage(pages, preferredPageId = null) {
+  const list = pages?.data || [];
+  if (list.length === 0) return null;
+
+  if (preferredPageId) {
+    const match = list.find((page) => page.id === preferredPageId);
+    if (match?.access_token) return match;
+  }
+
+  const withManage = list.find((page) => {
+    const tasks = page.tasks || [];
+    return tasks.includes('MANAGE') || tasks.includes('CREATE_CONTENT');
+  });
+
+  return withManage || list[0];
+}
+
+async function fetchPageFromUserToken(userToken, preferredPageId = null) {
+  const accounts = await graphGet('/me/accounts', userToken, {
+    fields: 'id,name,access_token,tasks',
+  });
+  const page = pickManagedPage(accounts, preferredPageId);
+  if (!page?.id || !page?.access_token) {
+    const err = new Error(
+      'Nessuna Pagina Facebook gestibile trovata. Devi essere admin della Pagina con permesso CREATE_CONTENT/MANAGE.'
+    );
+    err.code = 'NO_FACEBOOK_PAGES';
+    throw err;
+  }
+  return page;
+}
+
 export function getFacebookAuthUrl(state) {
   assertFacebookOAuthReady();
   const params = new URLSearchParams({
@@ -67,7 +166,6 @@ export function getFacebookAuthUrl(state) {
 
   const configId = config.meta.facebookConfigId?.trim();
   if (configId) {
-    // Facebook Login for Business (app tipo Business) richiede config_id.
     params.set('config_id', configId);
     params.set('override_default_response_type', 'true');
   } else {
@@ -112,41 +210,20 @@ async function exchangeForLongLivedUserToken(shortToken) {
   };
 }
 
-function pickManagedPage(pages) {
-  const list = pages?.data || [];
-  if (list.length === 0) return null;
-
-  const withManage = list.find((page) => {
-    const tasks = page.tasks || [];
-    return tasks.includes('MANAGE') || tasks.includes('CREATE_CONTENT');
-  });
-
-  return withManage || list[0];
-}
-
 export async function exchangeFacebookCode(code) {
   assertFacebookOAuthReady();
 
   const shortToken = await exchangeCodeForUserToken(code);
   const longLived = await exchangeForLongLivedUserToken(shortToken);
 
-  const accounts = await graphGet('/me/accounts', longLived.accessToken, {
-    fields: 'id,name,access_token,tasks',
-  });
-
-  const page = pickManagedPage(accounts);
-  if (!page?.id || !page?.access_token) {
-    const err = new Error(
-      'Nessuna Pagina Facebook gestibile trovata. Assicurati di essere admin della Pagina e di aver concesso i permessi pages_manage_posts.'
-    );
-    err.code = 'NO_FACEBOOK_PAGES';
-    throw err;
-  }
+  const page = await fetchPageFromUserToken(longLived.accessToken);
+  const pageDebug = await assertFacebookPageTokenCanPublish(page.access_token, { phase: 'oauth' });
 
   logger.info('Facebook OAuth: page selected', {
     pageId: page.id,
     pageName: page.name,
-    grantedPages: (accounts.data || []).length,
+    tokenType: pageDebug.type,
+    grantedScopes: pageDebug.scopes,
   });
 
   const now = new Date().toISOString();
@@ -156,8 +233,10 @@ export async function exchangeFacebookCode(code) {
     pageName: page.name,
     pageAccessToken: page.access_token,
     accessToken: page.access_token,
+    userAccessToken: longLived.accessToken,
     expiresIn: longLived.expiresIn,
-    scopes: FACEBOOK_PAGE_OAUTH_SCOPES,
+    scopes: pageDebug.scopes,
+    grantedScopes: pageDebug.scopes,
     connectedAt: now,
     status: 'connected',
     connectionMode: 'FACEBOOK_PAGE',
@@ -172,14 +251,37 @@ function isImageMime(mimeType) {
   return mimeType?.startsWith('image/');
 }
 
+async function resolveFacebookPageToken(account) {
+  const meta = account.metadata || {};
+  const pageId = meta.facebookPageId || account.externalUserId;
+
+  if (account.refreshToken) {
+    try {
+      const page = await fetchPageFromUserToken(account.refreshToken, pageId);
+      if (page.id === pageId) {
+        return page.access_token;
+      }
+    } catch (err) {
+      logger.warn('Facebook page token refresh via user token failed', {
+        pageId,
+        error: err.message,
+      });
+    }
+  }
+
+  return account.accessToken;
+}
+
 export async function publishToFacebook(post, account) {
   const meta = account.metadata || {};
   const pageId = meta.facebookPageId || account.externalUserId;
-  const pageToken = account.accessToken;
+  const pageToken = await resolveFacebookPageToken(account);
 
   if (!pageId || !pageToken) {
     throw new Error('Pagina Facebook non collegata correttamente — ricollega da Account');
   }
+
+  await assertFacebookPageTokenCanPublish(pageToken, { phase: 'publish' });
 
   const message = buildFacebookMessage(post);
   if (!message) {
@@ -197,21 +299,46 @@ export async function publishToFacebook(post, account) {
     throw new Error('Facebook Page supporta immagini (JPEG/PNG/WebP) in questa release — usa un post con immagine');
   }
 
-  const result = await graphPost(`/${pageId}/photos`, pageToken, {
-    url: mediaUrl,
-    message,
-  });
+  try {
+    const result = await graphPost(`/${pageId}/photos`, pageToken, {
+      url: mediaUrl,
+      message,
+    });
 
-  return {
-    postId: result.id || result.post_id || null,
-    pageId,
-  };
+    return {
+      postId: result.id || result.post_id || null,
+      pageId,
+      pageAccessToken: pageToken,
+    };
+  } catch (err) {
+    if (
+      err.metaCode === 200
+      && String(err.message || '').toLowerCase().includes('pages_manage_posts')
+    ) {
+      throw buildFacebookScopesMissingError(['pages_manage_posts'], { phase: 'publish' });
+    }
+    throw err;
+  }
 }
 
 export async function refreshFacebookPageToken(account) {
-  // Page tokens from /me/accounts are long-lived; re-auth if invalid
-  if (!account?.accessToken) {
-    throw new Error('Token pagina Facebook mancante — ricollega la Pagina');
+  const meta = account.metadata || {};
+  const pageId = meta.facebookPageId || account.externalUserId;
+
+  if (!account.refreshToken) {
+    if (!account.accessToken) {
+      throw new Error('Token pagina Facebook mancante — ricollega la Pagina');
+    }
+    await assertFacebookPageTokenCanPublish(account.accessToken, { phase: 'publish' });
+    return { accessToken: account.accessToken, expiresIn: null, scopes: meta.grantedScopes || [] };
   }
-  return { accessToken: account.accessToken, expiresIn: null };
+
+  const page = await fetchPageFromUserToken(account.refreshToken, pageId);
+  const pageDebug = await assertFacebookPageTokenCanPublish(page.access_token, { phase: 'publish' });
+
+  return {
+    accessToken: page.access_token,
+    expiresIn: null,
+    scopes: pageDebug.scopes,
+  };
 }
