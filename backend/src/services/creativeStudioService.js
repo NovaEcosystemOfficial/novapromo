@@ -3,8 +3,9 @@ import { generateImageBuffer } from './openaiImageService.js';
 import { getBrand, buildBrandSystemPrompt } from './brandService.js';
 import { saveAiGeneration } from './firebase/aiGenerationRepository.js';
 import { uploadAiImageToFirebaseStorage } from './firebase/storageService.js';
-import { getUserPlan, consumeAICredits } from './planService.js';
+import { getUserPlan, consumeAICredits, computeCreditsRemaining } from './planService.js';
 import { canUseCreativeStudio } from './featureGate.js';
+import { isAdmin } from './adminService.js';
 import { assertCreativeStudioRateLimit, recordCreativeStudioUsage } from './creativeStudioRateLimit.js';
 import { hasFirebaseStorage } from './firebase/dataStore.js';
 import { DEFAULT_BRAND_ID } from '../constants/plans.js';
@@ -132,9 +133,10 @@ async function assertCreativeAccess(userDocId, creditCost) {
     throw err;
   }
 
-  if (gate.remaining < creditCost) {
+  if (gate.remaining != null && gate.remaining < creditCost && !isAdmin(plan)) {
+    const remaining = computeCreditsRemaining(plan);
     const err = new Error(
-      `Crediti AI insufficienti per questa operazione (servono ${creditCost}, ne restano ${gate.remaining})`
+      `Crediti AI insufficienti per questa operazione (servono ${creditCost}, ne restano ${remaining})`
     );
     err.code = 'AI_CREDITS_EXHAUSTED';
     err.status = 402;

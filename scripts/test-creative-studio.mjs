@@ -43,6 +43,14 @@ const premiumLowCredits = {
 
 assert(canUseCreativeStudio(freeUser).allowed === false, 'free user blocked from Creative Studio');
 assert(canUseCreativeStudio(freeUser).code === 'CREATIVE_STUDIO_PREMIUM_ONLY', 'free gets premium-only code');
+const trialUser = {
+  plan: 'trial',
+  aiCreditsUsedThisMonth: 10,
+  aiCreditsLimit: 100,
+  businessActive: false,
+};
+
+assert(canUseCreativeStudio(trialUser).allowed === true, 'trial user can use Creative Studio');
 assert(canUseCreativeStudio(premiumUser).allowed === true, 'premium user can use Creative Studio');
 assert(isPremiumPlan(premiumUser) === true, 'premium plan detected');
 

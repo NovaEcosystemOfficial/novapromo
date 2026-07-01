@@ -172,6 +172,10 @@ export const config = {
   cookieDomain: process.env.COOKIE_DOMAIN || '',
   encryptionKey: process.env.ENCRYPTION_KEY || '',
   sessionSecret: process.env.SESSION_SECRET || process.env.ENCRYPTION_KEY || 'dev-session-secret-change-me',
+  adminEmails: (process.env.ADMIN_EMAILS || '')
+    .split(',')
+    .map((e) => e.trim())
+    .filter(Boolean),
   dbPath,
   uploadDir,
   maxFileSizeMb: parseInt(process.env.MAX_FILE_SIZE_MB || '50', 10),

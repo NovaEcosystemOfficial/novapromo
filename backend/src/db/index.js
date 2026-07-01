@@ -212,6 +212,30 @@ function migrateSchema(database) {
     if (!cols.includes('creative_studio_last_at')) {
       database.exec('ALTER TABLE user_plans ADD COLUMN creative_studio_last_at TEXT');
     }
+    if (!cols.includes('email')) {
+      database.exec('ALTER TABLE user_plans ADD COLUMN email TEXT');
+    }
+    if (!cols.includes('display_name')) {
+      database.exec('ALTER TABLE user_plans ADD COLUMN display_name TEXT');
+    }
+    if (!cols.includes('role')) {
+      database.exec("ALTER TABLE user_plans ADD COLUMN role TEXT NOT NULL DEFAULT 'user'");
+    }
+    if (!cols.includes('credits')) {
+      database.exec('ALTER TABLE user_plans ADD COLUMN credits INTEGER NOT NULL DEFAULT 30');
+    }
+    if (!cols.includes('credits_reset_at')) {
+      database.exec('ALTER TABLE user_plans ADD COLUMN credits_reset_at TEXT');
+    }
+    if (!cols.includes('trial_started_at')) {
+      database.exec('ALTER TABLE user_plans ADD COLUMN trial_started_at TEXT');
+    }
+    if (!cols.includes('trial_ends_at')) {
+      database.exec('ALTER TABLE user_plans ADD COLUMN trial_ends_at TEXT');
+    }
+    if (!cols.includes('premium_until')) {
+      database.exec('ALTER TABLE user_plans ADD COLUMN premium_until TEXT');
+    }
   } catch {
     // migration skipped
   }

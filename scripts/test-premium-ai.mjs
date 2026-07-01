@@ -35,7 +35,7 @@ const freeUser = {
 
 const freeExhausted = {
   ...freeUser,
-  aiCreditsUsedThisMonth: 3,
+  aiCreditsUsedThisMonth: 30,
 };
 
 const premiumUser = {
@@ -66,7 +66,7 @@ assert(canUseAI(businessActive).allowed === true, 'business active can use AI');
 assert(isPremiumPlan(premiumUser) === true, 'premium detected');
 assert(isPremiumPlan(freeUser) === false, 'free not premium');
 assert(isPremiumPlan(businessActive) === true, 'active business is premium-tier');
-assert(getPlanDefinition('free').aiCreditsLimit === 3, 'free limit is 3');
+assert(getPlanDefinition('free').aiCreditsLimit === 30, 'free limit is 30');
 assert(getPlanDefinition('premium').aiCreditsLimit === 300, 'premium limit is 300');
 assert(getPlanDefinition('business').aiCreditsLimit === 2000, 'business limit is 2000');
 

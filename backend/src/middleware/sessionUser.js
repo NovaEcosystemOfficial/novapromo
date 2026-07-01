@@ -1,12 +1,28 @@
 import { SESSION_COOKIE } from '../routes/auth.js';
 import { getSession } from '../services/auth/sessionService.js';
 import { hasLocalSession, LOCAL_USER } from '../services/localAuthService.js';
+import { readFirebaseSessionUid } from '../services/auth/firebaseSessionService.js';
+import { getUserPlan } from '../services/planService.js';
 
 /**
  * Resolve authenticated user for premium/AI routes.
- * Does not block unauthenticated callers — use requireSession for that.
  */
-export function resolveSessionUser(req) {
+export async function resolveSessionUser(req) {
+  const firebaseUid = readFirebaseSessionUid(req);
+  if (firebaseUid) {
+    const plan = await getUserPlan(firebaseUid);
+    return {
+      uid: firebaseUid,
+      openId: null,
+      docId: firebaseUid,
+      email: plan.email || null,
+      displayName: plan.displayName || null,
+      username: plan.email?.split('@')[0] || null,
+      role: plan.role || 'user',
+      mode: 'firebase',
+    };
+  }
+
   if (hasLocalSession(req)) {
     return {
       uid: LOCAL_USER.uid,
@@ -14,6 +30,7 @@ export function resolveSessionUser(req) {
       docId: 'local-desktop',
       displayName: LOCAL_USER.displayName,
       username: LOCAL_USER.username,
+      role: 'user',
       mode: 'local',
     };
   }
@@ -30,12 +47,13 @@ export function resolveSessionUser(req) {
     docId: session.openId,
     displayName: session.displayName,
     username: session.username,
+    role: 'user',
     mode: 'tiktok',
   };
 }
 
-export function requireSession(req, res, next) {
-  const user = resolveSessionUser(req);
+export async function requireSession(req, res, next) {
+  const user = await resolveSessionUser(req);
   if (!user) {
     return res.status(401).json({ error: 'Autenticazione richiesta', code: 'AUTH_REQUIRED' });
   }

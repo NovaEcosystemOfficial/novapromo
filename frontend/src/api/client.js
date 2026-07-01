@@ -82,6 +82,20 @@ export const api = {
 
   getBillingStatus: () => request('/api/billing/status'),
 
+  redeemCoupon: (code) =>
+    request('/api/billing/redeem-coupon', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code }),
+    }),
+
+  syncFirebaseSession: (idToken) =>
+    request('/api/auth/firebase/session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken }),
+    }),
+
   getBrands: () => request('/api/brands'),
 
   getAiStatus: () => request('/api/ai/status'),

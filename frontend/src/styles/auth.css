@@ -222,3 +222,111 @@
   color: var(--danger);
   border-color: rgba(248, 113, 113, 0.3);
 }
+
+.auth-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  margin-bottom: 0.85rem;
+}
+
+.auth-form input {
+  padding: 0.65rem 0.85rem;
+  border-radius: 8px;
+  border: 1px solid var(--border, #2a3144);
+  background: rgba(0, 0, 0, 0.2);
+  color: inherit;
+}
+
+.auth-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.auth-tab {
+  flex: 1;
+  padding: 0.5rem;
+  border-radius: 8px;
+  border: 1px solid var(--border, #2a3144);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.auth-tab.active {
+  border-color: rgba(249, 115, 22, 0.45);
+  background: rgba(249, 115, 22, 0.1);
+  color: #fdba74;
+}
+
+.account-profile__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.account-profile__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.75rem 1.25rem;
+  margin: 0;
+}
+
+.account-profile__grid dt {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted, #8b95a8);
+  margin-bottom: 0.2rem;
+}
+
+.account-profile__grid dd {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.account-profile__upgrade {
+  margin: 1rem 0;
+}
+
+.account-coupon {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border, #2a3144);
+}
+
+.account-coupon label {
+  display: block;
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+
+.account-coupon__row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.account-coupon__row input {
+  flex: 1;
+  padding: 0.55rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--border, #2a3144);
+  background: rgba(0, 0, 0, 0.15);
+  color: inherit;
+}
+
+.account-coupon__ok {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  color: #4ade80;
+}
+
+.account-coupon__err {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  color: #f87171;
+}

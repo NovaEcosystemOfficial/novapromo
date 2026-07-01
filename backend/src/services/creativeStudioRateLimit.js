@@ -59,7 +59,13 @@ async function getUsage(docId) {
   return getSqliteUsage(docId);
 }
 
+import { getUserPlan } from './planService.js';
+import { isAdmin } from './adminService.js';
+
 export async function assertCreativeStudioRateLimit(docId) {
+  const plan = await getUserPlan(docId);
+  if (isAdmin(plan)) return;
+
   const usage = await getUsage(docId);
   const now = Date.now();
 

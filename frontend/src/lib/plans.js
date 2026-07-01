@@ -9,8 +9,15 @@ export const PLAN_COMPARISON = [
     id: 'free',
     label: 'Free',
     price: '€0',
-    aiCredits: 3,
-    features: ['Dashboard e calendario', 'Pubblicazione Instagram', 'AI limitata (3/mese)'],
+    aiCredits: 30,
+    features: ['Dashboard e calendario', 'Pubblicazione Instagram/Facebook', 'AI limitata (30/mese)'],
+  },
+  {
+    id: 'trial',
+    label: 'Trial',
+    price: '7 giorni',
+    aiCredits: 100,
+    features: ['Creative Studio PRO incluso', '100 crediti trial', 'Poi passa a Free'],
   },
   {
     id: 'premium',

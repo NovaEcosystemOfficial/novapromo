@@ -10,6 +10,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { isInstagramConnected, getInstagramConnectionLabel } from '../lib/instagramStatus.js';
 import { isFacebookConnected, getFacebookConnectionLabel, getFacebookPublishingLabel, isFacebookPublishPending, isFacebookPublishReady, FACEBOOK_PUBLISH_PENDING_UI_MESSAGE } from '../lib/facebookStatus.js';
 import IntegrationStatusPanel from '../components/accounts/IntegrationStatusPanel.jsx';
+import AccountProfilePanel from '../components/accounts/AccountProfilePanel.jsx';
 import TikTokPausedBadge from '../components/TikTokPausedBadge.jsx';
 
 export default function Accounts() {
@@ -167,6 +168,8 @@ export default function Accounts() {
           {DEMO_BACKEND_MESSAGE} Instagram risulta <strong>non collegato</strong> finché non deployi il backend API.
         </div>
       )}
+
+      <AccountProfilePanel />
 
       <section className="card" style={{ marginBottom: '1.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>

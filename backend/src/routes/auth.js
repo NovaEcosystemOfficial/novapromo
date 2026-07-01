@@ -27,7 +27,15 @@ import {
   LOCAL_USER,
 } from '../services/localAuthService.js';
 import { getInstagramIntegrationStatus } from '../services/integrationService.js';
-import { ensureUserPlan } from '../services/planService.js';
+import { ensureUserPlan, getBillingStatus } from '../services/planService.js';
+import {
+  verifyFirebaseIdToken,
+  setFirebaseSessionCookie,
+  clearFirebaseSessionCookie,
+  readFirebaseSessionUid,
+} from '../services/auth/firebaseSessionService.js';
+import { upsertUserFromFirebaseAuth } from '../services/userProfileService.js';
+import { hasFirebaseAdminCredentials } from '../config.js';
 
 const router = Router();
 
@@ -225,7 +233,87 @@ router.post('/tiktok/exchange', requireTikTokEnabled, async (req, res) => {
   }
 });
 
+router.post('/firebase/session', async (req, res) => {
+  try {
+    if (!hasFirebaseAdminCredentials()) {
+      return res.status(503).json({
+        error: 'Firebase Auth backend non configurato',
+        code: 'FIREBASE_NOT_CONFIGURED',
+      });
+    }
+
+    const idToken = req.body?.idToken
+      || (req.headers.authorization?.startsWith('Bearer ')
+        ? req.headers.authorization.slice(7)
+        : null);
+
+    if (!idToken) {
+      return res.status(400).json({ error: 'idToken richiesto', code: 'VALIDATION_ERROR' });
+    }
+
+    const decoded = await verifyFirebaseIdToken(idToken);
+    await upsertUserFromFirebaseAuth({
+      uid: decoded.uid,
+      email: decoded.email,
+      displayName: decoded.name || decoded.email?.split('@')[0],
+    });
+    await ensureUserPlan(decoded.uid, {
+      uid: decoded.uid,
+      email: decoded.email,
+      displayName: decoded.name,
+    });
+
+    setFirebaseSessionCookie(res, decoded.uid);
+    const billing = await getBillingStatus(decoded.uid);
+
+    res.json({
+      authenticated: true,
+      mode: 'firebase',
+      user: {
+        uid: decoded.uid,
+        email: decoded.email,
+        displayName: decoded.name || billing.displayName,
+        role: billing.role,
+        plan: billing.plan,
+      },
+      billing,
+    });
+  } catch (err) {
+    logger.error('Firebase session error', { error: err.message, code: err.code });
+    res.status(err.status || 500).json({
+      error: err.message,
+      code: err.code || 'AUTH_ERROR',
+    });
+  }
+});
+
 router.get('/me', async (req, res) => {
+  const firebaseUid = readFirebaseSessionUid(req);
+  if (firebaseUid) {
+    try {
+      const billing = await getBillingStatus(firebaseUid);
+      const instagram = await getInstagramIntegrationStatus();
+      return res.json({
+        authenticated: true,
+        mode: 'firebase',
+        user: {
+          uid: firebaseUid,
+          email: billing.email,
+          displayName: billing.displayName,
+          role: billing.role,
+          plan: billing.plan,
+        },
+        billing,
+        instagram: instagramAuthPayload(instagram),
+        tiktok: { connected: false, tokenStatus: 'paused', tokenStatusLabel: 'In pausa' },
+      });
+    } catch (err) {
+      logger.error('Firebase /me error', { error: err.message });
+      clearFirebaseSessionCookie(res);
+      return res.status(401).json({ authenticated: false, tokenStatus: 'expired' });
+    }
+  }
+
   if (!config.tiktokEnabled && hasLocalSession(req)) {
     const instagram = await getInstagramIntegrationStatus();
     return res.json({
@@ -297,6 +385,8 @@ router.get('/firebase-token', async (req, res) => {
 });
 
 router.post('/logout', async (req, res) => {
+  clearFirebaseSessionCookie(res);
+
   if (!config.tiktokEnabled && hasLocalSession(req)) {
     clearLocalSession(res);
     return res.json({ success: true });
