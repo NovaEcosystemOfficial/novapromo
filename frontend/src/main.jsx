@@ -9,6 +9,7 @@ import App from './App.jsx';
 import { shouldUseHashRouter } from './lib/runtime.js';
 import './styles/global.css';
 import './styles/auth.css';
+import './styles/pwa.css';
 
 const Router = shouldUseHashRouter() ? HashRouter : BrowserRouter;
 
