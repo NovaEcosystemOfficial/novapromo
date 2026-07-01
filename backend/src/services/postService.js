@@ -1,6 +1,8 @@
 import { v4 as uuidv4 } from 'uuid';
 import { getDb } from '../db/index.js';
-import { getAnalyticsMetrics, getContentSuggestions } from './analyticsService.js';
+import { useFirebaseDataStore } from './firebase/dataStore.js';
+import * as firebasePosts from './firebase/postRepository.js';
+import * as firebaseLogs from './firebase/publicationLogRepository.js';
 
 const POST_FIELDS = `
   id, project, platform, content_type AS contentType, tone, topic,
@@ -8,11 +10,15 @@ const POST_FIELDS = `
   media_path AS mediaPath, media_mime_type AS mediaMimeType, media_public_url AS mediaPublicUrl,
   scheduled_at AS scheduledAt, status, error_message AS errorMessage,
   instagram_media_id AS instagramMediaId, instagram_container_id AS instagramContainerId,
-  tiktok_publish_id AS tiktokPublishId, published_at AS publishedAt,
+  facebook_post_id AS facebookPostId, tiktok_publish_id AS tiktokPublishId, published_at AS publishedAt,
   view_count AS viewCount, created_at AS createdAt, updated_at AS updatedAt
 `;
 
-export function listPosts({ status, platform, from, to } = {}) {
+export async function listPosts({ status, platform, from, to } = {}) {
+  if (useFirebaseDataStore()) {
+    return firebasePosts.listPosts({ status, platform, from, to });
+  }
+
   let sql = `SELECT ${POST_FIELDS} FROM posts WHERE 1=1`;
   const params = [];
 
@@ -21,8 +27,14 @@ export function listPosts({ status, platform, from, to } = {}) {
     params.push(status);
   }
   if (platform) {
-    sql += ' AND (platform = ? OR platform = \'both\')';
-    params.push(platform);
+    if (platform === 'instagram') {
+      sql += " AND (platform = 'instagram' OR platform = 'both' OR platform = 'multi')";
+    } else if (platform === 'facebook') {
+      sql += " AND (platform = 'facebook' OR platform = 'multi')";
+    } else {
+      sql += ' AND (platform = ? OR platform = \'both\')';
+      params.push(platform);
+    }
   }
   if (from) {
     sql += ' AND (scheduled_at >= ? OR published_at >= ? OR created_at >= ?)';
@@ -37,11 +49,18 @@ export function listPosts({ status, platform, from, to } = {}) {
   return getDb().prepare(sql).all(...params);
 }
 
-export function getPostById(id) {
+export async function getPostById(id) {
+  if (useFirebaseDataStore()) {
+    return firebasePosts.getPostById(id);
+  }
   return getDb().prepare(`SELECT ${POST_FIELDS} FROM posts WHERE id = ?`).get(id);
 }
 
-export function createPost(data) {
+export async function createPost(data) {
+  if (useFirebaseDataStore()) {
+    return firebasePosts.createPost(data);
+  }
+
   const id = uuidv4();
   const now = new Date().toISOString();
   const status = data.status || (data.scheduledAt ? 'scheduled' : 'draft');
@@ -78,8 +97,12 @@ export function createPost(data) {
   return getPostById(id);
 }
 
-export function updatePost(id, data) {
-  const existing = getPostById(id);
+export async function updatePost(id, data) {
+  if (useFirebaseDataStore()) {
+    return firebasePosts.updatePost(id, data);
+  }
+
+  const existing = await getPostById(id);
   if (!existing) return null;
 
   const now = new Date().toISOString();
@@ -112,6 +135,7 @@ export function updatePost(id, data) {
         error_message = COALESCE(?, error_message),
         instagram_media_id = COALESCE(?, instagram_media_id),
         instagram_container_id = COALESCE(?, instagram_container_id),
+        facebook_post_id = COALESCE(?, facebook_post_id),
         tiktok_publish_id = COALESCE(?, tiktok_publish_id),
         published_at = COALESCE(?, published_at),
         view_count = COALESCE(?, view_count),
@@ -137,6 +161,7 @@ export function updatePost(id, data) {
       data.errorMessage !== undefined ? data.errorMessage : null,
       data.instagramMediaId ?? null,
       data.instagramContainerId ?? null,
+      data.facebookPostId ?? null,
       data.tiktokPublishId ?? null,
       data.publishedAt ?? null,
       data.viewCount ?? null,
@@ -147,11 +172,18 @@ export function updatePost(id, data) {
   return getPostById(id);
 }
 
-export function deletePost(id) {
+export async function deletePost(id) {
+  if (useFirebaseDataStore()) {
+    return firebasePosts.deletePost(id);
+  }
   return getDb().prepare('DELETE FROM posts WHERE id = ?').run(id);
 }
 
-export function getDueScheduledPosts() {
+export async function getDueScheduledPosts() {
+  if (useFirebaseDataStore()) {
+    return firebasePosts.getDueScheduledPosts();
+  }
+
   const now = new Date().toISOString();
   return getDb()
     .prepare(
@@ -162,7 +194,11 @@ export function getDueScheduledPosts() {
     .all(now);
 }
 
-export function addPublicationLog({ postId, platform, action, status, message, details }) {
+export async function addPublicationLog({ postId, platform, action, status, message, details }) {
+  if (useFirebaseDataStore()) {
+    return firebaseLogs.addPublicationLog({ postId, platform, action, status, message, details });
+  }
+
   const id = uuidv4();
   getDb()
     .prepare(
@@ -173,7 +209,11 @@ export function addPublicationLog({ postId, platform, action, status, message, d
   return id;
 }
 
-export function listPublicationLogs({ postId, limit = 100 } = {}) {
+export async function listPublicationLogs({ postId, limit = 100 } = {}) {
+  if (useFirebaseDataStore()) {
+    return firebaseLogs.listPublicationLogs({ postId, limit });
+  }
+
   let sql = 'SELECT * FROM publication_logs';
   const params = [];
   if (postId) {
@@ -194,12 +234,37 @@ export function listPublicationLogs({ postId, limit = 100 } = {}) {
   }));
 }
 
-export function getDashboardStats() {
+export async function getDashboardStats() {
+  const { getAnalyticsMetrics, getContentSuggestions } = await import('./analyticsService.js');
+  if (useFirebaseDataStore()) {
+    const posts = await listPosts();
+    const byStatus = posts.reduce((acc, post) => {
+      acc[post.status] = (acc[post.status] || 0) + 1;
+      return acc;
+    }, {});
+    const accountCounts = await firebasePosts.countAccountsByPlatform();
+    const recentLogs = await listPublicationLogs({ limit: 10 });
+
+    return {
+      posts: {
+        draft: byStatus.draft || 0,
+        scheduled: byStatus.scheduled || 0,
+        published: byStatus.published || 0,
+        error: byStatus.error || 0,
+        total: posts.length,
+      },
+      metrics: await getAnalyticsMetrics(),
+      suggestions: await getContentSuggestions(),
+      connectedAccounts: accountCounts,
+      recentLogs,
+    };
+  }
+
   const db = getDb();
   const counts = db.prepare(`SELECT status, COUNT(*) as count FROM posts GROUP BY status`).all();
   const byStatus = Object.fromEntries(counts.map((r) => [r.status, r.count]));
   const accounts = db.prepare('SELECT platform, COUNT(*) as count FROM connected_accounts GROUP BY platform').all();
-  const recentLogs = listPublicationLogs({ limit: 10 });
+  const recentLogs = await listPublicationLogs({ limit: 10 });
 
   return {
     posts: {
@@ -209,8 +274,8 @@ export function getDashboardStats() {
       error: byStatus.error || 0,
       total: Object.values(byStatus).reduce((a, b) => a + b, 0),
     },
-    metrics: getAnalyticsMetrics(),
-    suggestions: getContentSuggestions(),
+    metrics: await getAnalyticsMetrics(),
+    suggestions: await getContentSuggestions(),
     connectedAccounts: Object.fromEntries(accounts.map((a) => [a.platform, a.count])),
     recentLogs,
   };

@@ -31,15 +31,6 @@ function applyDemoSession(setters) {
   return data;
 }
 
-function restoreLocalSessionMarker(setters, localSessionRef) {
-  if (!hasLocalAuthMarker()) return false;
-  localSessionRef.current = true;
-  setters.setUser(LOCAL_USER);
-  setters.setAppMode('local');
-  setters.setError(null);
-  return true;
-}
-
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [tiktok, setTiktok] = useState(null);
@@ -50,6 +41,16 @@ export function AuthProvider({ children }) {
   const localSessionRef = useRef(false);
 
   const setters = { setUser, setTiktok, setInstagram, setAppMode, setError };
+
+  const syncFirebaseSession = useCallback(async (idToken) => {
+    const data = await api.syncFirebaseSession(idToken);
+    setUser(data.user);
+    setTiktok(data.tiktok || null);
+    setInstagram(data.instagram || null);
+    setAppMode('firebase');
+    setError(null);
+    return data;
+  }, []);
 
   const refreshUser = useCallback(async () => {
     if (isDemoMode()) {
@@ -65,8 +66,10 @@ export function AuthProvider({ children }) {
         setInstagram(data.instagram || null);
         setAppMode(data.mode || 'local');
         setError(null);
-        localSessionRef.current = data.mode === 'local' || localSessionRef.current;
-        if (data.mode === 'local') markLocalAuth();
+        if (data.mode === 'local') {
+          localSessionRef.current = true;
+          markLocalAuth();
+        }
         return;
       }
 
@@ -76,15 +79,8 @@ export function AuthProvider({ children }) {
         setInstagram(null);
         setAppMode(null);
       }
-      setError(null);
     } catch (err) {
       console.warn('[Auth] getMe failed:', err.message);
-      if (!localSessionRef.current && !hasLocalAuthMarker()) {
-        setUser(null);
-        setTiktok(null);
-        setInstagram(null);
-        setAppMode(null);
-      }
     }
   }, []);
 
@@ -103,59 +99,79 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     let cancelled = false;
 
-    async function bootstrap() {
-      try {
-        if (isDemoMode()) {
-          if (!cancelled) applyDemoSession(setters);
-          return;
-        }
+    if (isDemoMode()) {
+      applyDemoSession(setters);
+      setLoading(false);
+      return undefined;
+    }
 
-        if (!isTikTokEnabled()) {
-          if (!cancelled) restoreLocalSessionMarker(setters, localSessionRef);
-
-          try {
-            const data = await api.enterLocalApp();
-            if (!cancelled && data?.authenticated) {
-              localSessionRef.current = true;
-              markLocalAuth();
-              applyLocalSession(data, setters);
+    if (hasClientConfig && auth) {
+      const unsub = onAuthStateChanged(auth, async (fbUser) => {
+        if (cancelled) return;
+        try {
+          if (fbUser) {
+            const token = await fbUser.getIdToken();
+            const data = await api.syncFirebaseSession(token);
+            if (!cancelled) {
+              setUser(data.user);
+              setInstagram(data.instagram || null);
+              setTiktok(null);
+              setAppMode('firebase');
             }
-          } catch (err) {
-            console.warn('[Auth] enterLocalApp failed:', err.message);
+          } else if (!localSessionRef.current && !hasLocalAuthMarker()) {
+            setUser(null);
+            setInstagram(null);
+            setTiktok(null);
+            setAppMode(null);
           }
+        } catch (err) {
+          console.warn('[Auth] Firebase sync failed:', err.message);
+        } finally {
+          if (!cancelled) setLoading(false);
         }
+      });
+      return () => {
+        cancelled = true;
+        unsub();
+      };
+    }
 
-        if (!cancelled) {
+    (async () => {
+      try {
+        if (!isTikTokEnabled()) {
+          if (hasLocalAuthMarker()) {
+            localSessionRef.current = true;
+            setUser(LOCAL_USER);
+            setAppMode('local');
+          } else {
+            try {
+              const data = await api.enterLocalApp();
+              if (!cancelled && data?.authenticated) {
+                localSessionRef.current = true;
+                markLocalAuth();
+                applyLocalSession(data, setters);
+              }
+            } catch (err) {
+              console.warn('[Auth] enterLocalApp failed:', err.message);
+            }
+          }
+        } else {
           try {
             const data = await api.getMe();
             if (!cancelled && data.authenticated) {
               setUser(data.user);
               setTiktok(data.tiktok || null);
               setInstagram(data.instagram || null);
-              setAppMode(data.mode || 'local');
-              if (data.mode === 'local') {
-                localSessionRef.current = true;
-                markLocalAuth();
-              }
+              setAppMode(data.mode || 'tiktok');
             }
           } catch (err) {
-            console.warn('[Auth] getMe refresh skipped:', err.message);
+            console.warn('[Auth] getMe skipped:', err.message);
           }
         }
       } finally {
         if (!cancelled) setLoading(false);
       }
-    }
-
-    bootstrap();
-
-    if (hasClientConfig && auth) {
-      const unsub = onAuthStateChanged(auth, () => {});
-      return () => {
-        cancelled = true;
-        unsub();
-      };
-    }
+    })();
 
     return () => {
       cancelled = true;
@@ -203,6 +219,7 @@ export function AuthProvider({ children }) {
         setError,
         refreshUser,
         enterLocalApp,
+        syncFirebaseSession,
         loginWithCustomToken,
         logout,
         isDemoMode: isDemoMode(),

@@ -1,4 +1,3 @@
-import { getDb } from '../db/index.js';
 import { listPosts } from './postService.js';
 import { PROJECTS, PROJECT_SUGGESTIONS } from '../constants/projects.js';
 
@@ -14,8 +13,10 @@ const CONTENT_LABELS = {
 
 const PLATFORM_LABELS = {
   instagram: 'Instagram',
+  facebook: 'Facebook',
   tiktok: 'TikTok',
-  both: 'Entrambi',
+  both: 'Entrambi (IG+TT)',
+  multi: 'Instagram + Facebook',
 };
 
 function startOfDay(d) {
@@ -28,43 +29,33 @@ function daysBetween(a, b) {
   return Math.floor((startOfDay(b) - startOfDay(a)) / (1000 * 60 * 60 * 24));
 }
 
-export function getAnalyticsMetrics() {
-  const db = getDb();
+export async function getAnalyticsMetrics() {
+  const allPosts = await listPosts();
   const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-  const todayStart = startOfDay(now).toISOString();
-  const tomorrowStart = new Date(startOfDay(now).getTime() + 86400000).toISOString();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const todayStart = startOfDay(now);
+  const tomorrowStart = new Date(todayStart.getTime() + 86400000);
 
-  const postsThisMonth = db
-    .prepare(
-      `SELECT COUNT(*) as c FROM posts
-       WHERE status IN ('published', 'scheduled')
-       AND COALESCE(published_at, scheduled_at, created_at) >= ?`
-    )
-    .get(monthStart)?.c || 0;
+  const publishedPosts = allPosts.filter((p) => p.status === 'published');
 
-  const publishedToday = db
-    .prepare(
-      `SELECT COUNT(*) as c FROM posts
-       WHERE status = 'published'
-       AND published_at >= ? AND published_at < ?`
-    )
-    .get(todayStart, tomorrowStart)?.c || 0;
+  const postsThisMonth = allPosts.filter((p) => {
+    if (!['published', 'scheduled'].includes(p.status)) return false;
+    const ts = new Date(p.publishedAt || p.scheduledAt || p.createdAt);
+    return ts >= monthStart;
+  }).length;
 
-  const totalViews = db
-    .prepare(`SELECT COALESCE(SUM(view_count), 0) as v FROM posts WHERE status = 'published'`)
-    .get()?.v || 0;
+  const publishedToday = publishedPosts.filter((p) => {
+    const ts = new Date(p.publishedAt);
+    return ts >= todayStart && ts < tomorrowStart;
+  }).length;
 
-  const lastPublished = db
-    .prepare(
-      `SELECT id, project, platform, content_type AS contentType, caption,
-              published_at AS publishedAt, view_count AS viewCount
-       FROM posts WHERE status = 'published' AND published_at IS NOT NULL
-       ORDER BY published_at DESC LIMIT 1`
-    )
-    .get() || null;
+  const totalViews = publishedPosts.reduce((sum, p) => sum + (p.viewCount || 0), 0);
 
-  const streak = calculatePublicationStreak(db);
+  const lastPublished = publishedPosts
+    .filter((p) => p.publishedAt)
+    .sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt))[0] || null;
+
+  const streak = calculatePublicationStreak(publishedPosts);
 
   return {
     postsThisMonth,
@@ -75,23 +66,19 @@ export function getAnalyticsMetrics() {
   };
 }
 
-function calculatePublicationStreak(database) {
-  const rows = database
-    .prepare(
-      `SELECT DISTINCT date(published_at) as d FROM posts
-       WHERE status = 'published' AND published_at IS NOT NULL
-       ORDER BY d DESC`
-    )
-    .all();
+function calculatePublicationStreak(publishedPosts) {
+  if (publishedPosts.length === 0) return 0;
 
-  if (rows.length === 0) return 0;
+  const publishedDays = new Set(
+    publishedPosts
+      .filter((p) => p.publishedAt)
+      .map((p) => String(p.publishedAt).slice(0, 10))
+  );
 
   let streak = 0;
   let checkDate = startOfDay(new Date());
-
-  const publishedDays = new Set(rows.map((r) => r.d));
-
   const todayStr = checkDate.toISOString().slice(0, 10);
+
   if (!publishedDays.has(todayStr)) {
     checkDate = new Date(checkDate.getTime() - 86400000);
   }
@@ -109,12 +96,12 @@ function calculatePublicationStreak(database) {
   return streak;
 }
 
-export function getContentSuggestions() {
-  const allPosts = listPosts();
+export async function getContentSuggestions() {
+  const allPosts = await listPosts();
   const suggestions = [];
 
   for (const project of PROJECTS) {
-    const config = PROJECT_SUGGESTIONS[project.id] || {
+    const projectConfig = PROJECT_SUGGESTIONS[project.id] || {
       platform: 'instagram',
       contentType: 'post',
       minDays: 3,
@@ -135,7 +122,7 @@ export function getContentSuggestions() {
 
     const daysSince = lastDate ? daysBetween(lastDate, new Date()) : 999;
 
-    if (daysSince >= config.minDays || !lastPost) {
+    if (daysSince >= projectConfig.minDays || !lastPost) {
       suggestions.push({
         project: project.id,
         projectColor: project.color,
@@ -144,10 +131,10 @@ export function getContentSuggestions() {
           ? `Ultimo post ${daysSince} ${daysSince === 1 ? 'giorno' : 'giorni'} fa`
           : 'Nessun post ancora',
         recommendedToday: true,
-        platform: config.platform,
-        platformLabel: PLATFORM_LABELS[config.platform],
-        contentType: config.contentType,
-        contentTypeLabel: CONTENT_LABELS[config.contentType],
+        platform: projectConfig.platform,
+        platformLabel: PLATFORM_LABELS[projectConfig.platform],
+        contentType: projectConfig.contentType,
+        contentTypeLabel: CONTENT_LABELS[projectConfig.contentType],
         priority: daysSince,
       });
     }

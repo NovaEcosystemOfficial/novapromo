@@ -1,0 +1,11 @@
+rules_version = '2';
+
+// NovaPromo: tutti i dati applicativi sono letti/scritti solo dal backend (Firebase Admin SDK).
+// Il client web non accede direttamente a Firestore.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

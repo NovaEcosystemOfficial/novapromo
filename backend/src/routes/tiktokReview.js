@@ -18,9 +18,9 @@ const PRIVACY_LEVELS = [
   'SELF_ONLY',
 ];
 
-router.get('/status', (_req, res) => {
+router.get('/status', async (_req, res) => {
   const tiktokConfig = getTikTokConfigStatus();
-  const contentAccount = getAccountByPlatform('tiktok');
+  const contentAccount = await getAccountByPlatform('tiktok');
 
   res.json({
     credentialsReady: tiktokConfig.ready,

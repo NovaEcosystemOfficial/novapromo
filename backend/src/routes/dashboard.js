@@ -5,10 +5,10 @@ import { getLastPublishEvent, clearLastPublishEvent } from '../services/desktopE
 
 const router = Router();
 
-router.get('/stats', (_req, res) => {
+router.get('/stats', async (_req, res) => {
   res.json({
-    ...getDashboardStats(),
-    integrations: getAllIntegrationsStatus(),
+    ...(await getDashboardStats()),
+    integrations: await getAllIntegrationsStatus(),
   });
 });
 

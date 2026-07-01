@@ -13,6 +13,8 @@ const TONE_TEMPLATES = {
 
 const HASHTAG_SETS = {
   instagram: ['#novapromo', '#marketing', '#socialmedia', '#brand', '#content'],
+  facebook: ['#novapromo', '#facebook', '#marketing', '#brand', '#community'],
+  multi: ['#novapromo', '#instagram', '#facebook', '#brand', '#socialmedia'],
   tiktok: ['#fyp', '#foryou', '#viral', '#trending', '#novapromo'],
   both: ['#novapromo', '#marketing', '#fyp', '#brand', '#viral'],
 };

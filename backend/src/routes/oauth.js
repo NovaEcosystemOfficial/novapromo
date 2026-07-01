@@ -9,37 +9,39 @@ import {
   refreshInstagramToken,
 } from '../services/instagram/instagramService.js';
 import {
+  getFacebookAuthUrl,
+  exchangeFacebookCode,
+} from '../services/facebook/facebookService.js';
+import {
   getTikTokContentAuthUrl,
   refreshTikTokToken,
 } from '../services/tiktok/tiktokService.js';
 import { exchangeContentAuthorizationCode } from '../services/tiktok/tiktokLoginService.js';
-import {
-  getAllIntegrationsStatus,
-  assertCanStartOAuth,
-} from '../services/integrationService.js';
+import { getInstagramIntegrationStatus, getAllIntegrationsStatus, assertCanStartOAuth } from '../services/integrationService.js';
 import { createOAuthState, validateAndConsumeOAuthState } from '../services/auth/sessionService.js';
 import { requireTikTokEnabled } from '../middleware/tiktokPaused.js';
 import { mapOAuthDenial, toUserFriendlyMetaError } from '../services/instagram/metaErrors.js';
+import { getFacebookSetupChecklist } from '../services/facebook/metaFacebookConfig.js';
 
 const router = Router();
 
-router.get('/integrations/status', (_req, res) => {
-  res.json(getAllIntegrationsStatus());
+router.get('/integrations/status', async (_req, res) => {
+  res.json(await getAllIntegrationsStatus());
 });
 
-router.get('/accounts', (_req, res) => {
-  res.json(listAccounts());
+router.get('/accounts', async (_req, res) => {
+  res.json(await listAccounts());
 });
 
-router.delete('/accounts/:id', (req, res) => {
-  const result = deleteAccount(req.params.id);
+router.delete('/accounts/:id', async (req, res) => {
+  const result = await deleteAccount(req.params.id);
   if (result.changes === 0) return res.status(404).json({ error: 'Account non trovato' });
   res.json({ success: true });
 });
 
-router.get('/instagram/start', (req, res) => {
+router.get('/instagram/start', async (req, res) => {
   try {
-    assertCanStartOAuth('instagram');
+    await assertCanStartOAuth('instagram');
     const { state } = createOAuthState('instagram');
     const forceReauth = req.query.force_reauth !== 'false';
     const enableFbLogin = req.query.enable_fb_login === 'true';
@@ -102,7 +104,7 @@ router.get('/instagram/callback', async (req, res) => {
       tokenExpiresIn: data.expiresIn || null,
     });
 
-    upsertAccount({
+    await upsertAccount({
       platform: 'instagram',
       externalUserId: data.instagramAccountId,
       username: data.username,
@@ -137,10 +139,10 @@ router.get('/instagram/callback', async (req, res) => {
 
 router.post('/instagram/refresh', async (_req, res) => {
   try {
-    const account = getAccountByPlatform('instagram');
+    const account = await getAccountByPlatform('instagram');
     if (!account) return res.status(404).json({ error: 'Account Instagram non collegato' });
     const refreshed = await refreshInstagramToken(account.accessToken);
-    const updated = upsertAccount({
+    const updated = await upsertAccount({
       platform: 'instagram',
       externalUserId: account.externalUserId,
       username: account.username,
@@ -154,6 +156,97 @@ router.post('/instagram/refresh', async (_req, res) => {
     res.json({ success: true, account: { id: updated.id, username: updated.username } });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/facebook/start', async (req, res) => {
+  try {
+    await assertCanStartOAuth('facebook');
+    const { state } = createOAuthState('facebook');
+    const url = getFacebookAuthUrl(state);
+
+    res.json({
+      url,
+      mode: 'REAL',
+      redirectUri: config.meta.facebookRedirectUri,
+      facebookConfigIdConfigured: Boolean(config.meta.facebookConfigId?.trim()),
+      label: 'Collega Pagina Facebook',
+      setupHints: [
+        'Usa l’app Meta principale (META_APP_ID) — diverso dall’Instagram App ID.',
+        'Devi essere admin della Pagina Facebook da collegare.',
+        'Abilita Facebook Login nel prodotto Meta e aggiungi il redirect URI Facebook.',
+        'Permessi richiesti: pages_show_list, pages_manage_posts, pages_read_engagement.',
+      ],
+      setupChecklist: getFacebookSetupChecklist(),
+    });
+  } catch (err) {
+    res.status(err.status || 500).json({
+      error: toUserFriendlyMetaError(err),
+      code: err.code,
+      details: err.details,
+      redirectUri: config.meta.facebookRedirectUri,
+    });
+  }
+});
+
+router.get('/facebook/callback', async (req, res) => {
+  const { code, state, error, error_description: errorDesc } = req.query;
+
+  if (error) {
+    return res.redirect(
+      buildAccountsRedirect({ error: mapOAuthDenial(error, errorDesc) })
+    );
+  }
+
+  if (!code) {
+    return res.redirect(
+      buildAccountsRedirect({ error: 'Autorizzazione Facebook incompleta. Riprova da Account.' })
+    );
+  }
+
+  try {
+    validateAndConsumeOAuthState(state);
+    const data = await exchangeFacebookCode(code);
+
+    logger.info('Facebook OAuth callback: page ready to save', {
+      facebookPageId: data.facebookPageId,
+      pageName: data.pageName,
+      status: data.status,
+    });
+
+    await upsertAccount({
+      platform: 'facebook',
+      externalUserId: data.facebookPageId,
+      username: data.pageName,
+      displayName: data.pageName,
+      accessToken: data.pageAccessToken,
+      refreshToken: data.userAccessToken,
+      expiresAt: data.expiresIn
+        ? new Date(Date.now() + data.expiresIn * 1000).toISOString()
+        : null,
+      scopes: data.grantedScopes || data.scopes,
+      metadata: {
+        facebookPageId: data.facebookPageId,
+        pageName: data.pageName,
+        status: data.status,
+        connectedAt: data.connectedAt,
+        connectionMode: data.connectionMode,
+        grantedScopes: data.grantedScopes || data.scopes,
+        missingPublishScopes: data.missingPublishScopes || [],
+        canPublish: data.canPublish === true,
+        publishingStatus: data.publishingStatus || (data.canPublish ? 'ready' : 'pending_meta_permission'),
+        tokenType: 'page',
+      },
+    });
+
+    res.redirect(buildAccountsRedirect({ connected: 'facebook' }));
+  } catch (err) {
+    logger.error('Facebook OAuth callback failed', {
+      message: err.message,
+      code: err.code,
+      metaCode: err.metaCode,
+    });
+    res.redirect(buildAccountsRedirect({ error: toUserFriendlyMetaError(err) }));
   }
 });
 
@@ -195,7 +288,7 @@ router.get('/tiktok/callback', requireTikTokEnabled, async (req, res) => {
     const { codeVerifier } = validateAndConsumeOAuthState(state);
     const data = await exchangeContentAuthorizationCode(code, codeVerifier);
 
-    upsertAccount({
+    await upsertAccount({
       platform: 'tiktok',
       externalUserId: data.openId,
       username: data.username,
@@ -222,12 +315,12 @@ router.get('/tiktok/callback', requireTikTokEnabled, async (req, res) => {
 
 router.post('/tiktok/refresh', requireTikTokEnabled, async (_req, res) => {
   try {
-    const account = getAccountByPlatform('tiktok');
+    const account = await getAccountByPlatform('tiktok');
     if (!account) return res.status(404).json({ error: 'Account TikTok non collegato' });
     if (!account.refreshToken) return res.status(400).json({ error: 'Refresh token non disponibile' });
 
     const refreshed = await refreshTikTokToken(account.refreshToken);
-    const updated = upsertAccount({
+    const updated = await upsertAccount({
       platform: 'tiktok',
       externalUserId: account.externalUserId,
       username: account.username,

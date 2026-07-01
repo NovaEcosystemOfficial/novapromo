@@ -21,7 +21,20 @@
     "build:desktop": "cross-env ELECTRON_BUILD=1 VITE_RUNTIME=desktop VITE_TIKTOK_ENABLED=false VITE_DESKTOP_API_URL=http://localhost:3001 npm run build -w frontend",
     "dist": "npm run build:desktop && electron-builder --win",
     "dist:dir": "npm run build:desktop && electron-builder --win dir",
-    "install:all": "npm install"
+    "install:all": "npm install",
+    "test:firebase": "node scripts/test-firebase-integration.mjs",
+    "test:facebook": "node scripts/test-facebook-publishing.mjs",
+    "test:premium-ai": "node scripts/test-premium-ai.mjs",
+    "test:creative-studio": "node scripts/test-creative-studio.mjs",
+    "test:accounts-plans": "node scripts/test-accounts-plans.mjs",
+    "test:ai-firestore": "node scripts/test-ai-firestore-sanitize.mjs",
+    "setup:firebase": "node scripts/setup-firebase-env.mjs",
+    "bootstrap:firebase": "node scripts/bootstrap-firebase-project.mjs",
+    "deploy:firebase-rules": "node scripts/deploy-firebase-rules-admin.mjs",
+    "deploy:firebase-rules:api": "node scripts/deploy-firebase-rules.mjs",
+    "check:firebase-rules": "node scripts/check-firebase-rules.mjs",
+    "generate:vercel-env": "node scripts/generate-vercel-env.mjs",
+    "validate:vercel-env": "node scripts/validate-vercel-env.mjs"
   },
   "dependencies": {
     "express": "^4.21.2"

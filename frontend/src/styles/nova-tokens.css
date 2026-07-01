@@ -1,0 +1,45 @@
+/* Nova Design Language — Release Candidate tokens */
+
+:root {
+  --ndl-bg: #050506;
+  --ndl-bg-elevated: #0a0a0b;
+  --ndl-surface: #111113;
+  --ndl-surface-raised: #18181b;
+  --ndl-surface-hover: #1f1f23;
+  --ndl-border: rgba(255, 255, 255, 0.06);
+  --ndl-border-strong: rgba(255, 255, 255, 0.1);
+  --ndl-text: #fafafa;
+  --ndl-text-secondary: #a1a1aa;
+  --ndl-text-tertiary: #71717a;
+  --ndl-orange: #f97316;
+  --ndl-orange-soft: rgba(249, 115, 22, 0.12);
+  --ndl-orange-glow: rgba(249, 115, 22, 0.18);
+  --ndl-success: #22c55e;
+  --ndl-warning: #eab308;
+  --ndl-danger: #ef4444;
+  --ndl-radius: 12px;
+  --ndl-radius-sm: 8px;
+  --ndl-radius-lg: 16px;
+  --ndl-font: 'DM Sans', system-ui, -apple-system, sans-serif;
+  --ndl-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --ndl-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --ndl-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset;
+  --ndl-shadow-hover: 0 0 0 1px rgba(255, 255, 255, 0.05), 0 8px 32px rgba(0, 0, 0, 0.35);
+
+  /* Map legacy vars to NDL */
+  --bg: var(--ndl-bg);
+  --bg-elevated: var(--ndl-bg-elevated);
+  --bg-card: var(--ndl-surface);
+  --border: var(--ndl-border);
+  --text: var(--ndl-text);
+  --text-muted: var(--ndl-text-secondary);
+  --accent: var(--ndl-orange);
+  --accent-hover: #fb923c;
+  --nova-orange: var(--ndl-orange);
+  --success: var(--ndl-success);
+  --warning: var(--ndl-warning);
+  --danger: var(--ndl-danger);
+  --radius: var(--ndl-radius);
+  --font: var(--ndl-font);
+  --mono: var(--ndl-mono);
+}

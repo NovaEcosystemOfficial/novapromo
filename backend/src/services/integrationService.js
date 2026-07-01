@@ -1,8 +1,10 @@
 import { config, hasTikTokCredentials } from '../config.js';
 import { getAccountByPlatform } from './accountService.js';
 import { getMetaCredentialsStatus } from './instagram/metaConfig.js';
+import { getFacebookCredentialsStatus, getFacebookSetupChecklist } from './facebook/metaFacebookConfig.js';
+import { evaluateFacebookPublishReadiness } from './facebook/facebookPublishReadiness.js';
 
-const lastChecks = { instagram: null, tiktok: null };
+const lastChecks = { instagram: null, facebook: null, tiktok: null };
 
 export function recordApiCheck(platform) {
   lastChecks[platform] = new Date().toISOString();
@@ -90,9 +92,9 @@ function buildTikTokNextStep({ account, credentialsPresent, paused }) {
   return 'Integrazione TikTok Content API pronta';
 }
 
-export function getInstagramIntegrationStatus() {
+export async function getInstagramIntegrationStatus() {
   recordApiCheck('instagram');
-  const account = getAccountByPlatform('instagram');
+  const account = await getAccountByPlatform('instagram');
   const metaStatus = getMetaCredentialsStatus();
   const connection = evaluateInstagramConnection(account);
 
@@ -122,7 +124,100 @@ export function getInstagramIntegrationStatus() {
   };
 }
 
-export function getTikTokIntegrationStatus() {
+export async function getFacebookIntegrationStatus() {
+  recordApiCheck('facebook');
+  const account = await getAccountByPlatform('facebook');
+  const fbStatus = getFacebookCredentialsStatus();
+  const connection = evaluateFacebookConnection(account);
+
+  return {
+    platform: 'facebook',
+    name: 'Facebook Page',
+    mode: 'REAL',
+    ...fbStatus,
+    ...connection,
+    canStartOAuth: fbStatus.credentialsPresent,
+    lastApiCheck: lastChecks.facebook,
+    nextStep: connection.connected
+      ? connection.canPublish
+        ? 'Pagina Facebook pronta per la pubblicazione'
+        : 'Pagina collegata — pubblicazione in attesa Advanced Access (pages_manage_posts) via App Review Meta'
+      : !fbStatus.facebookConfigIdConfigured
+        ? 'Crea Configurazione in Meta (Facebook Login for Business) e imposta META_FACEBOOK_CONFIG_ID su Vercel'
+        : fbStatus.credentialsPresent
+          ? 'Collega una Pagina Facebook via Meta Login'
+          : fbStatus.credentialsError,
+    requiredScopes: [
+      'pages_show_list',
+      'pages_manage_posts',
+      'pages_read_engagement',
+    ],
+    setupChecklist: getFacebookSetupChecklist(),
+  };
+}
+
+function evaluateFacebookConnection(account) {
+  if (!account) {
+    return {
+      connected: false,
+      connectionStatus: 'disconnected',
+      accountId: null,
+      accountUsername: null,
+      facebookPageId: null,
+      pageName: null,
+      tokenExpiresAt: null,
+      tokenPresent: false,
+      profile: null,
+    };
+  }
+
+  const meta = account.metadata || {};
+  const pageId = meta.facebookPageId || account.externalUserId || null;
+  const hasToken = Boolean(account.accessToken);
+  const status = meta.status || (hasToken ? 'connected' : 'disconnected');
+  const tokenExpired = isTokenExpired(account.tokenExpiresAt);
+  const connected = hasToken && Boolean(pageId) && status === 'connected' && !tokenExpired;
+
+  const grantedScopes = meta.grantedScopes || account.scopes || [];
+  const publishReadiness = evaluateFacebookPublishReadiness(grantedScopes);
+  const canPublish = meta.canPublish != null ? Boolean(meta.canPublish) : publishReadiness.canPublish;
+  const publishingStatus = meta.publishingStatus || publishReadiness.publishingStatus;
+  const missingPublishScopes = meta.missingPublishScopes || publishReadiness.missingPublishScopes;
+
+  let connectionStatus = 'disconnected';
+  if (connected) connectionStatus = 'connected';
+  else if (hasToken && pageId && tokenExpired) connectionStatus = 'token_expired';
+
+  return {
+    connected,
+    connectionStatus,
+    canPublish,
+    publishingStatus,
+    publishingStatusLabel: canPublish ? 'Pubblicazione attiva' : 'In attesa permesso Meta',
+    missingPublishScopes,
+    grantedScopes,
+    accountId: account.id,
+    accountUsername: account.username || meta.pageName,
+    facebookPageId: pageId,
+    pageName: meta.pageName || account.displayName,
+    tokenExpiresAt: account.tokenExpiresAt || null,
+    tokenPresent: hasToken,
+    connectedAt: meta.connectedAt || account.connectedAt || null,
+    profile: {
+      facebookPageId: pageId,
+      pageName: meta.pageName || account.displayName,
+      status: meta.status || connectionStatus,
+      connectionMode: meta.connectionMode || 'FACEBOOK_PAGE',
+      connectionStatus,
+      canPublish,
+      publishingStatus,
+      grantedScopes,
+      missingPublishScopes,
+    },
+  };
+}
+
+export async function getTikTokIntegrationStatus() {
   recordApiCheck('tiktok');
 
   if (!config.tiktokEnabled) {
@@ -145,7 +240,7 @@ export function getTikTokIntegrationStatus() {
     };
   }
 
-  const account = getAccountByPlatform('tiktok');
+  const account = await getAccountByPlatform('tiktok');
   const credentialsPresent = hasTikTokCredentials();
 
   return {
@@ -167,20 +262,32 @@ export function getTikTokIntegrationStatus() {
   };
 }
 
-export function getAllIntegrationsStatus() {
+export async function getAllIntegrationsStatus() {
   return {
-    instagram: getInstagramIntegrationStatus(),
-    tiktok: getTikTokIntegrationStatus(),
+    instagram: await getInstagramIntegrationStatus(),
+    facebook: await getFacebookIntegrationStatus(),
+    tiktok: await getTikTokIntegrationStatus(),
   };
 }
 
-export function assertCanStartOAuth(platform) {
-  const status = platform === 'instagram'
-    ? getInstagramIntegrationStatus()
-    : getTikTokIntegrationStatus();
+export async function assertCanStartOAuth(platform) {
+  const status =
+    platform === 'instagram'
+      ? await getInstagramIntegrationStatus()
+      : platform === 'facebook'
+        ? await getFacebookIntegrationStatus()
+        : await getTikTokIntegrationStatus();
 
   if (platform === 'instagram' && !status.canStartOAuth) {
     const err = new Error(status.credentialsError || 'Credenziali Meta mancanti');
+    err.code = status.errors?.[0]?.code || 'MISSING_CREDENTIALS';
+    err.status = 400;
+    err.details = status.errors;
+    throw err;
+  }
+
+  if (platform === 'facebook' && !status.canStartOAuth) {
+    const err = new Error(status.credentialsError || 'Credenziali Meta (Facebook) mancanti');
     err.code = status.errors?.[0]?.code || 'MISSING_CREDENTIALS';
     err.status = 400;
     err.details = status.errors;

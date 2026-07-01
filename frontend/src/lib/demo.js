@@ -87,6 +87,29 @@ export function getDemoIntegrationsStatus() {
       nextStep: 'Backend non deployato — OAuth Instagram non disponibile',
       errors: [],
     },
+    facebook: {
+      platform: 'facebook',
+      name: 'Facebook Page',
+      mode: 'REAL',
+      connected: false,
+      connectionStatus: 'disconnected',
+      tokenPresent: false,
+      accountId: null,
+      accountUsername: null,
+      facebookPageId: null,
+      pageName: null,
+      profile: null,
+      canStartOAuth: false,
+      credentialsPresent: false,
+      credentialsError: 'Backend non deployato — OAuth Facebook non disponibile',
+      redirectUri: null,
+      nextStep: 'Backend non deployato — collega Pagina Facebook',
+      errors: [],
+      setupChecklist: [
+        'Meta Developers → Nova_Promo → Domini app: novapromo.vercel.app, novapromo-backend.vercel.app',
+        'Facebook Login → URI OAuth: https://novapromo-backend.vercel.app/api/oauth/facebook/callback',
+      ],
+    },
     tiktok: {
       platform: 'tiktok',
       mode: 'PAUSED',
@@ -142,6 +165,14 @@ export function resolveDemoResponse(path, method = 'GET') {
       isDesktop: false,
       isVercel: true,
       demoMode: true,
+    };
+  }
+  if (path === '/api/brands' && m === 'GET') {
+    return {
+      brands: [
+        { id: 'nova-promo', brandId: 'nova-promo', name: 'NovaPromo', color: '#f97316' },
+        { id: 'nova-ecosystem', brandId: 'nova-ecosystem', name: 'Nova Ecosystem', color: '#7c3aed' },
+      ],
     };
   }
 

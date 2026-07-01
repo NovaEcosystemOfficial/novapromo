@@ -2,7 +2,9 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter, HashRouter } from 'react-router-dom';
 import { ContentModalProvider } from './context/ContentModalContext.jsx';
+import { CreativeStudioProvider } from './context/CreativeStudioContext.jsx';
 import { AuthProvider } from './context/AuthContext.jsx';
+import { BillingProvider } from './context/BillingContext.jsx';
 import App from './App.jsx';
 import { shouldUseHashRouter } from './lib/runtime.js';
 import './styles/global.css';
@@ -20,9 +22,13 @@ if (!rootEl) {
     <React.StrictMode>
       <Router>
         <AuthProvider>
-          <ContentModalProvider>
-            <App />
-          </ContentModalProvider>
+          <BillingProvider>
+            <ContentModalProvider>
+              <CreativeStudioProvider>
+                <App />
+              </CreativeStudioProvider>
+            </ContentModalProvider>
+          </BillingProvider>
         </AuthProvider>
       </Router>
     </React.StrictMode>

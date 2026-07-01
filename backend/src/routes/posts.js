@@ -13,13 +13,13 @@ import { config } from '../config.js';
 import path from 'path';
 import { generateContent } from '../services/contentGeneratorService.js';
 import { getBrandProfileForAi } from '../services/brand/brandService.js';
-import { resolveOwnerUid } from '../middleware/requireAuth.js';
+import { resolveSessionUser } from '../middleware/sessionUser.js';
 import { persistUploadedMedia } from '../services/media/publicMediaService.js';
 
 const router = Router();
 
-router.get('/', (req, res) => {
-  const posts = listPosts({
+router.get('/', async (req, res) => {
+  const posts = await listPosts({
     status: req.query.status,
     platform: req.query.platform,
     from: req.query.from,
@@ -28,8 +28,8 @@ router.get('/', (req, res) => {
   res.json(posts);
 });
 
-router.get('/logs', (req, res) => {
-  res.json(listPublicationLogs({ postId: req.query.postId, limit: parseInt(req.query.limit || '100', 10) }));
+router.get('/logs', async (req, res) => {
+  res.json(await listPublicationLogs({ postId: req.query.postId, limit: parseInt(req.query.limit || '100', 10) }));
 });
 
 router.post('/generate', async (req, res) => {
@@ -39,8 +39,8 @@ router.post('/generate', async (req, res) => {
       return res.status(400).json({ error: 'Campi obbligatori: project, platform, contentType' });
     }
 
-    const ownerUid = resolveOwnerUid(req);
-    const brandProfile = ownerUid ? await getBrandProfileForAi(ownerUid) : null;
+    const sessionUser = await resolveSessionUser(req);
+    const brandProfile = sessionUser?.uid ? await getBrandProfileForAi(sessionUser.uid) : null;
 
     if (!tone && !brandProfile?.toneOfVoice?.length) {
       return res.status(400).json({ error: 'Tono richiesto oppure configura Brand Intelligence' });
@@ -61,20 +61,24 @@ router.post('/generate', async (req, res) => {
   }
 });
 
-router.post('/create', (req, res) => {
+router.post('/create', async (req, res) => {
   try {
     const {
       project, platform, contentType, tone, topic,
       caption, hashtags, cta, reelIdea, overlayTitle, scheduledAt,
+      mediaPublicUrl, mediaMimeType, mediaStoragePath,
     } = req.body;
 
     if (!project || !platform || !contentType || !tone) {
       return res.status(400).json({ error: 'Campi obbligatori mancanti' });
     }
 
-    const post = createPost({
+    const post = await createPost({
       project, platform, contentType, tone, topic,
       caption, hashtags, cta, reelIdea, overlayTitle, scheduledAt,
+      mediaPublicUrl: mediaPublicUrl || null,
+      mediaMimeType: mediaMimeType || (mediaPublicUrl ? 'image/png' : null),
+      mediaStoragePath: mediaStoragePath || null,
     });
 
     res.status(201).json(post);
@@ -83,8 +87,8 @@ router.post('/create', (req, res) => {
   }
 });
 
-router.get('/:id', (req, res) => {
-  const post = getPostById(req.params.id);
+router.get('/:id', async (req, res) => {
+  const post = await getPostById(req.params.id);
   if (!post) return res.status(404).json({ error: 'Post non trovato' });
   res.json(post);
 });
@@ -100,6 +104,7 @@ router.post('/draft', upload.single('media'), async (req, res) => {
     let mediaPath = req.file ? path.join(config.uploadDir, req.file.filename) : null;
     let mediaMimeType = req.file?.mimetype;
     let mediaPublicUrl = null;
+    let mediaStoragePath = null;
 
     if (!mediaPath && config.isDesktop && req.body.localMediaPath) {
       const staged = stageLocalMediaFile(req.body.localMediaPath);
@@ -108,13 +113,17 @@ router.post('/draft', upload.single('media'), async (req, res) => {
     }
 
     if (req.file) {
-      mediaPublicUrl = await persistUploadedMedia(req.file);
+      const stored = await persistUploadedMedia(req.file);
+      mediaPublicUrl = stored.publicUrl;
+      mediaStoragePath = stored.storagePath;
     } else if (mediaPath) {
-      mediaPublicUrl = await persistUploadedMedia({
+      const stored = await persistUploadedMedia({
         path: mediaPath,
         filename: path.basename(mediaPath),
         mimetype: mediaMimeType,
       });
+      mediaPublicUrl = stored.publicUrl;
+      mediaStoragePath = stored.storagePath;
     }
 
     const validationErrors = validateContentTypeForPlatform(platform, contentType, mediaMimeType);
@@ -122,7 +131,7 @@ router.post('/draft', upload.single('media'), async (req, res) => {
       return res.status(400).json({ error: validationErrors.join('; ') });
     }
 
-    const post = createPost({
+    const post = await createPost({
       project,
       platform,
       contentType,
@@ -136,6 +145,7 @@ router.post('/draft', upload.single('media'), async (req, res) => {
       mediaPath,
       mediaMimeType,
       mediaPublicUrl,
+      mediaStoragePath,
       scheduledAt: scheduledAt || null,
     });
 
@@ -147,7 +157,7 @@ router.post('/draft', upload.single('media'), async (req, res) => {
 
 router.put('/:id', upload.single('media'), async (req, res) => {
   try {
-    const existing = getPostById(req.params.id);
+    const existing = await getPostById(req.params.id);
     if (!existing) return res.status(404).json({ error: 'Post non trovato' });
 
     const platform = req.body.platform || existing.platform;
@@ -160,11 +170,14 @@ router.put('/:id', upload.single('media'), async (req, res) => {
     }
 
     let mediaPublicUrl;
+    let mediaStoragePath;
     if (req.file) {
-      mediaPublicUrl = await persistUploadedMedia(req.file);
+      const stored = await persistUploadedMedia(req.file);
+      mediaPublicUrl = stored.publicUrl;
+      mediaStoragePath = stored.storagePath;
     }
 
-    const post = updatePost(req.params.id, {
+    const post = await updatePost(req.params.id, {
       project: req.body.project,
       platform: req.body.platform,
       contentType: req.body.contentType,
@@ -175,6 +188,7 @@ router.put('/:id', upload.single('media'), async (req, res) => {
       mediaPath: req.file ? path.join(config.uploadDir, req.file.filename) : undefined,
       mediaMimeType: req.file?.mimetype,
       mediaPublicUrl,
+      mediaStoragePath,
       status: req.body.scheduledAt ? 'scheduled' : undefined,
     });
 
@@ -184,12 +198,12 @@ router.put('/:id', upload.single('media'), async (req, res) => {
   }
 });
 
-router.post('/:id/schedule', (req, res) => {
+router.post('/:id/schedule', async (req, res) => {
   try {
     const { scheduledAt } = req.body;
     if (!scheduledAt) return res.status(400).json({ error: 'scheduledAt richiesto' });
 
-    const post = updatePost(req.params.id, { scheduledAt, status: 'scheduled' });
+    const post = await updatePost(req.params.id, { scheduledAt, status: 'scheduled' });
     if (!post) return res.status(404).json({ error: 'Post non trovato' });
     res.json(post);
   } catch (err) {
@@ -199,20 +213,20 @@ router.post('/:id/schedule', (req, res) => {
 
 router.post('/:id/publish', async (req, res) => {
   try {
-    const post = getPostById(req.params.id);
+    const post = await getPostById(req.params.id);
     if (!post) return res.status(404).json({ error: 'Post non trovato' });
 
     const result = await publishPost(post);
-    const updated = getPostById(req.params.id);
+    const updated = await getPostById(req.params.id);
     res.json({ post: updated, ...result });
   } catch (err) {
-    const updated = getPostById(req.params.id);
+    const updated = await getPostById(req.params.id);
     res.status(500).json({ error: err.message, post: updated });
   }
 });
 
-router.delete('/:id', (req, res) => {
-  const result = deletePost(req.params.id);
+router.delete('/:id', async (req, res) => {
+  const result = await deletePost(req.params.id);
   if (result.changes === 0) return res.status(404).json({ error: 'Post non trovato' });
   res.json({ success: true });
 });

@@ -46,6 +46,26 @@ function resolveWebAppUrl() {
   return DEFAULT_WEB_APP_URL;
 }
 
+function defaultFacebookRedirectUri(frontendUrl, backendUrl) {
+  if (process.env.FACEBOOK_REDIRECT_URI?.trim()) {
+    return stripTrailingSlash(process.env.FACEBOOK_REDIRECT_URI.trim());
+  }
+
+  try {
+    const front = new URL(frontendUrl);
+    const back = new URL(backendUrl);
+    // Facebook Login is strict: redirect should match the public Site URL domain.
+    // Frontend proxies /api/* to the backend (see frontend/vercel.json).
+    if (front.protocol === 'https:' && front.hostname !== back.hostname) {
+      return `${stripTrailingSlash(frontendUrl)}/api/oauth/facebook/callback`;
+    }
+  } catch {
+    // fall through to backend URL
+  }
+
+  return `${stripTrailingSlash(backendUrl)}/api/oauth/facebook/callback`;
+}
+
 function resolveAppUrls() {
   if (isDesktop) {
     const viteHost = process.env.DESKTOP_HOST || 'localhost';
@@ -63,6 +83,7 @@ function resolveAppUrls() {
       metaRedirectUri: stripTrailingSlash(
         process.env.META_REDIRECT_URI || `${backendUrl}/api/oauth/instagram/callback`
       ),
+      facebookRedirectUri: defaultFacebookRedirectUri(frontendUrl, backendUrl),
       tiktokLoginRedirectUri: stripTrailingSlash(
         process.env.TIKTOK_LOGIN_REDIRECT_URI || `${appUrl}/auth/callback`
       ),
@@ -90,6 +111,7 @@ function resolveAppUrls() {
     metaRedirectUri: stripTrailingSlash(
       process.env.META_REDIRECT_URI || `${backendUrl}/api/oauth/instagram/callback`
     ),
+    facebookRedirectUri: defaultFacebookRedirectUri(frontendUrl, backendUrl),
     tiktokLoginRedirectUri: stripTrailingSlash(
       process.env.TIKTOK_LOGIN_REDIRECT_URI || `${appUrl}/auth/callback`
     ),
@@ -150,6 +172,10 @@ export const config = {
   cookieDomain: process.env.COOKIE_DOMAIN || '',
   encryptionKey: process.env.ENCRYPTION_KEY || '',
   sessionSecret: process.env.SESSION_SECRET || process.env.ENCRYPTION_KEY || 'dev-session-secret-change-me',
+  adminEmails: (process.env.ADMIN_EMAILS || '')
+    .split(',')
+    .map((e) => e.trim())
+    .filter(Boolean),
   dbPath,
   uploadDir,
   maxFileSizeMb: parseInt(process.env.MAX_FILE_SIZE_MB || '50', 10),
@@ -161,6 +187,8 @@ export const config = {
     instagramAppId: process.env.INSTAGRAM_APP_ID || '',
     instagramAppSecret: process.env.INSTAGRAM_APP_SECRET || '',
     redirectUri: urls.metaRedirectUri,
+    facebookRedirectUri: urls.facebookRedirectUri,
+    facebookConfigId: (process.env.META_FACEBOOK_CONFIG_ID || '').trim(),
     graphApiVersion: process.env.META_GRAPH_API_VERSION || 'v21.0',
   },
 
@@ -177,8 +205,21 @@ export const config = {
     projectId: process.env.FIREBASE_PROJECT_ID || '',
     clientEmail: process.env.FIREBASE_CLIENT_EMAIL || '',
     privateKey: (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
+    storageBucket: process.env.FIREBASE_STORAGE_BUCKET || '',
+  },
+
+  openai: {
+    apiKey: process.env.OPENAI_API_KEY || '',
+    model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+    imageModel: (process.env.OPENAI_IMAGE_MODEL || 'gpt-image-1').trim() || 'gpt-image-1',
+    temperature: parseFloat(process.env.OPENAI_TEMPERATURE || '0.7'),
+    reasoningEffort: process.env.OPENAI_REASONING_EFFORT || 'medium',
   },
 };
+
+export function hasFirebaseStorage() {
+  return hasFirebaseAdminCredentials() && Boolean(config.firebase.storageBucket?.trim());
+}
 
 export function isEncryptionConfigured() {
   return config.encryptionKey.length >= 32;
@@ -251,6 +292,7 @@ export function getAppFeatures() {
   return {
     tiktokEnabled: config.tiktokEnabled,
     instagramEnabled: true,
+    facebookEnabled: true,
     runtime: config.runtime,
     isDesktop: config.isDesktop,
     isVercel: config.isVercel,
@@ -258,5 +300,8 @@ export function getAppFeatures() {
     backendUrl: config.backendUrl,
     metaRedirectUri: config.meta.redirectUri,
     electronPaused: true,
+    aiConfigured: Boolean(config.openai.apiKey?.trim()),
+    aiModel: config.openai.model,
+    premiumEnabled: true,
   };
 }

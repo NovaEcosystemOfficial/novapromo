@@ -8,12 +8,15 @@ import {
 } from './postService.js';
 import { publishToInstagram, refreshInstagramToken } from './instagram/instagramService.js';
 import { INSTAGRAM_TOKEN_MISSING_MESSAGE } from './instagram/instagramToken.js';
+import { publishToFacebook, refreshFacebookPageToken, canPublishToFacebook } from './facebook/facebookService.js';
+import { FACEBOOK_PUBLISH_PENDING_MESSAGE } from './facebook/facebookPublishReadiness.js';
 import { publishToTikTok, refreshTikTokToken } from './tiktok/tiktokService.js';
 import { logger } from '../utils/logger.js';
 import { recordPublishEvent } from './desktopEvents.js';
 
 const PLATFORM_MAP = {
-  instagram: ['instagram', 'both'],
+  instagram: ['instagram', 'both', 'multi'],
+  facebook: ['facebook', 'multi'],
   tiktok: ['tiktok', 'both'],
 };
 
@@ -23,6 +26,7 @@ export async function publishPost(post) {
 
   const targets = [];
   if (PLATFORM_MAP.instagram.includes(post.platform)) targets.push('instagram');
+  if (PLATFORM_MAP.facebook.includes(post.platform)) targets.push('facebook');
   if (PLATFORM_MAP.tiktok.includes(post.platform)) targets.push('tiktok');
 
   for (const platform of targets) {
@@ -42,12 +46,43 @@ export async function publishPost(post) {
 
       let result;
       if (platform === 'instagram') {
-        if (!post.mediaPath) throw new Error('Media richiesto per Instagram');
+        if (!post.mediaPath && !post.mediaPublicUrl) throw new Error('Media richiesto per Instagram');
         result = await publishToInstagram(post, account);
         await updatePost(post.id, {
           instagramContainerId: result.containerId,
           instagramMediaId: result.mediaId,
         });
+      } else if (platform === 'facebook') {
+        const publishCheck = await canPublishToFacebook(account);
+        if (!publishCheck.canPublish) {
+          const skipMessage = FACEBOOK_PUBLISH_PENDING_MESSAGE;
+          logger.info('Facebook publish skipped — missing Meta permission', {
+            postId: post.id,
+            grantedScopes: publishCheck.grantedScopes,
+            missingPublishScopes: publishCheck.missingPublishScopes,
+          });
+          addPublicationLog({
+            postId: post.id,
+            platform,
+            action: 'publish_skipped',
+            status: 'warning',
+            message: skipMessage,
+            details: {
+              grantedScopes: publishCheck.grantedScopes,
+              missingPublishScopes: publishCheck.missingPublishScopes,
+            },
+          });
+          recordPublishEvent({
+            postId: post.id,
+            platform,
+            status: 'skipped',
+            message: skipMessage,
+          });
+          continue;
+        }
+        if (!post.mediaPath && !post.mediaPublicUrl) throw new Error('Immagine richiesta per Facebook');
+        result = await publishToFacebook(post, account);
+        await updatePost(post.id, { facebookPostId: result.postId });
       } else {
         result = await publishToTikTok(post, account);
         await updatePost(post.id, { tiktokPublishId: result.publishId });
@@ -111,11 +146,42 @@ export async function publishPost(post) {
 }
 
 async function ensureValidToken(platform) {
-  const account = getAccountByPlatform(platform);
+  const account = await getAccountByPlatform(platform);
   if (!account) return null;
 
   if (platform === 'instagram' && !account.accessToken) {
     throw new Error(INSTAGRAM_TOKEN_MISSING_MESSAGE);
+  }
+
+  if (platform === 'facebook' && !account.accessToken) {
+    throw new Error('Token Pagina Facebook mancante — ricollega da Account');
+  }
+
+  if (platform === 'facebook') {
+    try {
+      const refreshed = await refreshFacebookPageToken(account);
+      return await upsertAccount({
+        platform: 'facebook',
+        externalUserId: account.externalUserId,
+        username: account.username,
+        displayName: account.displayName,
+        accessToken: refreshed.accessToken,
+        refreshToken: account.refreshToken,
+        expiresAt: account.tokenExpiresAt,
+        scopes: refreshed.scopes || account.scopes,
+        metadata: {
+          ...account.metadata,
+          grantedScopes: refreshed.grantedScopes || refreshed.scopes || account.metadata?.grantedScopes,
+          missingPublishScopes: refreshed.missingPublishScopes ?? account.metadata?.missingPublishScopes,
+          canPublish: refreshed.canPublish === true,
+          publishingStatus: refreshed.publishingStatus || account.metadata?.publishingStatus,
+          tokenType: 'page',
+        },
+      });
+    } catch (err) {
+      logger.error('Facebook page token resolve failed', { error: err.message, code: err.code });
+      throw err;
+    }
   }
 
   const expiresAt = account.tokenExpiresAt ? new Date(account.tokenExpiresAt) : null;
@@ -129,7 +195,7 @@ async function ensureValidToken(platform) {
         throw new Error(INSTAGRAM_TOKEN_MISSING_MESSAGE);
       }
       const refreshed = await refreshInstagramToken(account.accessToken);
-      return upsertAccount({
+      return await upsertAccount({
         platform,
         externalUserId: account.externalUserId,
         username: account.username,
@@ -144,7 +210,7 @@ async function ensureValidToken(platform) {
 
     if (platform === 'tiktok' && account.refreshToken) {
       const refreshed = await refreshTikTokToken(account.refreshToken);
-      return upsertAccount({
+      return await upsertAccount({
         platform,
         externalUserId: account.externalUserId,
         username: account.username,

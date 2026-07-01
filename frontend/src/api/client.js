@@ -80,6 +80,61 @@ export const api = {
 
   getPost: (id) => request(`/api/posts/${id}`),
 
+  getBillingStatus: () => request('/api/billing/status'),
+
+  redeemCoupon: (code) =>
+    request('/api/billing/redeem-coupon', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code }),
+    }),
+
+  syncFirebaseSession: (idToken) =>
+    request('/api/auth/firebase/session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken }),
+    }),
+
+  getBrands: () => request('/api/brands'),
+
+  getAiStatus: () => request('/api/ai/status'),
+
+  aiGenerateCaption: (body) =>
+    request('/api/ai/generate-caption', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }),
+
+  aiGenerateHashtags: (body) =>
+    request('/api/ai/generate-hashtags', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }),
+
+  aiGenerateContentPack: (body) =>
+    request('/api/ai/generate-content-pack', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }),
+
+  aiTransformContent: (body) =>
+    request('/api/ai/transform-content', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }),
+
+  aiCreativePack: (body) =>
+    request('/api/ai/creative-pack', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }),
+
   generateContent: (body) =>
     request('/api/posts/generate', {
       method: 'POST',
@@ -156,6 +211,8 @@ export const api = {
   deleteAccount: (id) => request(`/api/oauth/accounts/${id}`, { method: 'DELETE' }),
 
   startInstagramOAuth: () => request('/api/oauth/instagram/start'),
+
+  startFacebookOAuth: () => request('/api/oauth/facebook/start'),
 
   startTikTokContentOAuth: () => request('/api/oauth/tiktok/start'),
 

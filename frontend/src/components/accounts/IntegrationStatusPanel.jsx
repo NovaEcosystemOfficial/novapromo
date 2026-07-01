@@ -1,17 +1,26 @@
 import { formatDateTime } from '../../utils/labels.js';
 import TikTokPausedBadge from '../TikTokPausedBadge.jsx';
 import { isInstagramConnected, getInstagramConnectionLabel } from '../../lib/instagramStatus.js';
+import {
+  isFacebookConnected,
+  getFacebookConnectionLabel,
+  getFacebookPublishingLabel,
+  isFacebookPublishPending,
+} from '../../lib/facebookStatus.js';
 
 function platformConnected(key, integration) {
   if (key === 'instagram') return isInstagramConnected(integration);
+  if (key === 'facebook') return isFacebookConnected(integration);
   return integration.connectionStatus === 'connected';
 }
 
 function platformConnectionLabel(key, integration) {
   if (key === 'instagram') return getInstagramConnectionLabel(integration);
+  if (key === 'facebook') return getFacebookConnectionLabel(integration);
   if (integration.paused) return 'In pausa';
   return platformConnected(key, integration) ? 'Collegato' : 'Non collegato';
 }
+
 function StatusRow({ label, value, highlight }) {
   return (
     <div className="integration-status-row">
@@ -26,6 +35,7 @@ function StatusRow({ label, value, highlight }) {
 export default function IntegrationStatusPanel({ integrations = {} }) {
   const platforms = [
     { key: 'instagram', label: 'Instagram (Meta)' },
+    { key: 'facebook', label: 'Facebook Page' },
     { key: 'tiktok', label: 'TikTok' },
   ];
 
@@ -33,7 +43,7 @@ export default function IntegrationStatusPanel({ integrations = {} }) {
     <div className="card integration-status-panel">
       <h3 className="integration-status-title">Stato integrazioni</h3>
       <p className="integration-status-sub">
-        Instagram attivo · TikTok in pausa
+        Instagram attivo · Facebook collegabile (pubblicazione dopo App Review Meta) · TikTok in pausa
       </p>
 
       <div className="integration-status-grid">
@@ -41,6 +51,8 @@ export default function IntegrationStatusPanel({ integrations = {} }) {
           const s = integrations[key] || {};
           const connected = platformConnected(key, s);
           const statusLabel = platformConnectionLabel(key, s);
+          const fbPublishLabel = key === 'facebook' ? getFacebookPublishingLabel(s) : null;
+          const fbPublishPending = key === 'facebook' && isFacebookPublishPending(s);
           return (
             <div key={key} className={`integration-status-card integration-status-card--${s.paused ? 'paused' : 'real'}`}>
               <div className="integration-status-card-head">
@@ -66,12 +78,36 @@ export default function IntegrationStatusPanel({ integrations = {} }) {
                   value={statusLabel}
                   highlight={connected ? 'ok' : 'warn'}
                 />
+                {key === 'facebook' && connected && fbPublishLabel && (
+                  <StatusRow
+                    label="Pubblicazione"
+                    value={fbPublishLabel}
+                    highlight={fbPublishPending ? 'warn' : 'ok'}
+                  />
+                )}
                 {key === 'instagram' && isInstagramConnected(s) && s.accountUsername && (
                   <StatusRow label="Account" value={`@${s.accountUsername}`} />
                 )}
                 {key === 'instagram' && isInstagramConnected(s) && s.instagramAccountId && (
                   <StatusRow label="Business ID" value={s.instagramAccountId} />
-                )}                {s.redirectUri && key === 'instagram' && (
+                )}
+                {key === 'facebook' && isFacebookConnected(s) && (s.pageName || s.accountUsername) && (
+                  <StatusRow label="Pagina" value={s.pageName || s.accountUsername} />
+                )}
+                {key === 'facebook' && isFacebookConnected(s) && s.facebookPageId && (
+                  <StatusRow label="Page ID" value={s.facebookPageId} />
+                )}
+                {key === 'facebook' && isFacebookConnected(s) && s.grantedScopes?.length > 0 && (
+                  <StatusRow label="Permessi ricevuti" value={s.grantedScopes.join(', ')} />
+                )}
+                {key === 'facebook' && isFacebookConnected(s) && s.missingPublishScopes?.length > 0 && (
+                  <StatusRow
+                    label="Permessi mancanti"
+                    value={s.missingPublishScopes.join(', ')}
+                    highlight="warn"
+                  />
+                )}
+                {s.redirectUri && (key === 'instagram' || key === 'facebook') && (
                   <StatusRow label="Redirect URI" value={s.redirectUri} />
                 )}
                 <StatusRow label="Ultimo controllo" value={s.lastApiCheck ? formatDateTime(s.lastApiCheck) : '—'} />

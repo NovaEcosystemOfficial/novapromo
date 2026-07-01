@@ -1,12 +1,15 @@
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
-import { config, getTikTokConfigStatus, getAppFeatures } from './config.js';
+import { config, getTikTokConfigStatus, getAppFeatures, hasFirebaseAdminCredentials, hasFirebaseStorage } from './config.js';
+import { useFirebaseDataStore } from './services/firebase/dataStore.js';
 import dashboardRoutes from './routes/dashboard.js';
 import postsRoutes from './routes/posts.js';
 import oauthRoutes from './routes/oauth.js';
 import authRoutes from './routes/auth.js';
 import tiktokReviewRoutes from './routes/tiktokReview.js';
+import aiRoutes from './routes/ai.js';
+import billingRoutes from './routes/billing.js';
 import brandsRoutes from './routes/brands.js';
 import { getAllIntegrationsStatus } from './services/integrationService.js';
 import { logger } from './utils/logger.js';
@@ -52,11 +55,18 @@ app.get('/api/health', (_req, res) => {
 });
 
 app.get('/api/config/features', (_req, res) => {
-  res.json(getAppFeatures());
+  res.json({
+    ...getAppFeatures(),
+    firebase: {
+      dataStore: useFirebaseDataStore() ? 'firestore' : 'sqlite',
+      storageConfigured: hasFirebaseStorage(),
+      adminConfigured: hasFirebaseAdminCredentials(),
+    },
+  });
 });
 
-app.get('/api/integrations/status', (_req, res) => {
-  res.json(getAllIntegrationsStatus());
+app.get('/api/integrations/status', async (_req, res) => {
+  res.json(await getAllIntegrationsStatus());
 });
 
 app.get('/api/auth/tiktok/setup', (_req, res) => {
@@ -82,6 +92,8 @@ app.use('/api/posts', postsRoutes);
 app.use('/api/oauth', oauthRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/tiktok/review', tiktokReviewRoutes);
+app.use('/api/ai', aiRoutes);
+app.use('/api/billing', billingRoutes);
 app.use('/api/brands', brandsRoutes);
 
 app.use((err, _req, res, _next) => {

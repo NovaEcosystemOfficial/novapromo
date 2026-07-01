@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import Layout from './components/Layout.jsx';
 import ContentModal from './components/modal/ContentModal.jsx';
+import CreativeStudioModal from './components/modal/CreativeStudioModal.jsx';
 import DesktopBridge from './components/DesktopBridge.jsx';
 import ProtectedRoute from './components/auth/ProtectedRoute.jsx';
 import { AppErrorBoundary } from './components/AppErrorBoundary.jsx';
@@ -13,6 +14,7 @@ import Drafts from './pages/Drafts.jsx';
 import Accounts from './pages/Accounts.jsx';
 import History from './pages/History.jsx';
 import BrandIntelligence from './pages/BrandIntelligence.jsx';
+import Premium from './pages/Premium.jsx';
 import { isTikTokEnabled } from './lib/features.js';
 import TikTokAuth from './pages/TikTokAuth.jsx';
 import ReviewDemo from './pages/ReviewDemo.jsx';
@@ -47,6 +49,7 @@ function AppRoutes() {
         <Route path="accounts" element={<Accounts />} />
         {isTikTokEnabled() && <Route path="tiktok-test-publish" element={<TikTokTestPublish />} />}
         <Route path="history" element={<History />} />
+        <Route path="premium" element={<Premium />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
@@ -60,6 +63,7 @@ export default function App() {
       <DesktopBridge />
       <AppRoutes />
       <ContentModal />
+      <CreativeStudioModal />
     </AppErrorBoundary>
   );
 }

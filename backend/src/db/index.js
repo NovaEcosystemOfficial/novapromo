@@ -153,6 +153,99 @@ function migrateSchema(database) {
   } catch {
     // column already exists
   }
+
+  try {
+    database.exec(`ALTER TABLE posts ADD COLUMN facebook_post_id TEXT`);
+  } catch {
+    // column already exists
+  }
+
+  try {
+    database.exec(`
+      CREATE TABLE IF NOT EXISTS connected_accounts_new (
+        id TEXT PRIMARY KEY,
+        platform TEXT NOT NULL CHECK(platform IN ('instagram', 'tiktok', 'facebook')),
+        external_user_id TEXT NOT NULL,
+        username TEXT,
+        display_name TEXT,
+        access_token_encrypted TEXT NOT NULL,
+        refresh_token_encrypted TEXT,
+        token_expires_at TEXT,
+        scopes TEXT,
+        metadata_json TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        UNIQUE(platform, external_user_id)
+      )
+    `);
+    const row = database.prepare(
+      "SELECT sql FROM sqlite_master WHERE type='table' AND name='connected_accounts'"
+    ).get();
+    if (row?.sql && !row.sql.includes("'facebook'")) {
+      database.exec(`
+        INSERT INTO connected_accounts_new SELECT * FROM connected_accounts;
+        DROP TABLE connected_accounts;
+        ALTER TABLE connected_accounts_new RENAME TO connected_accounts;
+      `);
+    } else {
+      database.exec('DROP TABLE IF EXISTS connected_accounts_new');
+    }
+  } catch {
+    // migration skipped or already applied
+  }
+
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS user_plans (
+      user_doc_id TEXT PRIMARY KEY,
+      uid TEXT,
+      plan TEXT NOT NULL DEFAULT 'free',
+      ai_credits_used INTEGER NOT NULL DEFAULT 0,
+      ai_credits_limit INTEGER NOT NULL DEFAULT 3,
+      ai_credits_month TEXT,
+      business_active INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+
+  try {
+    const cols = database.prepare('PRAGMA table_info(user_plans)').all().map((c) => c.name);
+    if (!cols.includes('creative_studio_daily_count')) {
+      database.exec('ALTER TABLE user_plans ADD COLUMN creative_studio_daily_count INTEGER NOT NULL DEFAULT 0');
+    }
+    if (!cols.includes('creative_studio_daily_date')) {
+      database.exec('ALTER TABLE user_plans ADD COLUMN creative_studio_daily_date TEXT');
+    }
+    if (!cols.includes('creative_studio_last_at')) {
+      database.exec('ALTER TABLE user_plans ADD COLUMN creative_studio_last_at TEXT');
+    }
+    if (!cols.includes('email')) {
+      database.exec('ALTER TABLE user_plans ADD COLUMN email TEXT');
+    }
+    if (!cols.includes('display_name')) {
+      database.exec('ALTER TABLE user_plans ADD COLUMN display_name TEXT');
+    }
+    if (!cols.includes('role')) {
+      database.exec("ALTER TABLE user_plans ADD COLUMN role TEXT NOT NULL DEFAULT 'user'");
+    }
+    if (!cols.includes('credits')) {
+      database.exec('ALTER TABLE user_plans ADD COLUMN credits INTEGER NOT NULL DEFAULT 30');
+    }
+    if (!cols.includes('credits_reset_at')) {
+      database.exec('ALTER TABLE user_plans ADD COLUMN credits_reset_at TEXT');
+    }
+    if (!cols.includes('trial_started_at')) {
+      database.exec('ALTER TABLE user_plans ADD COLUMN trial_started_at TEXT');
+    }
+    if (!cols.includes('trial_ends_at')) {
+      database.exec('ALTER TABLE user_plans ADD COLUMN trial_ends_at TEXT');
+    }
+    if (!cols.includes('premium_until')) {
+      database.exec('ALTER TABLE user_plans ADD COLUMN premium_until TEXT');
+    }
+  } catch {
+    // migration skipped
+  }
 }
 
 export function closeDb() {

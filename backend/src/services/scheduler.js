@@ -11,7 +11,7 @@ export function startScheduler() {
 
   task = cron.schedule(config.schedulerCron, async () => {
     try {
-      const duePosts = getDueScheduledPosts();
+      const duePosts = await getDueScheduledPosts();
       if (duePosts.length === 0) return;
 
       logger.info(`Scheduler: ${duePosts.length} post da pubblicare`);

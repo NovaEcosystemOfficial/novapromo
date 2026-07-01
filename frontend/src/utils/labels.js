@@ -7,8 +7,10 @@ export const STATUS_LABELS = {
 
 export const PLATFORM_LABELS = {
   instagram: 'Instagram',
+  facebook: 'Facebook',
   tiktok: 'TikTok',
-  both: 'Entrambi',
+  both: 'Entrambi (IG+TT)',
+  multi: 'Instagram + Facebook',
 };
 
 export const CONTENT_TYPE_LABELS = {

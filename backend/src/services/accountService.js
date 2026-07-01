@@ -2,6 +2,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { getDb } from '../db/index.js';
 import { encrypt, decrypt } from '../utils/crypto.js';
 import { logger } from '../utils/logger.js';
+import { useFirebaseDataStore } from './firebase/dataStore.js';
+import * as firebaseAccounts from './firebase/accountRepository.js';
 
 function safeDecryptToken(encrypted, platform) {
   if (!encrypted) return null;
@@ -25,17 +27,68 @@ function safeDecryptToken(encrypted, platform) {
   }
 }
 
-export function listAccounts() {
+function sqliteToPublicAccount(row) {
+  const metadata = row.metadata_json ? JSON.parse(row.metadata_json) : {};
+  return {
+    id: row.id,
+    platform: row.platform,
+    externalUserId: row.external_user_id,
+    username: row.username,
+    displayName: row.display_name,
+    tokenExpiresAt: row.token_expires_at,
+    scopes: row.scopes ? JSON.parse(row.scopes) : [],
+    metadata,
+    connectionMode: metadata.connectionMode || 'REAL',
+    connectedAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function sqliteToAccountWithTokens(row) {
+  return {
+    ...sqliteToPublicAccount(row),
+    accessToken: safeDecryptToken(row.access_token_encrypted, row.platform),
+    refreshToken: row.refresh_token_encrypted
+      ? safeDecryptToken(row.refresh_token_encrypted, row.platform)
+      : null,
+  };
+}
+
+export async function listAccounts() {
+  if (useFirebaseDataStore()) {
+    return firebaseAccounts.listAccounts(decrypt);
+  }
   const rows = getDb().prepare('SELECT * FROM connected_accounts ORDER BY platform, username').all();
-  return rows.map(toPublicAccount);
+  return rows.map(sqliteToPublicAccount);
 }
 
-export function getAccountByPlatform(platform) {
+export async function getAccountByPlatform(platform) {
+  if (useFirebaseDataStore()) {
+    return firebaseAccounts.getAccountByPlatform(platform, decrypt);
+  }
   const row = getDb().prepare('SELECT * FROM connected_accounts WHERE platform = ? LIMIT 1').get(platform);
-  return row ? toAccountWithTokens(row) : null;
+  return row ? sqliteToAccountWithTokens(row) : null;
 }
 
-export function upsertAccount({ platform, externalUserId, username, displayName, accessToken, refreshToken, expiresAt, scopes, metadata }) {
+export async function upsertAccount({
+  platform,
+  externalUserId,
+  username,
+  displayName,
+  accessToken,
+  refreshToken,
+  expiresAt,
+  scopes,
+  metadata,
+}) {
+  if (useFirebaseDataStore()) {
+    return firebaseAccounts.upsertAccount(
+      { platform, externalUserId, username, displayName, accessToken, refreshToken, expiresAt, scopes, metadata },
+      encrypt,
+      decrypt
+    );
+  }
+
   const token = typeof accessToken === 'string' ? accessToken.trim() : '';
   if (!token) {
     const err = new Error('Token di accesso mancante durante il salvataggio account');
@@ -82,34 +135,12 @@ export function upsertAccount({ platform, externalUserId, username, displayName,
       now
     );
 
-  return getAccountByPlatform(platform);
+  return await getAccountByPlatform(platform);
 }
 
-export function deleteAccount(id) {
+export async function deleteAccount(id) {
+  if (useFirebaseDataStore()) {
+    return firebaseAccounts.deleteAccount(id);
+  }
   return getDb().prepare('DELETE FROM connected_accounts WHERE id = ?').run(id);
-}
-
-function toPublicAccount(row) {
-  const metadata = row.metadata_json ? JSON.parse(row.metadata_json) : {};
-  return {
-    id: row.id,
-    platform: row.platform,
-    externalUserId: row.external_user_id,
-    username: row.username,
-    displayName: row.display_name,
-    tokenExpiresAt: row.token_expires_at,
-    scopes: row.scopes ? JSON.parse(row.scopes) : [],
-    metadata,
-    connectionMode: metadata.connectionMode || 'REAL',
-    connectedAt: row.created_at,
-    updatedAt: row.updated_at,
-  };
-}
-
-function toAccountWithTokens(row) {
-  return {
-    ...toPublicAccount(row),
-    accessToken: safeDecryptToken(row.access_token_encrypted, row.platform),
-    refreshToken: row.refresh_token_encrypted ? safeDecryptToken(row.refresh_token_encrypted, row.platform) : null,
-  };
 }
