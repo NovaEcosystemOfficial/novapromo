@@ -7,6 +7,7 @@ import DemoModeBanner from './DemoModeBanner.jsx';
 
 const NAV_ITEMS = [
   { to: '/dashboard', label: 'Dashboard', icon: '📊' },
+  { to: '/brand-intelligence', label: 'Brand Intelligence', icon: '🧠' },
   { to: '/generator', label: 'Generatore', icon: '✨', action: 'modal' },
   { to: '/calendar', label: 'Calendario', icon: '📅' },
   { to: '/drafts', label: 'Bozze', icon: '📝' },

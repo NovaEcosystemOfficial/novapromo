@@ -12,6 +12,8 @@ import { upload, validateContentTypeForPlatform, stageLocalMediaFile } from '../
 import { config } from '../config.js';
 import path from 'path';
 import { generateContent } from '../services/contentGeneratorService.js';
+import { getBrandProfileForAi } from '../services/brand/brandService.js';
+import { resolveOwnerUid } from '../middleware/requireAuth.js';
 import { persistUploadedMedia } from '../services/media/publicMediaService.js';
 
 const router = Router();
@@ -30,13 +32,30 @@ router.get('/logs', (req, res) => {
   res.json(listPublicationLogs({ postId: req.query.postId, limit: parseInt(req.query.limit || '100', 10) }));
 });
 
-router.post('/generate', (req, res) => {
+router.post('/generate', async (req, res) => {
   try {
     const { project, platform, contentType, tone, topic } = req.body;
-    if (!project || !platform || !contentType || !tone) {
-      return res.status(400).json({ error: 'Campi obbligatori: project, platform, contentType, tone' });
+    if (!project || !platform || !contentType) {
+      return res.status(400).json({ error: 'Campi obbligatori: project, platform, contentType' });
     }
-    res.json(generateContent({ project, platform, contentType, tone, topic }));
+
+    const ownerUid = resolveOwnerUid(req);
+    const brandProfile = ownerUid ? await getBrandProfileForAi(ownerUid) : null;
+
+    if (!tone && !brandProfile?.toneOfVoice?.length) {
+      return res.status(400).json({ error: 'Tono richiesto oppure configura Brand Intelligence' });
+    }
+
+    const result = generateContent({
+      project,
+      platform,
+      contentType,
+      tone,
+      topic,
+      brandProfile,
+    });
+
+    res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

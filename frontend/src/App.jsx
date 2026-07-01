@@ -12,6 +12,7 @@ import Calendar from './pages/Calendar.jsx';
 import Drafts from './pages/Drafts.jsx';
 import Accounts from './pages/Accounts.jsx';
 import History from './pages/History.jsx';
+import BrandIntelligence from './pages/BrandIntelligence.jsx';
 import { isTikTokEnabled } from './lib/features.js';
 import TikTokAuth from './pages/TikTokAuth.jsx';
 import ReviewDemo from './pages/ReviewDemo.jsx';
@@ -39,6 +40,7 @@ function AppRoutes() {
       >
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<Dashboard />} />
+        <Route path="brand-intelligence" element={<BrandIntelligence />} />
         <Route path="generator" element={<Generator />} />
         <Route path="calendar" element={<Calendar />} />
         <Route path="drafts" element={<Drafts />} />

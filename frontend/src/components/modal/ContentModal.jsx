@@ -18,7 +18,7 @@ function getPlatforms() {
   return ALL_PLATFORMS.filter((p) => p.id === 'instagram');
 }
 
-const STEPS = ['Progetto', 'Piattaforma', 'Tipo', 'Tono', 'Argomento'];
+const ALL_STEPS = ['Progetto', 'Piattaforma', 'Tipo', 'Tono', 'Argomento'];
 
 export default function ContentModal() {
   const { isOpen, prefill, closeModal } = useContentModal();
@@ -30,6 +30,7 @@ export default function ContentModal() {
   const [error, setError] = useState('');
   const [scheduleAt, setScheduleAt] = useState('');
   const [showSchedule, setShowSchedule] = useState(false);
+  const [brandContext, setBrandContext] = useState(null);
 
   const [form, setForm] = useState({
     project: '',
@@ -42,6 +43,19 @@ export default function ContentModal() {
   const [generated, setGenerated] = useState(null);
   const [savedPostId, setSavedPostId] = useState(null);
   const [media, setMedia] = useState(null);
+
+  const usesBrandTone = Boolean(brandContext?.hasProfile && brandContext?.toneOfVoice?.length);
+  const steps = usesBrandTone
+    ? ALL_STEPS.filter((s) => s !== 'Tono')
+    : ALL_STEPS;
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    api.getBrandAiContext()
+      .then(setBrandContext)
+      .catch(() => setBrandContext(null));
+  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen) {
@@ -75,7 +89,11 @@ export default function ContentModal() {
     setError('');
     setLoading(true);
     try {
-      const result = await api.generateContent(form);
+      const payload = { ...form };
+      if (usesBrandTone) {
+        delete payload.tone;
+      }
+      const result = await api.generateContent(payload);
       setGenerated(result);
       setPhase('result');
     } catch (err) {
@@ -175,9 +193,11 @@ export default function ContentModal() {
     }
   };
 
+  const currentStepId = steps[step];
+
   const canNext = () => {
-    if (step === 0) return !!form.project;
-    if (step === 4) return !!form.topic.trim();
+    if (currentStepId === 'Progetto') return !!form.project;
+    if (currentStepId === 'Argomento') return !!form.topic.trim();
     return true;
   };
 
@@ -188,7 +208,12 @@ export default function ContentModal() {
           <div>
             <h2>{phase === 'result' ? '✨ Contenuto generato' : 'Nuovo contenuto'}</h2>
             {phase === 'wizard' && (
-              <p className="modal-sub">Passo {step + 1} di {STEPS.length} — {STEPS[step]}</p>
+              <p className="modal-sub">
+                Passo {step + 1} di {steps.length} — {currentStepId}
+                {usesBrandTone && (
+                  <span className="modal-brand-hint"> · Tono da Brand Intelligence</span>
+                )}
+              </p>
             )}
           </div>
           <button type="button" className="modal-close" onClick={closeModal} aria-label="Chiudi">×</button>
@@ -196,7 +221,7 @@ export default function ContentModal() {
 
         {phase === 'wizard' && (
           <div className="modal-steps">
-            {STEPS.map((s, i) => (
+            {steps.map((s, i) => (
               <div key={s} className={`modal-step-dot${i <= step ? ' active' : ''}${i === step ? ' current' : ''}`} />
             ))}
           </div>
@@ -205,7 +230,7 @@ export default function ContentModal() {
         {error && <div className="alert alert-error modal-alert">{error}</div>}
 
         <div className="modal-body">
-          {phase === 'wizard' && step === 0 && (
+          {phase === 'wizard' && currentStepId === 'Progetto' && (
             <div className="modal-grid">
               {PROJECTS.map((p) => (
                 <button
@@ -222,7 +247,7 @@ export default function ContentModal() {
             </div>
           )}
 
-          {phase === 'wizard' && step === 1 && (
+          {phase === 'wizard' && currentStepId === 'Piattaforma' && (
             <div className="modal-grid modal-grid--3">
               {platforms.map((p) => (
                 <button
@@ -244,7 +269,7 @@ export default function ContentModal() {
             </div>
           )}
 
-          {phase === 'wizard' && step === 2 && (
+          {phase === 'wizard' && currentStepId === 'Tipo' && (
             <div className="modal-grid">
               {availableTypes.map((t) => (
                 <button
@@ -259,7 +284,7 @@ export default function ContentModal() {
             </div>
           )}
 
-          {phase === 'wizard' && step === 3 && (
+          {phase === 'wizard' && currentStepId === 'Tono' && (
             <div className="modal-grid">
               {TONES.map((t) => (
                 <button
@@ -274,7 +299,7 @@ export default function ContentModal() {
             </div>
           )}
 
-          {phase === 'wizard' && step === 4 && (
+          {phase === 'wizard' && currentStepId === 'Argomento' && (
             <div className="modal-topic">
               <label>Argomento del contenuto</label>
               <input
@@ -303,6 +328,9 @@ export default function ContentModal() {
 
           {phase === 'result' && generated && (
             <div className="modal-result">
+              {generated.brandApplied && (
+                <p className="modal-brand-banner">🧠 Contenuto generato con Brand Intelligence</p>
+              )}
               <div className="modal-result-grid">
                 <ResultField label="Caption" value={generated.caption} />
                 <ResultField label="Hashtag" value={generated.hashtags} />
@@ -344,7 +372,7 @@ export default function ContentModal() {
           )}
         </div>
 
-        {phase === 'wizard' && step < 4 && (
+        {phase === 'wizard' && currentStepId !== 'Argomento' && (
           <div className="modal-footer">
             {step > 0 && (
               <button type="button" className="btn btn-secondary" onClick={() => setStep((s) => s - 1)}>

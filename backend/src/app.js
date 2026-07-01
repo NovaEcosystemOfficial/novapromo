@@ -7,6 +7,7 @@ import postsRoutes from './routes/posts.js';
 import oauthRoutes from './routes/oauth.js';
 import authRoutes from './routes/auth.js';
 import tiktokReviewRoutes from './routes/tiktokReview.js';
+import brandsRoutes from './routes/brands.js';
 import { getAllIntegrationsStatus } from './services/integrationService.js';
 import { logger } from './utils/logger.js';
 
@@ -81,6 +82,7 @@ app.use('/api/posts', postsRoutes);
 app.use('/api/oauth', oauthRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/tiktok/review', tiktokReviewRoutes);
+app.use('/api/brands', brandsRoutes);
 
 app.use((err, _req, res, _next) => {
   if (err.code === 'LIMIT_FILE_SIZE') {

@@ -331,3 +331,18 @@
   flex: 1;
   min-width: 120px;
 }
+
+.modal-brand-hint {
+  color: var(--accent-hover);
+}
+
+.modal-brand-banner {
+  margin-bottom: 1rem;
+  padding: 0.65rem 0.9rem;
+  border-radius: 10px;
+  background: rgba(108, 92, 231, 0.12);
+  border: 1px solid rgba(108, 92, 231, 0.25);
+  color: var(--accent-hover);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
