@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import Layout from './components/Layout.jsx';
 import ContentModal from './components/modal/ContentModal.jsx';
+import CreativeStudioModal from './components/modal/CreativeStudioModal.jsx';
 import DesktopBridge from './components/DesktopBridge.jsx';
 import ProtectedRoute from './components/auth/ProtectedRoute.jsx';
 import { AppErrorBoundary } from './components/AppErrorBoundary.jsx';
@@ -60,6 +61,7 @@ export default function App() {
       <DesktopBridge />
       <AppRoutes />
       <ContentModal />
+      <CreativeStudioModal />
     </AppErrorBoundary>
   );
 }

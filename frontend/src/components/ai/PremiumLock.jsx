@@ -10,7 +10,11 @@ export default function PremiumLock({ reason, code, compact = false }) {
       <div className="premium-lock__icon" aria-hidden>✦</div>
       <div className="premium-lock__body">
         <p className="premium-lock__title">
-          {code === 'AI_CREDITS_EXHAUSTED' ? 'Limite AI raggiunto' : 'AI Studio Premium'}
+          {code === 'AI_CREDITS_EXHAUSTED'
+            ? 'Limite AI raggiunto'
+            : code === 'CREATIVE_STUDIO_PREMIUM_ONLY'
+              ? 'Creative Studio PRO'
+              : 'AI Studio Premium'}
         </p>
         <p className="premium-lock__text">{message}</p>
         {!compact && (

@@ -112,6 +112,13 @@ export const api = {
       body: JSON.stringify(body),
     }),
 
+  aiCreativePack: (body) =>
+    request('/api/ai/creative-pack', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }),
+
   generateContent: (body) =>
     request('/api/posts/generate', {
       method: 'POST',

@@ -11,6 +11,44 @@ function buildFirebaseDownloadUrl(bucketName, storagePath, token) {
 }
 
 /**
+ * Upload AI-generated image for a user (Creative Studio PRO).
+ */
+export async function uploadAiImageToFirebaseStorage({ buffer, userId, mimeType = 'image/png' }) {
+  if (!hasFirebaseStorage()) {
+    const err = new Error(FIREBASE_STORAGE_NOT_CONFIGURED);
+    err.code = 'FIREBASE_STORAGE_NOT_CONFIGURED';
+    throw err;
+  }
+
+  const storage = await getFirebaseStorage();
+  const bucket = storage.bucket(config.firebase.storageBucket);
+  const safeUser = String(userId || 'anonymous').replace(/[^\w.-]/g, '_').slice(0, 128);
+  const timestamp = Date.now();
+  const storagePath = `novapromo/media/ai/${safeUser}/${timestamp}.png`;
+  const downloadToken = uuidv4();
+
+  const file = bucket.file(storagePath);
+  await file.save(buffer, {
+    metadata: {
+      contentType: mimeType,
+      metadata: {
+        firebaseStorageDownloadTokens: downloadToken,
+      },
+    },
+  });
+
+  const publicUrl = buildFirebaseDownloadUrl(bucket.name, storagePath, downloadToken);
+
+  logger.info('AI image uploaded to Firebase Storage', {
+    storagePath,
+    userId: safeUser,
+    urlPrefix: publicUrl.slice(0, 56),
+  });
+
+  return { publicUrl, storagePath };
+}
+
+/**
  * Upload media to Firebase Storage and return a stable HTTPS URL for Instagram Graph API.
  */
 export async function uploadMediaToFirebaseStorage({ buffer, filename, mimeType }) {

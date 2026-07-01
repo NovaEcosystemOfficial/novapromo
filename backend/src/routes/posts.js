@@ -47,6 +47,7 @@ router.post('/create', async (req, res) => {
     const {
       project, platform, contentType, tone, topic,
       caption, hashtags, cta, reelIdea, overlayTitle, scheduledAt,
+      mediaPublicUrl, mediaMimeType, mediaStoragePath,
     } = req.body;
 
     if (!project || !platform || !contentType || !tone) {
@@ -56,6 +57,9 @@ router.post('/create', async (req, res) => {
     const post = await createPost({
       project, platform, contentType, tone, topic,
       caption, hashtags, cta, reelIdea, overlayTitle, scheduledAt,
+      mediaPublicUrl: mediaPublicUrl || null,
+      mediaMimeType: mediaMimeType || (mediaPublicUrl ? 'image/png' : null),
+      mediaStoragePath: mediaStoragePath || null,
     });
 
     res.status(201).json(post);

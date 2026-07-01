@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter, HashRouter } from 'react-router-dom';
 import { ContentModalProvider } from './context/ContentModalContext.jsx';
+import { CreativeStudioProvider } from './context/CreativeStudioContext.jsx';
 import { AuthProvider } from './context/AuthContext.jsx';
 import { BillingProvider } from './context/BillingContext.jsx';
 import App from './App.jsx';
@@ -23,7 +24,9 @@ if (!rootEl) {
         <AuthProvider>
           <BillingProvider>
             <ContentModalProvider>
-              <App />
+              <CreativeStudioProvider>
+                <App />
+              </CreativeStudioProvider>
             </ContentModalProvider>
           </BillingProvider>
         </AuthProvider>

@@ -184,9 +184,25 @@ export async function getUserPlan(docId) {
 }
 
 export async function consumeAICredit(docId) {
+  return consumeAICredits(docId, 1);
+}
+
+export async function consumeAICredits(docId, amount = 1) {
+  const credits = Math.max(1, Math.floor(Number(amount) || 1));
   const plan = await getUserPlan(docId);
   const month = currentCreditsMonth();
-  const used = plan.aiCreditsUsedThisMonth + 1;
+  const remaining = plan.aiCreditsLimit - plan.aiCreditsUsedThisMonth;
+
+  if (remaining < credits) {
+    const err = new Error(
+      `Crediti AI insufficienti: servono ${credits}, ne restano ${Math.max(0, remaining)}`
+    );
+    err.code = 'AI_CREDITS_EXHAUSTED';
+    err.status = 402;
+    throw err;
+  }
+
+  const used = plan.aiCreditsUsedThisMonth + credits;
   const now = new Date().toISOString();
 
   if (useFirebaseDataStore()) {

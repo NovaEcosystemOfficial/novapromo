@@ -6,7 +6,7 @@ export const DEFAULT_BRAND = {
   id: DEFAULT_BRAND_ID,
   name: 'Nova Ecosystem',
   tone: 'professionale, elegante, semplice',
-  colors: ['#f97316', '#050506', '#fafafa'],
+  colors: ['#7c3aed', '#f97316', '#050506', '#fafafa'],
   forbiddenWords: ['clickbait', 'urgente!!!', 'non crederai', 'shock', 'incredibile'],
   preferredCTA: 'Scopri di più nel link in bio',
   styleNotes: [

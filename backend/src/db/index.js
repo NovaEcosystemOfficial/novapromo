@@ -200,6 +200,21 @@ function migrateSchema(database) {
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
   `);
+
+  try {
+    const cols = database.prepare('PRAGMA table_info(user_plans)').all().map((c) => c.name);
+    if (!cols.includes('creative_studio_daily_count')) {
+      database.exec('ALTER TABLE user_plans ADD COLUMN creative_studio_daily_count INTEGER NOT NULL DEFAULT 0');
+    }
+    if (!cols.includes('creative_studio_daily_date')) {
+      database.exec('ALTER TABLE user_plans ADD COLUMN creative_studio_daily_date TEXT');
+    }
+    if (!cols.includes('creative_studio_last_at')) {
+      database.exec('ALTER TABLE user_plans ADD COLUMN creative_studio_last_at TEXT');
+    }
+  } catch {
+    // migration skipped
+  }
 }
 
 export function closeDb() {

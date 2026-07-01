@@ -49,3 +49,47 @@ export function isPremiumPlan(userPlan) {
   if (userPlan.plan === 'business' && userPlan.businessActive) return true;
   return false;
 }
+
+/**
+ * Creative Studio PRO — Premium / Business attivo only.
+ * @param {import('./planService.js').UserPlanRecord} userPlan
+ */
+export function canUseCreativeStudio(userPlan) {
+  if (!userPlan) {
+    return { allowed: false, reason: 'Utente non trovato', code: 'USER_NOT_FOUND' };
+  }
+
+  if (!isPremiumPlan(userPlan)) {
+    return {
+      allowed: false,
+      reason: 'Creative Studio PRO è disponibile solo con il piano Premium',
+      code: 'CREATIVE_STUDIO_PREMIUM_ONLY',
+    };
+  }
+
+  if (userPlan.plan === 'business' && !userPlan.businessActive) {
+    return {
+      allowed: false,
+      reason: 'Piano Business in arrivo — contattaci per l\'attivazione',
+      code: 'BUSINESS_NOT_ACTIVE',
+    };
+  }
+
+  const remaining = userPlan.aiCreditsLimit - userPlan.aiCreditsUsedThisMonth;
+  if (remaining <= 0) {
+    return {
+      allowed: false,
+      reason: `Limite AI mensile raggiunto (${userPlan.aiCreditsLimit})`,
+      code: 'AI_CREDITS_EXHAUSTED',
+      creditsUsed: userPlan.aiCreditsUsedThisMonth,
+      creditsLimit: userPlan.aiCreditsLimit,
+    };
+  }
+
+  return {
+    allowed: true,
+    creditsUsed: userPlan.aiCreditsUsedThisMonth,
+    creditsLimit: userPlan.aiCreditsLimit,
+    remaining,
+  };
+}

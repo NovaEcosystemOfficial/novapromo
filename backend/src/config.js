@@ -207,6 +207,7 @@ export const config = {
   openai: {
     apiKey: process.env.OPENAI_API_KEY || '',
     model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+    imageModel: (process.env.OPENAI_IMAGE_MODEL || 'gpt-image-1').trim() || 'gpt-image-1',
     temperature: parseFloat(process.env.OPENAI_TEMPERATURE || '0.7'),
     reasoningEffort: process.env.OPENAI_REASONING_EFFORT || 'medium',
   },
