@@ -1,5 +1,4 @@
 import { NavLink, Outlet } from 'react-router-dom';
-import { useContentModal } from '../context/ContentModalContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { isTikTokEnabled } from '../lib/features.js';
 import DemoModeBanner from './DemoModeBanner.jsx';
@@ -8,7 +7,7 @@ import { useBilling } from '../context/BillingContext.jsx';
 
 const NAV_ITEMS = [
   { to: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
-  { to: '/generator', label: 'Generatore', icon: 'generator', action: 'modal' },
+  { to: '/generator', label: 'Generatore', icon: 'generator' },
   { to: '/calendar', label: 'Calendario', icon: 'calendar' },
   { to: '/drafts', label: 'Bozze', icon: 'drafts' },
   ...(isTikTokEnabled() ? [{ to: '/review-demo', label: 'Review demo', icon: 'generator' }] : []),
@@ -18,7 +17,6 @@ const NAV_ITEMS = [
 ];
 
 export default function Layout() {
-  const { openModal } = useContentModal();
   const { user, logout } = useAuth();
   const { billing } = useBilling();
 
@@ -34,37 +32,25 @@ export default function Layout() {
         </div>
 
         <nav className="sidebar-nav">
-          {NAV_ITEMS.map((item) =>
-            item.action === 'modal' ? (
-              <button
-                key={item.to}
-                type="button"
-                className="nav-link nav-link--btn"
-                onClick={() => openModal()}
-              >
-                <IconNav name={item.icon} />
-                {item.label}
-              </button>
-            ) : (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
-              >
-                <IconNav name={item.icon} />
-                {item.label}
-                {item.to === '/premium' && billing?.isPremium && (
-                  <span className="sidebar-premium-badge">Pro</span>
-                )}
-              </NavLink>
-            )
-          )}
+          {NAV_ITEMS.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
+            >
+              <IconNav name={item.icon} />
+              {item.label}
+              {item.to === '/premium' && billing?.isPremium && (
+                <span className="sidebar-premium-badge">Pro</span>
+              )}
+            </NavLink>
+          ))}
         </nav>
 
-        <button type="button" className="sidebar-cta sidebar-cta--premium" onClick={() => openModal()}>
+        <NavLink to="/generator" className="sidebar-cta sidebar-cta--premium">
           <IconPlus />
           Nuovo contenuto
-        </button>
+        </NavLink>
 
         {user && (
           <div className="user-chip user-chip--premium">

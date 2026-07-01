@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../api/client.js';
-import { PROJECTS } from '../../constants/projects.js';
 import { useCreativeStudio } from '../../context/CreativeStudioContext.jsx';
 import { useBilling } from '../../context/BillingContext.jsx';
+import { useBrandProjects, CUSTOM_PROJECT_ID, resolveProjectLabel } from '../../hooks/useBrandProjects.js';
+import ProjectPicker from '../generator/ProjectPicker.jsx';
 import { isFacebookPublishReady, isFacebookPublishPending, FACEBOOK_PUBLISH_PENDING_UI_MESSAGE } from '../../lib/facebookStatus.js';
 import PremiumLock from '../ai/PremiumLock.jsx';
 import '../../styles/modal.css';
@@ -29,12 +30,13 @@ const STYLES = [
   { id: 'cinematic', label: 'Cinematic', sub: 'Drammatico' },
 ];
 
-const STEPS = ['Idea', 'Piattaforma', 'Formato', 'Stile', 'Genera'];
+const STEPS = ['Progetto', 'Piattaforma', 'Formato', 'Idea', 'Stile', 'Genera'];
 
 export default function CreativeStudioModal() {
   const { isOpen, prefill, closeCreativeStudio } = useCreativeStudio();
   const navigate = useNavigate();
   const { billing, refreshBilling } = useBilling();
+  const { brands, loading: brandsLoading } = useBrandProjects();
 
   const [step, setStep] = useState(0);
   const [phase, setPhase] = useState('wizard');
@@ -48,11 +50,13 @@ export default function CreativeStudioModal() {
   const [integrations, setIntegrations] = useState({});
 
   const [form, setForm] = useState({
+    brandId: 'nova-promo',
+    project: '',
+    customProject: '',
     idea: '',
     platform: 'instagram',
     format: 'square',
     style: 'premium',
-    project: 'novapromo',
     includeImage: true,
     includeVideoPrompt: true,
   });
@@ -68,11 +72,13 @@ export default function CreativeStudioModal() {
       setShowSchedule(false);
       setScheduleAt('');
       setForm({
+        brandId: prefill?.brandId || 'nova-promo',
+        project: prefill?.project || '',
+        customProject: prefill?.customProject || '',
         idea: prefill?.idea || prefill?.topic || '',
         platform: prefill?.platform || 'instagram',
         format: prefill?.format || 'square',
         style: prefill?.style || 'premium',
-        project: prefill?.project || 'novapromo',
         includeImage: true,
         includeVideoPrompt: true,
       });
@@ -106,23 +112,33 @@ export default function CreativeStudioModal() {
     }
   };
 
+  const resolveBrandId = () => (
+    form.brandId === CUSTOM_PROJECT_ID ? 'nova-ecosystem' : form.brandId
+  );
+
+  const buildPackBody = (opts = {}) => ({
+    idea: form.idea,
+    platform: form.platform,
+    format: form.format,
+    style: form.style,
+    project: resolveProjectLabel({
+      brandId: form.brandId,
+      project: form.project,
+      customProject: form.customProject,
+      brands,
+    }),
+    includeImage: form.includeImage,
+    includeVideoPrompt: form.includeVideoPrompt,
+    brandId: resolveBrandId(),
+    ...opts,
+  });
+
   const runCreativePack = async (opts = {}) => {
     setLoading(true);
     setError('');
     setLock(null);
     try {
-      const body = {
-        idea: form.idea,
-        platform: form.platform,
-        format: form.format,
-        style: form.style,
-        project: form.project,
-        includeImage: form.includeImage,
-        includeVideoPrompt: form.includeVideoPrompt,
-        brandId: 'nova-ecosystem',
-        ...opts,
-      };
-      const result = await api.aiCreativePack(body);
+      const result = await api.aiCreativePack(buildPackBody(opts));
       setPack(result);
       setPhase('result');
       await refreshBilling();
@@ -138,12 +154,7 @@ export default function CreativeStudioModal() {
     setLoading(true);
     setError('');
     try {
-      const result = await api.aiCreativePack({
-        idea: form.idea,
-        platform: form.platform,
-        format: form.format,
-        style: form.style,
-        project: form.project,
+      const result = await api.aiCreativePack(buildPackBody({
         includeImage: true,
         includeVideoPrompt: false,
         regenerateImage: true,
@@ -156,7 +167,7 @@ export default function CreativeStudioModal() {
         visualStyle: pack.visualStyle,
         platformVariants: pack.platformVariants,
         videoScript: pack.videoScript,
-      });
+      }));
       setPack((p) => ({ ...p, ...result }));
       await refreshBilling();
     } catch (err) {
@@ -167,8 +178,14 @@ export default function CreativeStudioModal() {
   };
 
   const savePost = async (scheduledAt = null) => {
-    const payload = {
+    const projectLabel = resolveProjectLabel({
+      brandId: form.brandId,
       project: form.project,
+      customProject: form.customProject,
+      brands,
+    });
+    const payload = {
+      project: projectLabel,
       platform: form.platform,
       contentType: form.format === 'story' ? 'story' : form.format === 'reel' ? 'reel' : 'post',
       tone: 'professionale',
@@ -246,9 +263,21 @@ export default function CreativeStudioModal() {
   };
 
   const canNext = () => {
-    if (step === 0) return form.idea.trim().length > 10;
+    if (step === 0) {
+      if (!form.brandId) return false;
+      if (form.brandId === CUSTOM_PROJECT_ID) return form.customProject.trim().length > 1;
+      return true;
+    }
+    if (step === 3) return form.idea.trim().length > 10;
     return true;
   };
+
+  const projectLabel = resolveProjectLabel({
+    brandId: form.brandId,
+    project: form.project,
+    customProject: form.customProject,
+    brands,
+  });
 
   return (
     <div className="modal-overlay" onClick={closeCreativeStudio}>
@@ -289,28 +318,19 @@ export default function CreativeStudioModal() {
 
         <div className="modal-body">
           {phase === 'wizard' && step === 0 && (
-            <div className="creative-idea-step">
-              <label>Descrivi cosa vuoi creare</label>
-              <textarea
-                value={form.idea}
-                onChange={(e) => setForm((f) => ({ ...f, idea: e.target.value }))}
-                placeholder="Es. Annuncio NovaDocs 1.1 con focus su cloud sync e AI locale, tono professionale..."
-                rows={5}
-                autoFocus
-              />
-              <div className="modal-grid" style={{ marginTop: '1rem' }}>
-                {PROJECTS.slice(0, 4).map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    className={`modal-chip${form.project === p.id ? ' selected' : ''}`}
-                    onClick={() => setForm((f) => ({ ...f, project: p.id }))}
-                  >
-                    {p.name}
-                  </button>
-                ))}
-              </div>
-            </div>
+            <ProjectPicker
+              brands={brands}
+              loading={brandsLoading}
+              brandId={form.brandId}
+              customProject={form.customProject}
+              onSelectBrand={(id, name) => setForm((f) => ({
+                ...f,
+                brandId: id,
+                project: id === CUSTOM_PROJECT_ID ? '' : (name || ''),
+                customProject: id === CUSTOM_PROJECT_ID ? f.customProject : '',
+              }))}
+              onCustomProjectChange={(value) => setForm((f) => ({ ...f, customProject: value, project: value }))}
+            />
           )}
 
           {phase === 'wizard' && step === 1 && (
@@ -347,6 +367,19 @@ export default function CreativeStudioModal() {
           )}
 
           {phase === 'wizard' && step === 3 && (
+            <div className="creative-idea-step">
+              <label>Descrivi cosa vuoi creare</label>
+              <textarea
+                value={form.idea}
+                onChange={(e) => setForm((f) => ({ ...f, idea: e.target.value }))}
+                placeholder="Es. Annuncio NovaPromo con focus su autopublish Instagram/Facebook, tono professionale..."
+                rows={5}
+                autoFocus
+              />
+            </div>
+          )}
+
+          {phase === 'wizard' && step === 4 && (
             <div className="modal-grid modal-grid--2">
               {STYLES.map((s) => (
                 <button
@@ -362,10 +395,11 @@ export default function CreativeStudioModal() {
             </div>
           )}
 
-          {phase === 'wizard' && step === 4 && (
+          {phase === 'wizard' && step === 5 && (
             <div className="creative-review-step">
               <p className="modal-result-label">Riepilogo</p>
               <ul className="creative-review-list">
+                <li><strong>Progetto:</strong> {projectLabel || '—'}</li>
                 <li><strong>Idea:</strong> {form.idea.slice(0, 120)}{form.idea.length > 120 ? '…' : ''}</li>
                 <li><strong>Piattaforma:</strong> {form.platform}</li>
                 <li><strong>Formato:</strong> {form.format}</li>
@@ -470,7 +504,7 @@ export default function CreativeStudioModal() {
           )}
         </div>
 
-        {phase === 'wizard' && step < 4 && (
+        {phase === 'wizard' && step < 5 && (
           <div className="modal-footer">
             {step > 0 && (
               <button type="button" className="btn btn-secondary" onClick={() => setStep((s) => s - 1)}>

@@ -10,6 +10,7 @@ import authRoutes from './routes/auth.js';
 import tiktokReviewRoutes from './routes/tiktokReview.js';
 import aiRoutes from './routes/ai.js';
 import billingRoutes from './routes/billing.js';
+import brandsRoutes from './routes/brands.js';
 import { getAllIntegrationsStatus } from './services/integrationService.js';
 import { logger } from './utils/logger.js';
 
@@ -93,6 +94,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/tiktok/review', tiktokReviewRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/billing', billingRoutes);
+app.use('/api/brands', brandsRoutes);
 
 app.use((err, _req, res, _next) => {
   if (err.code === 'LIMIT_FILE_SIZE') {

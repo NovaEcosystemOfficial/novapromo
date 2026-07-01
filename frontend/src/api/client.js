@@ -82,6 +82,8 @@ export const api = {
 
   getBillingStatus: () => request('/api/billing/status'),
 
+  getBrands: () => request('/api/brands'),
+
   getAiStatus: () => request('/api/ai/status'),
 
   aiGenerateCaption: (body) =>

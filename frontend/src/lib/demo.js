@@ -145,6 +145,14 @@ export function resolveDemoResponse(path, method = 'GET') {
       demoMode: true,
     };
   }
+  if (path === '/api/brands' && m === 'GET') {
+    return {
+      brands: [
+        { id: 'nova-promo', brandId: 'nova-promo', name: 'NovaPromo', color: '#f97316' },
+        { id: 'nova-ecosystem', brandId: 'nova-ecosystem', name: 'Nova Ecosystem', color: '#7c3aed' },
+      ],
+    };
+  }
 
   return null;
 }

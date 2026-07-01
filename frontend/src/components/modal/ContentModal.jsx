@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../api/client.js';
-import { PROJECTS, CONTENT_TYPES, TONES, TOPIC_EXAMPLES } from '../../constants/projects.js';
+import { CONTENT_TYPES, TONES, TOPIC_EXAMPLES } from '../../constants/projects.js';
 import { useContentModal } from '../../context/ContentModalContext.jsx';
 import { useBilling } from '../../context/BillingContext.jsx';
+import { useBrandProjects, CUSTOM_PROJECT_ID, resolveProjectLabel } from '../../hooks/useBrandProjects.js';
+import ProjectPicker from '../generator/ProjectPicker.jsx';
 import { isTikTokEnabled } from '../../lib/features.js';
 import { isFacebookPublishReady, isFacebookPublishPending, FACEBOOK_PUBLISH_PENDING_UI_MESSAGE } from '../../lib/facebookStatus.js';
 import MediaPicker, { appendMediaToFormData } from '../MediaPicker.jsx';
@@ -67,8 +69,13 @@ export default function ContentModal() {
   const [showSchedule, setShowSchedule] = useState(false);
   const [sourceMode, setSourceMode] = useState('template');
 
+  const [intent, setIntent] = useState('manual');
+  const { brands, loading: brandsLoading } = useBrandProjects();
+
   const [form, setForm] = useState({
+    brandId: 'nova-promo',
     project: '',
+    customProject: '',
     platform: 'instagram',
     contentType: 'post',
     tone: 'professionale',
@@ -80,8 +87,19 @@ export default function ContentModal() {
   const [media, setMedia] = useState(null);
   const [integrations, setIntegrations] = useState({});
 
+  const buildFormPayload = () => ({
+    ...form,
+    project: resolveProjectLabel({
+      brandId: form.brandId,
+      project: form.project,
+      customProject: form.customProject,
+      brands,
+    }),
+  });
+
   useEffect(() => {
     if (isOpen) {
+      const nextIntent = prefill?.intent || 'manual';
       setStep(0);
       setPhase('wizard');
       setError('');
@@ -91,10 +109,13 @@ export default function ContentModal() {
       setMedia(null);
       setShowSchedule(false);
       setScheduleAt('');
-      setSourceMode('template');
+      setSourceMode(nextIntent === 'ai' ? 'ai' : 'template');
+      setIntent(nextIntent);
       setIntegrations({});
       setForm({
+        brandId: prefill?.brandId || 'nova-promo',
         project: prefill?.project || '',
+        customProject: prefill?.customProject || '',
         platform: prefill?.platform || 'instagram',
         contentType: prefill?.contentType || 'post',
         tone: 'professionale',
@@ -130,7 +151,7 @@ export default function ContentModal() {
     setLoading(true);
     setSourceMode('template');
     try {
-      const result = await api.generateContent(form);
+      const result = await api.generateContent(buildFormPayload());
       setGenerated(result);
       setPhase('result');
     } catch (err) {
@@ -146,7 +167,7 @@ export default function ContentModal() {
     setLoading(true);
     setSourceMode('ai');
     try {
-      const pack = await api.aiGenerateContentPack(form);
+      const pack = await api.aiGenerateContentPack(buildFormPayload());
       setGenerated(normalizeAiPack(pack));
       setPhase('result');
       await refreshBilling();
@@ -164,7 +185,7 @@ export default function ContentModal() {
     setLoading(true);
     try {
       const result = await api.aiTransformContent({
-        ...form,
+        ...buildFormPayload(),
         sourceText: [generated.caption, generated.hashtags].filter(Boolean).join('\n\n'),
       });
       setGenerated((g) => ({
@@ -193,7 +214,7 @@ export default function ContentModal() {
     }
 
     const payload = {
-      ...form,
+      ...buildFormPayload(),
       caption: generated?.caption,
       hashtags: generated?.hashtags,
       cta: generated?.cta,
@@ -293,7 +314,11 @@ export default function ContentModal() {
   };
 
   const canNext = () => {
-    if (step === 0) return !!form.project;
+    if (step === 0) {
+      if (!form.brandId) return false;
+      if (form.brandId === CUSTOM_PROJECT_ID) return form.customProject.trim().length > 1;
+      return true;
+    }
     if (step === 4) return !!form.topic.trim();
     return true;
   };
@@ -310,7 +335,9 @@ export default function ContentModal() {
                 ? sourceMode === 'ai'
                   ? 'AI Studio — Contenuto generato'
                   : 'Contenuto generato'
-                : 'Nuovo contenuto'}
+                : intent === 'ai'
+                  ? 'AI Studio testo'
+                  : 'Nuovo contenuto manuale'}
             </h2>
             {phase === 'wizard' && (
               <p className="modal-sub">Passo {step + 1} di {STEPS.length} — {STEPS[step]}</p>
@@ -345,20 +372,19 @@ export default function ContentModal() {
 
         <div className="modal-body">
           {phase === 'wizard' && step === 0 && (
-            <div className="modal-grid">
-              {PROJECTS.map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  className={`modal-chip${form.project === p.id ? ' selected' : ''}`}
-                  style={{ '--chip-color': p.color, '--chip-rgb': p.colorRgb }}
-                  onClick={() => update('project', p.id)}
-                >
-                  <span className="modal-chip-dot" />
-                  {p.name}
-                </button>
-              ))}
-            </div>
+            <ProjectPicker
+              brands={brands}
+              loading={brandsLoading}
+              brandId={form.brandId}
+              customProject={form.customProject}
+              onSelectBrand={(id, name) => setForm((f) => ({
+                ...f,
+                brandId: id,
+                project: id === CUSTOM_PROJECT_ID ? '' : (name || ''),
+                customProject: id === CUSTOM_PROJECT_ID ? f.customProject : '',
+              }))}
+              onCustomProjectChange={(value) => setForm((f) => ({ ...f, customProject: value, project: value }))}
+            />
           )}
 
           {phase === 'wizard' && step === 1 && (
@@ -430,17 +456,19 @@ export default function ContentModal() {
                 ))}
               </div>
               <div className="ai-generate-row">
+                {intent !== 'ai' && (
+                  <button
+                    type="button"
+                    className="btn btn-primary modal-generate-btn"
+                    onClick={handleGenerate}
+                    disabled={!form.topic.trim() || loading}
+                  >
+                    {loading && sourceMode === 'template' ? 'Generazione...' : 'Genera (template)'}
+                  </button>
+                )}
                 <button
                   type="button"
-                  className="btn btn-primary modal-generate-btn"
-                  onClick={handleGenerate}
-                  disabled={!form.topic.trim() || loading}
-                >
-                  {loading && sourceMode === 'template' ? 'Generazione...' : 'Genera (template)'}
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-ai modal-generate-btn"
+                  className={`btn btn-ai modal-generate-btn${intent === 'ai' ? ' modal-generate-btn--solo' : ''}`}
                   onClick={handleAiGenerate}
                   disabled={!form.topic.trim() || loading || !aiAvailable}
                   title={!aiAvailable ? billing?.aiLockReason : 'Genera con OpenAI'}
