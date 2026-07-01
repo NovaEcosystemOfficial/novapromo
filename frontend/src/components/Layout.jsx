@@ -1,9 +1,15 @@
+import { useEffect } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
+import { useContentModal } from '../context/ContentModalContext.jsx';
 import { isTikTokEnabled } from '../lib/features.js';
 import DemoModeBanner from './DemoModeBanner.jsx';
 import { IconNav, IconPlus } from './icons/DashboardIcons.jsx';
 import { useBilling } from '../context/BillingContext.jsx';
+import { useViewport } from '../hooks/useViewport.js';
+import MobileBottomNav from './layout/MobileBottomNav.jsx';
+import MobileFab from './layout/MobileFab.jsx';
+import PwaInstalledBadge from './pwa/PwaInstalledBadge.jsx';
 
 const NAV_ITEMS = [
   { to: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
@@ -20,10 +26,28 @@ const NAV_ITEMS = [
 export default function Layout() {
   const { user, logout } = useAuth();
   const { billing } = useBilling();
+  const { openModal } = useContentModal();
+  const { isMobile, isStandalone } = useViewport();
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.toggle('standalone-mode', isStandalone);
+    root.classList.toggle('mobile-viewport', isMobile);
+    return () => {
+      root.classList.remove('standalone-mode', 'mobile-viewport');
+    };
+  }, [isStandalone, isMobile]);
+
+  const shellClass = [
+    'app-shell',
+    'app-layout',
+    isMobile ? 'app-shell--mobile' : 'app-shell--desktop',
+    isStandalone ? 'standalone-mode' : '',
+  ].filter(Boolean).join(' ');
 
   return (
-    <div className="app-layout">
-      <aside className="sidebar sidebar--premium">
+    <div className={shellClass}>
+      <aside className="desktop-sidebar sidebar sidebar--premium" aria-label="Navigazione desktop">
         <div className="sidebar-brand sidebar-brand--premium">
           <div className="sidebar-brand__mark" aria-hidden>N</div>
           <div>
@@ -69,10 +93,27 @@ export default function Layout() {
         )}
       </aside>
 
-      <main className="main-content main-content--wide">
-        <DemoModeBanner />
-        <Outlet />
+      <main className="main-content main-content--wide mobile-screen">
+        {isMobile && (
+          <header className="mobile-topbar">
+            <div className="mobile-topbar__brand">
+              <span className="mobile-topbar__mark" aria-hidden>N</span>
+              <span>NovaPromo</span>
+            </div>
+            <PwaInstalledBadge />
+          </header>
+        )}
+
+        {!isMobile && <PwaInstalledBadge />}
+
+        <div className="mobile-screen__content page-transition">
+          <DemoModeBanner />
+          <Outlet />
+        </div>
       </main>
+
+      {isMobile && <MobileBottomNav />}
+      {isMobile && <MobileFab onClick={() => openModal()} />}
     </div>
   );
 }

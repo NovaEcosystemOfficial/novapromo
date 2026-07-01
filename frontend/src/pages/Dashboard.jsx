@@ -3,8 +3,12 @@ import { api } from '../api/client.js';
 import { isDemoMode } from '../lib/features.js';
 import { getDemoDashboardStats } from '../lib/demo.js';
 import { isInstagramConnected } from '../lib/instagramStatus.js';
+import { isFacebookConnected } from '../lib/facebookStatus.js';
 import { useContentModal } from '../context/ContentModalContext.jsx';
+import { useCreativeStudio } from '../context/CreativeStudioContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
+import { useBilling } from '../context/BillingContext.jsx';
+import { useViewport } from '../hooks/useViewport.js';
 import {
   buildMetricCards,
   buildLast7DaysSeries,
@@ -21,6 +25,7 @@ import ActivityTimeline from '../components/dashboard/ActivityTimeline.jsx';
 import ChannelStatusCard from '../components/dashboard/ChannelStatusCard.jsx';
 import NextActionsPanel from '../components/dashboard/NextActionsPanel.jsx';
 import AiSuggestionsPanel from '../components/dashboard/AiSuggestionsPanel.jsx';
+import MobileDashboard from '../components/dashboard/MobileDashboard.jsx';
 import { IconCalendar, IconDrafts } from '../components/icons/DashboardIcons.jsx';
 import '../styles/dashboard.css';
 
@@ -30,11 +35,15 @@ function formatLastUpdated(date) {
 
 export default function Dashboard() {
   const { openModal } = useContentModal();
+  const { openCreativeStudio } = useCreativeStudio();
   const { user } = useAuth();
+  const { billing } = useBilling();
+  const { isMobile } = useViewport();
   const [stats, setStats] = useState(null);
   const [posts, setPosts] = useState([]);
   const [accounts, setAccounts] = useState([]);
   const [firebaseStatus, setFirebaseStatus] = useState(null);
+  const [brandContext, setBrandContext] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -45,12 +54,14 @@ export default function Dashboard() {
       api.getPosts(),
       api.getAccounts(),
       api.getFeatures().catch(() => null),
+      api.getBrandAiContext().catch(() => null),
     ])
-      .then(([dash, allPosts, accs, features]) => {
+      .then(([dash, allPosts, accs, features, brand]) => {
         setStats(dash);
         setPosts(allPosts);
         setAccounts(accs);
         setFirebaseStatus(features?.firebase || null);
+        setBrandContext(brand);
         setLastUpdated(new Date());
       })
       .catch((err) => {
@@ -103,9 +114,10 @@ export default function Dashboard() {
 
   const services = useMemo(() => {
     const ig = stats?.integrations?.instagram;
+    const fb = stats?.integrations?.facebook;
     const igOk = isInstagramConnected(ig) || accounts.some((a) => a.platform === 'instagram');
-    const fbOk =
-      firebaseStatus?.dataStore === 'firestore' && firebaseStatus?.storageConfigured;
+    const fbOk = isFacebookConnected(fb) || accounts.some((a) => a.platform === 'facebook');
+    const apiOk = firebaseStatus?.dataStore === 'firestore' && firebaseStatus?.adminConfigured;
 
     return [
       {
@@ -116,25 +128,65 @@ export default function Dashboard() {
       },
       {
         id: 'fb',
-        label: fbOk ? 'Firebase' : 'Locale',
-        tone: fbOk ? 'success' : 'muted',
-        title: fbOk ? 'Firestore + Storage' : 'Verifica env backend',
+        label: fbOk ? 'Facebook' : 'FB offline',
+        tone: fbOk ? 'success' : 'warn',
+        title: fbOk ? 'Facebook Page collegata' : 'Collega da Account',
       },
       {
         id: 'api',
-        label: 'API',
-        tone: 'success',
-        title: 'Backend operativo',
+        label: apiOk ? 'API' : 'API locale',
+        tone: apiOk ? 'success' : 'muted',
+        title: apiOk ? 'Backend Firebase operativo' : 'Backend operativo',
+      },
+      {
+        id: 'firebase',
+        label: firebaseStatus?.dataStore === 'firestore' ? 'Firebase' : 'Locale',
+        tone: firebaseStatus?.dataStore === 'firestore' ? 'success' : 'muted',
+        title: firebaseStatus?.dataStore === 'firestore' ? 'Firestore + Storage' : 'Verifica env backend',
       },
     ];
   }, [stats, accounts, firebaseStatus]);
 
-  const quickActions = useMemo(
+  const mobileExtraCards = useMemo(() => {
+    const cards = [];
+    if (billing) {
+      cards.push({
+        id: 'ai-credits',
+        label: 'Crediti AI',
+        value: `${billing.aiCreditsUsed ?? 0}/${billing.aiCreditsLimit ?? 3}`,
+        description: billing.isPremium ? 'Piano Premium attivo' : 'Crediti mensili disponibili',
+        quality: 'real',
+        trend: null,
+        icon: 'engagement',
+      });
+    }
+    if (brandContext) {
+      cards.push({
+        id: 'brand-intel',
+        label: 'Brand Intelligence',
+        value: `${brandContext.completionPercent ?? 0}%`,
+        description: brandContext.hasProfile ? 'Profilo brand configurato' : 'Completa il profilo brand',
+        quality: brandContext.hasProfile ? 'real' : 'pending',
+        trend: null,
+        icon: 'streak',
+      });
+    }
+    return cards;
+  }, [billing, brandContext]);
+
+  const mobileQuickActions = useMemo(
     () => [
+      { id: 'new', label: 'Nuovo contenuto', icon: '✦', onClick: () => openModal() },
+      {
+        id: 'creative',
+        label: 'Creative Studio PRO',
+        icon: '◆',
+        onClick: () => openCreativeStudio(),
+      },
       { id: 'calendar', label: 'Calendario', href: '/calendar', icon: <IconCalendar /> },
       { id: 'drafts', label: 'Bozze', href: '/drafts', icon: <IconDrafts /> },
     ],
-    []
+    [openModal, openCreativeStudio]
   );
 
   if (error) {
@@ -143,7 +195,7 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="command-center">
+      <div className={isMobile ? 'mobile-dashboard mobile-dashboard--loading' : 'command-center'}>
         <div className="ndl-skeleton ndl-skeleton--header" />
         <div className="ndl-metrics ndl-metrics--loading">
           {[1, 2, 3, 4, 5, 6].map((i) => (
@@ -153,6 +205,25 @@ export default function Dashboard() {
       </div>
     );
   }
+
+  if (isMobile) {
+    return (
+      <MobileDashboard
+        greeting={getGreeting()}
+        firstName={getFirstName(user)}
+        services={services}
+        metricCards={metricCards}
+        extraCards={mobileExtraCards}
+        quickActions={mobileQuickActions}
+        onNewContent={() => openModal()}
+      />
+    );
+  }
+
+  const quickActions = [
+    { id: 'calendar', label: 'Calendario', href: '/calendar', icon: <IconCalendar /> },
+    { id: 'drafts', label: 'Bozze', href: '/drafts', icon: <IconDrafts /> },
+  ];
 
   return (
     <div className="command-center">

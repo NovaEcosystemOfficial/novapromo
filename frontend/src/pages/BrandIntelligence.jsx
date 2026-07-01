@@ -17,11 +17,13 @@ import {
   LIBRARY_SECTIONS,
   AUDIENCE_TYPES,
 } from '../constants/brandIntelligence.js';
+import { useViewport } from '../hooks/useViewport.js';
 import '../styles/brand-intelligence.css';
 
 const SAVE_DEBOUNCE_MS = 800;
 
 export default function BrandIntelligence() {
+  const { isMobile } = useViewport();
   const [profile, setProfile] = useState(createEmptyBrandProfile());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -139,18 +141,26 @@ export default function BrandIntelligence() {
   }
 
   return (
-    <div className="bi-page">
-      <BrandProgressHeader
-        completionPercent={profile.completionPercent || 0}
-        companyName={profile.identity?.companyName}
-        saving={saving}
-      />
+    <div className={`bi-page${isMobile ? ' bi-page--mobile' : ''}`}>
+      <div className={isMobile ? 'bi-mobile-sticky' : undefined}>
+        <BrandProgressHeader
+          completionPercent={profile.completionPercent || 0}
+          companyName={profile.identity?.companyName}
+          saving={saving}
+        />
+        {isMobile && saving && (
+          <p className="bi-sync-status">Profilo sincronizzato in corso…</p>
+        )}
+        {isMobile && message && !saving && (
+          <p className="bi-sync-status bi-sync-status--ok">{message}</p>
+        )}
+      </div>
 
       {error && <div className="alert alert-error">{error}</div>}
       {message && <div className="alert alert-success">{message}</div>}
 
       <div className="bi-sections">
-        <BrandSectionCard index={1} title="Identità" subtitle="Chi sei e cosa rappresenti" delay={0}>
+        <BrandSectionCard index={1} title="Identità" subtitle="Chi sei e cosa rappresenti" delay={0} accordion={isMobile}>
           <div className="bi-form-grid">
             <div className="bi-field">
               <label>Nome azienda</label>
@@ -249,7 +259,7 @@ export default function BrandIntelligence() {
           />
         </BrandSectionCard>
 
-        <BrandSectionCard index={2} title="Brand" subtitle="Identità visiva e stile grafico" delay={80}>
+        <BrandSectionCard index={2} title="Brand" subtitle="Identità visiva e stile grafico" delay={80} accordion={isMobile}>
           <ColorInput
             label="Colori principali"
             colors={profile.brand.primaryColors}
@@ -282,7 +292,7 @@ export default function BrandIntelligence() {
           </div>
         </BrandSectionCard>
 
-        <BrandSectionCard index={3} title="Target" subtitle="A chi parli" delay={160}>
+        <BrandSectionCard index={3} title="Target" subtitle="A chi parli" delay={160} accordion={isMobile}>
           <div className="bi-form-grid">
             <div className="bi-field">
               <label>Età</label>
@@ -341,7 +351,7 @@ export default function BrandIntelligence() {
           />
         </BrandSectionCard>
 
-        <BrandSectionCard index={4} title="Tone of Voice" subtitle="Come comunica il tuo brand" delay={240}>
+        <BrandSectionCard index={4} title="Tone of Voice" subtitle="Come comunica il tuo brand" delay={240} accordion={isMobile}>
           <ChipSelect
             options={TONE_OF_VOICE_OPTIONS}
             value={profile.toneOfVoice}
@@ -349,7 +359,7 @@ export default function BrandIntelligence() {
           />
         </BrandSectionCard>
 
-        <BrandSectionCard index={5} title="Obiettivi" subtitle="Cosa vuoi ottenere" delay={320}>
+        <BrandSectionCard index={5} title="Obiettivi" subtitle="Cosa vuoi ottenere" delay={320} accordion={isMobile}>
           <ChipSelect
             options={MARKETING_GOALS}
             value={profile.marketingGoals}
@@ -357,7 +367,7 @@ export default function BrandIntelligence() {
           />
         </BrandSectionCard>
 
-        <BrandSectionCard index={6} title="CTA preferite" subtitle="Call to action ricorrenti" delay={400}>
+        <BrandSectionCard index={6} title="CTA preferite" subtitle="Call to action ricorrenti" delay={400} accordion={isMobile}>
           <div className="bi-cta-grid">
             {CTA_PRESETS.map((cta) => (
               <button
@@ -381,7 +391,7 @@ export default function BrandIntelligence() {
           />
         </BrandSectionCard>
 
-        <BrandSectionCard index={7} title="Parole" subtitle="Lessico del brand" delay={480}>
+        <BrandSectionCard index={7} title="Parole" subtitle="Lessico del brand" delay={480} accordion={isMobile}>
           <TagInput
             label="Parole da usare"
             value={profile.words.use}
@@ -406,7 +416,7 @@ export default function BrandIntelligence() {
           />
         </BrandSectionCard>
 
-        <BrandSectionCard index={8} title="Concorrenti" subtitle="Solo riferimento stilistico per l'AI" delay={560}>
+        <BrandSectionCard index={8} title="Concorrenti" subtitle="Solo riferimento stilistico per l'AI" delay={560} accordion={isMobile}>
           <div className="bi-competitors">
             {profile.competitors.map((comp, index) => (
               <div key={index} className="bi-competitor-card">
@@ -444,7 +454,7 @@ export default function BrandIntelligence() {
           </button>
         </BrandSectionCard>
 
-        <BrandSectionCard index={9} title="Libreria Brand" subtitle="Asset visivi centralizzati" delay={640}>
+        <BrandSectionCard index={9} title="Libreria Brand" subtitle="Asset visivi centralizzati" delay={640} accordion={isMobile}>
           <div className="bi-library-sections">
             {LIBRARY_SECTIONS.map((section) => (
               <LibraryUpload

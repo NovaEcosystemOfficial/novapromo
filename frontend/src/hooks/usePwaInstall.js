@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
-import { isPwaInstalled, isPwaSupportedPlatform, markPwaInstalled } from '../lib/pwa.js';
+import {
+  isPwaInstalled,
+  isPwaSupportedPlatform,
+  markPwaInstalled,
+  isIosDevice,
+  isStandaloneDisplayMode,
+} from '../lib/pwa.js';
 
 export function usePwaInstall() {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
@@ -65,17 +71,17 @@ export function usePwaInstall() {
     }
   }, []);
 
-  const canInstall = Boolean(deferredPrompt) && !installed && !dismissed;
+  const ios = isIosDevice();
+  const standalone = isStandaloneDisplayMode();
+  const canInstall = Boolean(deferredPrompt) && !installed && !dismissed && !ios;
+  const showIosHint = ios && !standalone && !installed && !dismissed;
 
   return {
     canInstall,
     installed,
     install,
     dismiss,
-    isIosSafari:
-      typeof navigator !== 'undefined'
-      && /iphone|ipad|ipod/i.test(navigator.userAgent)
-      && !deferredPrompt
-      && !installed,
+    showIosHint,
+    isIosSafari: showIosHint,
   };
 }

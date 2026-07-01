@@ -31,3 +31,8 @@ export function isPwaSupportedPlatform() {
   if (isElectron) return false;
   return true;
 }
+
+export function isIosDevice() {
+  if (typeof navigator === 'undefined') return false;
+  return /iphone|ipad|ipod/i.test(navigator.userAgent);
+}

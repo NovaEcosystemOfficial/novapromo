@@ -170,6 +170,10 @@
   to { opacity: 1; }
 }
 
+.pwa-banner--hint {
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
 @media (max-width: 640px) {
   .pwa-banner {
     flex-direction: column;
@@ -183,4 +187,12 @@
   .pwa-banner__btn {
     flex: 1;
   }
+}
+
+/* Desktop PWA: badge in main content area */
+.app-shell--desktop .pwa-installed-badge {
+  position: fixed;
+  top: calc(0.75rem + env(safe-area-inset-top, 0px));
+  right: 1.25rem;
+  z-index: 50;
 }

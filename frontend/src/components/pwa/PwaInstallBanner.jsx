@@ -1,20 +1,17 @@
 import { usePwaInstall } from '../../hooks/usePwaInstall.js';
 
 export default function PwaInstallBanner() {
-  const { canInstall, installed, install, dismiss, isIosSafari } = usePwaInstall();
+  const { canInstall, installed, install, dismiss, showIosHint } = usePwaInstall();
 
-  if (installed || (!canInstall && !isIosSafari)) {
-    return null;
-  }
+  if (installed) return null;
 
-  if (isIosSafari) {
+  if (showIosHint) {
     return (
-      <div className="pwa-banner pwa-banner--ios" role="region" aria-label="Installa NovaPromo">
+      <div className="pwa-banner pwa-banner--ios pwa-banner--hint" role="region" aria-label="Installa NovaPromo su iPhone">
         <div className="pwa-banner__content">
           <strong>Installa NovaPromo</strong>
           <p>
-            Tocca <span className="pwa-banner__ios-share" aria-hidden>⎋</span> Condividi,
-            poi <strong>Aggiungi a Home</strong>.
+            Per installare NovaPromo: <strong>Condividi</strong> → <strong>Aggiungi alla schermata Home</strong>
           </p>
         </div>
         <button type="button" className="pwa-banner__close" onClick={dismiss} aria-label="Chiudi">
@@ -23,6 +20,8 @@ export default function PwaInstallBanner() {
       </div>
     );
   }
+
+  if (!canInstall) return null;
 
   return (
     <div className="pwa-banner" role="region" aria-label="Installa NovaPromo">
