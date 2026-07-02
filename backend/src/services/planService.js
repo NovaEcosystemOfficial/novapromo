@@ -7,6 +7,7 @@ import {
   PLAN_DEFINITIONS,
   nextCreditsResetAt,
 } from '../constants/plans.js';
+import { WELCOME_PRO_CREDITS } from '../constants/welcomePro.js';
 import { isAdmin, hasUnlimitedCredits, UNLIMITED_CREDITS } from './adminService.js';
 import { logger } from '../utils/logger.js';
 
@@ -23,6 +24,7 @@ import { logger } from '../utils/logger.js';
  * @property {string} [trialStartedAt]
  * @property {string} [trialEndsAt]
  * @property {string} [premiumUntil]
+ * @property {number} [welcomeProCredits]
  * @property {number} aiCreditsUsedThisMonth
  * @property {number} aiCreditsLimit
  * @property {string} aiCreditsMonth
@@ -103,6 +105,7 @@ function applyPlanTransitions(raw, docId) {
       trialStartedAt: raw.trialStartedAt || null,
       trialEndsAt: raw.trialEndsAt || null,
       premiumUntil: raw.premiumUntil || null,
+      welcomeProCredits: raw.welcomeProCredits ?? (plan === 'free' ? 0 : null),
       creditsResetAt: raw.creditsResetAt || nextCreditsResetAt(),
       businessActive: Boolean(raw.businessActive),
       createdAt: raw.createdAt || new Date().toISOString(),
@@ -124,6 +127,97 @@ export function computeCreditsRemaining(record) {
   return monthlyRemaining + bonus;
 }
 
+export function getWelcomeProRemaining(record) {
+  if (!record || record.plan !== 'free') return 0;
+  const remaining = Number(record.welcomeProCredits);
+  if (!Number.isFinite(remaining)) return 0;
+  return Math.max(0, remaining);
+}
+
+export function getWelcomeProUsed(record) {
+  if (!record || record.plan !== 'free') return 0;
+  return Math.max(0, WELCOME_PRO_CREDITS - getWelcomeProRemaining(record));
+}
+
+function addDays(date, days) {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d;
+}
+
+export async function consumeWelcomeProCredit(docId) {
+  const plan = await getUserPlan(docId);
+  const remaining = getWelcomeProRemaining(plan);
+  if (remaining <= 0) {
+    const err = new Error('Crediti benvenuto PRO esauriti');
+    err.code = 'WELCOME_PRO_EXHAUSTED';
+    err.status = 402;
+    throw err;
+  }
+
+  const now = new Date().toISOString();
+  const newRemaining = remaining - 1;
+  const payload = { welcomeProCredits: newRemaining, updatedAt: now };
+
+  if (useFirebaseDataStore()) {
+    const admin = await getFirebaseAdmin();
+    if (admin) {
+      await admin.db.collection('users').doc(docId).set(payload, { merge: true });
+    }
+  } else {
+    const db = getDb();
+    db.prepare('UPDATE user_plans SET welcome_pro_credits = ?, updated_at = ? WHERE user_doc_id = ?')
+      .run(newRemaining, now, docId);
+  }
+
+  return { ...plan, ...payload };
+}
+
+export async function activatePremiumSubscription(docId, { interval = 'monthly', source = 'mock' } = {}) {
+  const days = interval === 'yearly' ? 365 : 30;
+  const premiumUntil = addDays(new Date(), days).toISOString();
+  const def = PLAN_DEFINITIONS.premium;
+  const now = new Date().toISOString();
+  const payload = {
+    plan: 'premium',
+    premiumUntil,
+    aiCreditsLimit: def.aiCreditsLimit,
+    credits: def.aiCreditsLimit,
+    aiCreditsUsedThisMonth: 0,
+    aiCreditsMonth: currentCreditsMonth(),
+    creditsResetAt: nextCreditsResetAt(),
+    updatedAt: now,
+    premiumSource: source,
+  };
+
+  if (useFirebaseDataStore()) {
+    const admin = await getFirebaseAdmin();
+    if (admin) {
+      await admin.db.collection('users').doc(docId).set(payload, { merge: true });
+    }
+  } else {
+    const db = getDb();
+    db.prepare(`
+      UPDATE user_plans
+      SET plan = ?, premium_until = ?, ai_credits_limit = ?, credits = ?,
+          ai_credits_used = 0, ai_credits_month = ?, credits_reset_at = ?, updated_at = ?
+      WHERE user_doc_id = ?
+    `).run(
+      payload.plan,
+      payload.premiumUntil,
+      payload.aiCreditsLimit,
+      payload.credits,
+      payload.aiCreditsMonth,
+      payload.creditsResetAt,
+      now,
+      docId
+    );
+  }
+
+  logger.info('Premium subscription activated', { docId, interval, source, premiumUntil });
+  return getUserPlan(docId);
+}
+
 function buildDefaultPlan(docId, uid = null) {
   const now = new Date().toISOString();
   const def = PLAN_DEFINITIONS.free;
@@ -133,6 +227,7 @@ function buildDefaultPlan(docId, uid = null) {
     role: 'user',
     plan: 'free',
     credits: def.aiCreditsLimit,
+    welcomeProCredits: WELCOME_PRO_CREDITS,
     creditsResetAt: nextCreditsResetAt(),
     aiCreditsUsedThisMonth: 0,
     aiCreditsLimit: def.aiCreditsLimit,
@@ -172,6 +267,7 @@ async function persistPlanUpdates(docId, updates) {
     credits: 'credits',
     premiumUntil: 'premium_until',
     creditsResetAt: 'credits_reset_at',
+    welcomeProCredits: 'welcome_pro_credits',
   };
   for (const [k, col] of Object.entries(map)) {
     if (payload[k] != null) {
@@ -218,6 +314,7 @@ async function ensureFirestorePlan(docId, { uid, displayName, username, email } 
       role: 'user',
       plan: def.plan,
       credits: def.credits,
+      welcomeProCredits: def.welcomeProCredits,
       creditsResetAt: def.creditsResetAt,
       aiCreditsUsedThisMonth: 0,
       aiCreditsLimit: def.aiCreditsLimit,
@@ -250,6 +347,7 @@ function mapSqliteRow(row) {
     trialStartedAt: row.trial_started_at,
     trialEndsAt: row.trial_ends_at,
     premiumUntil: row.premium_until,
+    welcomeProCredits: row.welcome_pro_credits,
     aiCreditsUsedThisMonth: row.ai_credits_used,
     aiCreditsLimit: row.ai_credits_limit,
     aiCreditsMonth: row.ai_credits_month,
@@ -275,8 +373,9 @@ async function ensureSqlitePlan(docId, { uid, email, displayName } = {}) {
   db.prepare(`
     INSERT INTO user_plans (
       user_doc_id, uid, email, display_name, role, plan, credits, credits_reset_at,
+      welcome_pro_credits,
       ai_credits_used, ai_credits_limit, ai_credits_month, business_active, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, 'user', ?, ?, ?, 0, ?, ?, 0, ?, ?)
+    ) VALUES (?, ?, ?, ?, 'user', ?, ?, ?, ?, 0, ?, ?, 0, ?, ?)
   `).run(
     docId,
     uid || docId,
@@ -285,6 +384,7 @@ async function ensureSqlitePlan(docId, { uid, email, displayName } = {}) {
     def.plan,
     def.credits,
     def.creditsResetAt,
+    def.welcomeProCredits ?? WELCOME_PRO_CREDITS,
     def.aiCreditsLimit,
     def.aiCreditsMonth,
     def.createdAt,
@@ -389,6 +489,9 @@ export async function getBillingStatus(docId) {
     trialStartedAt: userPlan.trialStartedAt || null,
     trialEndsAt: userPlan.trialEndsAt || null,
     premiumUntil: userPlan.premiumUntil || null,
+    welcomeProCredits: getWelcomeProRemaining(userPlan),
+    welcomeProCreditsTotal: userPlan.plan === 'free' ? WELCOME_PRO_CREDITS : 0,
+    welcomeProCreditsUsed: getWelcomeProUsed(userPlan),
     aiCreditsUsed: userPlan.aiCreditsUsedThisMonth,
     aiCreditsLimit: unlimited ? null : userPlan.aiCreditsLimit,
     aiCreditsRemaining: unlimited ? null : remaining,

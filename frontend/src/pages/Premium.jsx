@@ -1,11 +1,15 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useBilling } from '../context/BillingContext.jsx';
-import { PLAN_COMPARISON } from '../lib/plans.js';
+import { PLAN_COMPARISON, PREMIUM_PRICING, PRO_BENEFITS } from '../lib/plans.js';
+import { api } from '../api/client.js';
 import '../styles/premium.css';
 
 export default function Premium() {
-  const { billing, loading } = useBilling();
+  const { billing, loading, refreshBilling } = useBilling();
+  const navigate = useNavigate();
+  const [checkoutLoading, setCheckoutLoading] = useState(null);
+  const [checkoutError, setCheckoutError] = useState('');
 
   if (loading) {
     return (
@@ -16,75 +20,96 @@ export default function Premium() {
   }
 
   const currentPlan = billing?.plan || 'free';
+  const isPro = billing?.isPremium && !billing?.isAdmin;
+  const isAdmin = billing?.isAdmin;
+
+  const handleActivate = async (interval) => {
+    setCheckoutError('');
+    setCheckoutLoading(interval);
+    try {
+      const result = await api.createCheckoutSession(interval);
+      if (result.mode === 'stripe' && result.url) {
+        window.location.href = result.url;
+        return;
+      }
+      navigate(result.checkoutPath || `/checkout/mock?plan=${interval}`);
+    } catch (err) {
+      setCheckoutError(err.message);
+    } finally {
+      setCheckoutLoading(null);
+    }
+  };
 
   return (
-    <div className="premium-page">
-      <header className="premium-page__header">
-        <p className="premium-page__eyebrow">NovaPromo Premium</p>
-        <h1>Piani e AI Studio</h1>
-        <p className="premium-page__sub">
-          Struttura pronta per pagamenti — attivazione manuale disponibile per test.
+    <div className="premium-page premium-page--pro">
+      <header className="premium-hero">
+        <p className="premium-page__eyebrow">NovaPromo PRO</p>
+        <h1>Lavora come un vero reparto marketing.</h1>
+        <p className="premium-hero__sub">
+          Crea contenuti, immagini AI, campagne e pubblicazioni social da un&apos;unica piattaforma.
         </p>
+        {billing?.testMode && (
+          <p className="premium-test-banner" role="status">
+            Modalità test — i pagamenti reali si attivano con Stripe configurato sul backend
+          </p>
+        )}
       </header>
 
-      <section className="premium-current ndl-panel">
-        <div className="premium-current__row">
-          <div>
-            <p className="premium-current__label">Piano attuale</p>
-            <h2 className="premium-current__plan">
-              {billing?.planLabel || 'Free'}
-              {billing?.isPremium && <span className="premium-badge">Premium</span>}
-            </h2>
-            <p className="premium-current__desc">{billing?.planDescription}</p>
-          </div>
-          <div className="premium-credits">
-            <p className="premium-credits__label">Crediti AI questo mese</p>
-            <p className="premium-credits__value">
-              {billing?.aiCreditsUsed ?? 0}
-              <span> / {billing?.aiCreditsLimit ?? 3}</span>
-            </p>
-            <div className="premium-credits__bar">
-              <div
-                className="premium-credits__fill"
-                style={{
-                  width: `${Math.min(100, ((billing?.aiCreditsUsed ?? 0) / (billing?.aiCreditsLimit || 1)) * 100)}%`,
-                }}
-              />
-            </div>
-            <p className="premium-credits__remaining">
-              {billing?.aiCreditsRemaining ?? 0} rimanenti
-            </p>
-          </div>
-        </div>
+      {isAdmin && (
+        <section className="premium-admin-banner ndl-panel">
+          <span className="premium-badge">Admin</span>
+          <p>Accesso PRO illimitato — nessun pagamento richiesto.</p>
+        </section>
+      )}
 
-        <div className="premium-status-row">
-          <StatusPill
-            label="AI Server"
-            ok={billing?.aiConfigured}
-            text={billing?.aiConfigured ? 'Configurata' : 'Non configurata'}
-          />
-          <StatusPill
-            label="AI Disponibile"
-            ok={billing?.aiAvailable}
-            text={billing?.aiAvailable ? 'Attiva' : 'Bloccata'}
-          />
-          <StatusPill
-            label="Pagamenti"
-            ok={false}
-            text="Stripe in arrivo"
-          />
-        </div>
+      {!isAdmin && billing?.welcomeProCredits > 0 && currentPlan === 'free' && (
+        <section className="premium-welcome ndl-panel">
+          <h2>Crediti benvenuto PRO</h2>
+          <p>
+            Ti restano <strong>{billing.welcomeProCredits}</strong> su{' '}
+            {billing.welcomeProCreditsTotal || 3} utilizzi completi di Creative Studio PRO.
+          </p>
+        </section>
+      )}
 
-        {billing?.aiLockReason && !billing?.aiAvailable && (
-          <p className="premium-note">{billing.aiLockReason}</p>
-        )}
-        {billing?.upgradeNote && (
-          <p className="premium-note premium-note--muted">{billing.upgradeNote}</p>
-        )}
+      <section className="premium-pricing">
+        <h2 className="premium-section-title">Scegli il piano</h2>
+        <div className="premium-pricing__grid">
+          {Object.values(PREMIUM_PRICING).map((tier) => (
+            <article
+              key={tier.id}
+              className={[
+                'premium-price-card ndl-panel',
+                tier.highlighted && 'premium-price-card--highlight',
+              ].filter(Boolean).join(' ')}
+            >
+              <h3>{tier.label}</h3>
+              <p className="premium-price-card__price">
+                {tier.price}
+                <span>{tier.period}</span>
+              </p>
+              <p className="premium-price-card__note">{tier.note}</p>
+              {!isAdmin && !isPro && (
+                <button
+                  type="button"
+                  className="ndl-btn ndl-btn--primary premium-price-card__cta"
+                  disabled={checkoutLoading === tier.id}
+                  onClick={() => handleActivate(tier.id)}
+                >
+                  {checkoutLoading === tier.id ? 'Avvio…' : 'Attiva NovaPromo PRO'}
+                </button>
+              )}
+              {isPro && (
+                <p className="premium-price-card__active">Piano PRO attivo</p>
+              )}
+            </article>
+          ))}
+        </div>
+        {checkoutError && <p className="premium-note premium-note--error">{checkoutError}</p>}
       </section>
 
       <section className="premium-compare">
-        <h2 className="premium-compare__title">Confronto piani</h2>
+        <h2 className="premium-section-title">Free vs PRO</h2>
         <div className="premium-compare__grid">
           {PLAN_COMPARISON.map((plan) => (
             <article
@@ -100,47 +125,54 @@ export default function Premium() {
               )}
               <h3>{plan.label}</h3>
               <p className="premium-plan-card__price">{plan.price}</p>
-              <p className="premium-plan-card__credits">{plan.aiCredits} generazioni AI / mese</p>
+              <p className="premium-plan-card__credits">{plan.aiCredits} crediti AI / mese</p>
               <ul className="premium-plan-card__features">
                 {plan.features.map((f) => (
                   <li key={f}>{f}</li>
                 ))}
               </ul>
-              {plan.id !== 'free' && (
-                <button type="button" className="ndl-btn ndl-btn--ghost premium-plan-card__btn" disabled>
-                  Pagamenti in arrivo
-                </button>
-              )}
             </article>
           ))}
         </div>
       </section>
 
-      <section className="premium-ai-studio ndl-panel">
-        <h2>AI Studio</h2>
-        <p className="premium-page__sub">
-          Caption, hashtag, CTA, idee Reel/carosello e trasformazioni multi-piattaforma.
+      <section className="premium-benefits">
+        <h2 className="premium-section-title">Tutto incluso in PRO</h2>
+        <div className="premium-benefits__grid">
+          {PRO_BENEFITS.map((item) => (
+            <article key={item.title} className="premium-benefit-card ndl-panel">
+              <h3>{item.title}</h3>
+              <p>{item.description}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="premium-credits-section ndl-panel">
+        <h2>300 crediti AI inclusi ogni mese</h2>
+        <p>
+          Caption, hashtag, CTA, idee Reel, trasformazioni multi-piattaforma e immagini AI —
+          tutto conteggiato nel tuo budget mensile PRO.
         </p>
-        <ul className="premium-ai-list">
-          <li>Genera caption</li>
-          <li>Genera hashtag</li>
-          <li>Genera CTA</li>
-          <li>Idea Reel e carosello</li>
-          <li>Trasforma per Instagram, Facebook, LinkedIn, X</li>
-        </ul>
-        <Link to="/generator" className="ndl-btn ndl-btn--primary">
-          Apri generatore
-        </Link>
+      </section>
+
+      <section className="premium-footer-cta ndl-panel">
+        <h2>Pronto per il passo successivo?</h2>
+        {!isAdmin && !isPro ? (
+          <button
+            type="button"
+            className="ndl-btn ndl-btn--primary"
+            onClick={() => handleActivate('monthly')}
+            disabled={Boolean(checkoutLoading)}
+          >
+            Attiva NovaPromo PRO
+          </button>
+        ) : (
+          <Link to="/generator" className="ndl-btn ndl-btn--primary" onClick={() => refreshBilling()}>
+            Apri Creative Studio
+          </Link>
+        )}
       </section>
     </div>
-  );
-}
-
-function StatusPill({ label, ok, text }) {
-  return (
-    <span className={`premium-pill premium-pill--${ok ? 'ok' : 'off'}`}>
-      <span className="premium-pill__dot" />
-      {label}: {text}
-    </span>
   );
 }

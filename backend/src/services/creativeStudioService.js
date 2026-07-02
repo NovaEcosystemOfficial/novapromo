@@ -3,8 +3,8 @@ import { generateImageBuffer } from './openaiImageService.js';
 import { getBrand, buildBrandSystemPrompt } from './brandService.js';
 import { saveAiGeneration } from './firebase/aiGenerationRepository.js';
 import { uploadAiImageToFirebaseStorage } from './firebase/storageService.js';
-import { getUserPlan, consumeAICredits, computeCreditsRemaining } from './planService.js';
-import { canUseCreativeStudio } from './featureGate.js';
+import { getUserPlan, consumeAICredits, computeCreditsRemaining, consumeWelcomeProCredit } from './planService.js';
+import { canUseCreativeStudio, canRegenerateCreativeImage } from './featureGate.js';
 import { isAdmin } from './adminService.js';
 import { assertCreativeStudioRateLimit, recordCreativeStudioUsage } from './creativeStudioRateLimit.js';
 import { hasFirebaseStorage } from './firebase/dataStore.js';
@@ -122,9 +122,11 @@ function resolveCreditCost(params) {
   return AI_CREDIT_COSTS.creativePackNoImage;
 }
 
-async function assertCreativeAccess(userDocId, creditCost) {
+async function assertCreativeAccess(userDocId, creditCost, { regenerateImage = false } = {}) {
   const plan = await getUserPlan(userDocId);
-  const gate = canUseCreativeStudio(plan);
+  const gate = regenerateImage
+    ? canRegenerateCreativeImage(plan)
+    : canUseCreativeStudio(plan);
   if (!gate.allowed) {
     const err = new Error(gate.reason);
     err.code = gate.code;
@@ -133,7 +135,9 @@ async function assertCreativeAccess(userDocId, creditCost) {
     throw err;
   }
 
-  if (gate.remaining != null && gate.remaining < creditCost && !isAdmin(plan)) {
+  const useWelcomeCredit = !regenerateImage && gate.usingWelcomeCredits === true;
+
+  if (!useWelcomeCredit && gate.remaining != null && gate.remaining < creditCost && !isAdmin(plan)) {
     const remaining = computeCreditsRemaining(plan);
     const err = new Error(
       `Crediti AI insufficienti per questa operazione (servono ${creditCost}, ne restano ${remaining})`
@@ -144,7 +148,7 @@ async function assertCreativeAccess(userDocId, creditCost) {
   }
 
   await assertCreativeStudioRateLimit(userDocId);
-  return plan;
+  return { plan, useWelcomeCredit };
 }
 
 /**
@@ -153,7 +157,9 @@ async function assertCreativeAccess(userDocId, creditCost) {
 export async function generateCreativePack(userDocId, input) {
   const params = validateInput(input);
   const creditCost = resolveCreditCost(params);
-  await assertCreativeAccess(userDocId, creditCost);
+  const { useWelcomeCredit } = await assertCreativeAccess(userDocId, creditCost, {
+    regenerateImage: params.regenerateImage,
+  });
 
   const brand = await getBrand(params.brandId || DEFAULT_BRAND_ID);
   let pack;
@@ -229,7 +235,11 @@ export async function generateCreativePack(userDocId, input) {
     pack.imageMimeType = 'image/png';
   }
 
-  await consumeAICredits(userDocId, creditCost);
+  if (useWelcomeCredit) {
+    await consumeWelcomeProCredit(userDocId);
+  } else {
+    await consumeAICredits(userDocId, creditCost);
+  }
   await recordCreativeStudioUsage(userDocId);
 
   const saved = await saveAiGeneration({
@@ -244,7 +254,8 @@ export async function generateCreativePack(userDocId, input) {
     ...pack,
     generationId: saved.id,
     brandId: brand.id,
-    creditsUsed: creditCost,
+    creditsUsed: useWelcomeCredit ? 0 : creditCost,
+    welcomeCreditUsed: useWelcomeCredit,
     format: params.format,
     platform: params.platform,
     style: params.style,

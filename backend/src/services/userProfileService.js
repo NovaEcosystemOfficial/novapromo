@@ -1,36 +1,28 @@
 import { getFirebaseAdmin } from './firebase/admin.js';
 import { useFirebaseDataStore } from './firebase/dataStore.js';
 import { getDb } from '../db/index.js';
-import { currentCreditsMonth, PLAN_DEFINITIONS } from '../constants/plans.js';
+import { currentCreditsMonth, nextCreditsResetAt } from '../constants/plans.js';
+import { WELCOME_PRO_CREDITS } from '../constants/welcomePro.js';
 import { isAdminEmail } from './adminService.js';
 import { UNLIMITED_CREDITS } from './adminService.js';
 import { logger } from '../utils/logger.js';
 
-const TRIAL_DAYS = 7;
-const TRIAL_CREDITS = 100;
-const FREE_MONTHLY_CREDITS = 30;
-
-function addDays(date, days) {
-  const d = new Date(date);
-  d.setDate(d.getDate() + days);
-  return d.toISOString();
-}
-
-function buildTrialProfile(uid, email, displayName) {
+function buildFreeProfile(uid, email, displayName) {
   const now = new Date().toISOString();
   return {
     uid,
     email: email || null,
     displayName: displayName || email?.split('@')[0] || 'Utente',
     role: 'user',
-    plan: 'trial',
-    credits: TRIAL_CREDITS,
-    creditsResetAt: currentCreditsMonth(),
-    trialStartedAt: now,
-    trialEndsAt: addDays(now, TRIAL_DAYS),
+    plan: 'free',
+    credits: 30,
+    creditsResetAt: nextCreditsResetAt(),
+    trialStartedAt: null,
+    trialEndsAt: null,
     premiumUntil: null,
+    welcomeProCredits: WELCOME_PRO_CREDITS,
     aiCreditsUsedThisMonth: 0,
-    aiCreditsLimit: TRIAL_CREDITS,
+    aiCreditsLimit: 30,
     aiCreditsMonth: currentCreditsMonth(),
     businessActive: false,
     provider: 'firebase',
@@ -80,7 +72,7 @@ export async function upsertUserFromFirebaseAuth({ uid, email, displayName }) {
     if (!snap.exists) {
       const doc = isAdminEmail(email)
         ? buildAdminProfile(uid, email, displayName)
-        : buildTrialProfile(uid, email, displayName);
+        : buildFreeProfile(uid, email, displayName);
       await ref.set(doc);
       logger.info('New Firebase user profile', { uid, plan: doc.plan, role: doc.role });
       return doc;
@@ -112,18 +104,20 @@ export async function upsertUserFromFirebaseAuth({ uid, email, displayName }) {
   if (!row) {
     const doc = isAdminEmail(email)
       ? buildAdminProfile(uid, email, displayName)
-      : buildTrialProfile(uid, email, displayName);
+      : buildFreeProfile(uid, email, displayName);
     db.prepare(`
       INSERT INTO user_plans (
         user_doc_id, uid, email, display_name, role, plan, credits,
         trial_started_at, trial_ends_at, premium_until, credits_reset_at,
+        welcome_pro_credits,
         ai_credits_used, ai_credits_limit, ai_credits_month, business_active,
         created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, 0, ?, ?)
     `).run(
       uid, uid, doc.email, doc.displayName, doc.role, doc.plan, doc.credits,
       doc.trialStartedAt, doc.trialEndsAt, doc.premiumUntil, doc.creditsResetAt,
-      0, doc.aiCreditsLimit, doc.aiCreditsMonth,
+      doc.welcomeProCredits ?? 0,
+      doc.aiCreditsLimit, doc.aiCreditsMonth,
       doc.createdAt, doc.updatedAt
     );
     return doc;

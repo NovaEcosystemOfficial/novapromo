@@ -10,6 +10,7 @@ import authRoutes from './routes/auth.js';
 import tiktokReviewRoutes from './routes/tiktokReview.js';
 import aiRoutes from './routes/ai.js';
 import billingRoutes from './routes/billing.js';
+import { stripeWebhookHandler } from './routes/billingWebhook.js';
 import brandsRoutes from './routes/brands.js';
 import { getAllIntegrationsStatus } from './services/integrationService.js';
 import { logger } from './utils/logger.js';
@@ -32,6 +33,13 @@ app.use(
   })
 );
 app.use(cookieParser());
+
+app.post(
+  '/api/billing/webhook',
+  express.raw({ type: 'application/json' }),
+  stripeWebhookHandler
+);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

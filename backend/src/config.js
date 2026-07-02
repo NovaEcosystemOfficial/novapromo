@@ -215,6 +215,16 @@ export const config = {
     temperature: parseFloat(process.env.OPENAI_TEMPERATURE || '0.7'),
     reasoningEffort: process.env.OPENAI_REASONING_EFFORT || 'medium',
   },
+
+  stripe: {
+    secretKey: (process.env.STRIPE_SECRET_KEY || '').trim(),
+    webhookSecret: (process.env.STRIPE_WEBHOOK_SECRET || '').trim(),
+    priceMonthly: (process.env.STRIPE_PRICE_MONTHLY || '').trim(),
+    priceYearly: (process.env.STRIPE_PRICE_YEARLY || '').trim(),
+    /** In produzione con Stripe configurato, disabilita mock se true */
+    disableMockWhenStripeConfigured: process.env.STRIPE_DISABLE_MOCK === 'true',
+    allowMockCheckout: process.env.STRIPE_ALLOW_MOCK === 'true' || !isProduction,
+  },
 };
 
 export function hasFirebaseStorage() {

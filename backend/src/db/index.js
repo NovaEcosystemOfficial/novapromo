@@ -236,6 +236,9 @@ function migrateSchema(database) {
     if (!cols.includes('premium_until')) {
       database.exec('ALTER TABLE user_plans ADD COLUMN premium_until TEXT');
     }
+    if (!cols.includes('welcome_pro_credits')) {
+      database.exec('ALTER TABLE user_plans ADD COLUMN welcome_pro_credits INTEGER NOT NULL DEFAULT 0');
+    }
   } catch {
     // migration skipped
   }

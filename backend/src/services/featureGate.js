@@ -1,6 +1,6 @@
 import { getPlanDefinition } from '../constants/plans.js';
 import { isAdmin, hasUnlimitedCredits } from './adminService.js';
-import { computeCreditsRemaining } from './planService.js';
+import { computeCreditsRemaining, getWelcomeProRemaining } from './planService.js';
 
 /**
  * @param {import('./planService.js').UserPlanRecord} userPlan
@@ -67,7 +67,7 @@ export function isPremiumPlan(userPlan) {
 }
 
 /**
- * Creative Studio PRO — trial, premium, business attivo, admin.
+ * Creative Studio PRO — premium, trial legacy, crediti benvenuto, admin.
  * @param {import('./planService.js').UserPlanRecord} userPlan
  */
 export function canUseCreativeStudio(userPlan) {
@@ -86,17 +86,29 @@ export function canUseCreativeStudio(userPlan) {
   }
 
   if (userPlan.plan === 'free') {
+    const welcomeRemaining = getWelcomeProRemaining(userPlan);
+    if (welcomeRemaining > 0) {
+      return {
+        allowed: true,
+        usingWelcomeCredits: true,
+        welcomeProCreditsRemaining: welcomeRemaining,
+        creditsUsed: userPlan.aiCreditsUsedThisMonth,
+        creditsLimit: userPlan.aiCreditsLimit,
+        remaining: computeCreditsRemaining(userPlan),
+      };
+    }
     return {
       allowed: false,
-      reason: 'Creative Studio PRO è disponibile solo con Trial o Premium',
+      reason: 'Creative Studio PRO richiede NovaPromo PRO o crediti benvenuto esauriti',
       code: 'CREATIVE_STUDIO_PREMIUM_ONLY',
+      welcomeProCreditsRemaining: 0,
     };
   }
 
   if (!isPremiumPlan(userPlan)) {
     return {
       allowed: false,
-      reason: 'Creative Studio PRO è disponibile solo con il piano Premium',
+      reason: 'Creative Studio PRO è disponibile solo con NovaPromo PRO',
       code: 'CREATIVE_STUDIO_PREMIUM_ONLY',
     };
   }
@@ -125,5 +137,24 @@ export function canUseCreativeStudio(userPlan) {
     creditsUsed: userPlan.aiCreditsUsedThisMonth,
     creditsLimit: userPlan.aiCreditsLimit,
     remaining,
+  };
+}
+
+/**
+ * Rigenerazione immagine — solo PRO (non crediti benvenuto).
+ * @param {import('./planService.js').UserPlanRecord} userPlan
+ */
+export function canRegenerateCreativeImage(userPlan) {
+  if (!userPlan) {
+    return { allowed: false, reason: 'Utente non trovato', code: 'USER_NOT_FOUND' };
+  }
+  if (hasUnlimitedCredits(userPlan) || isPremiumPlan(userPlan)) {
+    return canUseCreativeStudio(userPlan);
+  }
+  return {
+    allowed: false,
+    reason: 'Rigenera immagine disponibile solo con NovaPromo PRO',
+    code: 'CREATIVE_STUDIO_PREMIUM_ONLY',
+    welcomeProCreditsRemaining: getWelcomeProRemaining(userPlan),
   };
 }

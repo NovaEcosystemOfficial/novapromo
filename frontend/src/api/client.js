@@ -89,6 +89,20 @@ export const api = {
       body: JSON.stringify({ code }),
     }),
 
+  createCheckoutSession: (plan = 'monthly') =>
+    request('/api/billing/create-checkout-session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ plan }),
+    }),
+
+  mockActivatePremium: (plan = 'monthly') =>
+    request('/api/billing/mock-activate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ plan }),
+    }),
+
   syncFirebaseSession: (idToken) =>
     request('/api/auth/firebase/session', {
       method: 'POST',

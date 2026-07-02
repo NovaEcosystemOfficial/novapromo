@@ -36,7 +36,7 @@ export default function AccountProfilePanel() {
       const result = await api.redeemCoupon(coupon.trim());
       setCouponMsg(result.type === 'premium_days'
         ? `Premium esteso fino al ${formatDate(result.billing?.premiumUntil)}`
-        : `Coupon applicato — crediti aggiornati`);
+        : 'Coupon applicato — crediti aggiornati');
       setCoupon('');
       await refreshBilling();
     } catch (err) {
@@ -52,14 +52,14 @@ export default function AccountProfilePanel() {
         <div>
           <h3 style={{ margin: 0 }}>Profilo NovaPromo</h3>
           <p style={{ margin: '0.35rem 0 0', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-            Piano, crediti e accesso alle funzioni AI
+            Piano, crediti e accesso alle funzioni PRO
           </p>
         </div>
         {billing.isAdmin && (
           <span className="sidebar-premium-badge">Admin</span>
         )}
-        {billing.isTrial && !billing.isAdmin && (
-          <span className="integration-mode-badge integration-mode-badge--real">Trial attivo</span>
+        {billing.isPremium && !billing.isAdmin && (
+          <span className="integration-mode-badge integration-mode-badge--real">PRO attivo</span>
         )}
       </div>
 
@@ -73,22 +73,30 @@ export default function AccountProfilePanel() {
           <dd>{billing.role === 'admin' ? 'Admin' : 'Utente'}</dd>
         </div>
         <div>
-          <dt>Piano</dt>
+          <dt>Piano attuale</dt>
           <dd>{billing.planLabel || billing.plan}</dd>
         </div>
         <div>
-          <dt>Crediti disponibili</dt>
+          <dt>Crediti AI disponibili</dt>
           <dd>{creditsLabel}</dd>
         </div>
+        {billing.plan === 'free' && billing.welcomeProCreditsTotal > 0 && (
+          <div>
+            <dt>Crediti benvenuto PRO</dt>
+            <dd>
+              {billing.welcomeProCredits ?? 0} rimanenti su {billing.welcomeProCreditsTotal}
+            </dd>
+          </div>
+        )}
         {billing.isTrial && billing.trialEndsAt && (
           <div>
-            <dt>Trial fino a</dt>
+            <dt>Trial legacy fino a</dt>
             <dd>{formatDate(billing.trialEndsAt)}</dd>
           </div>
         )}
-        {billing.premiumUntil && (
+        {billing.premiumUntil && billing.isPremium && (
           <div>
-            <dt>Premium fino a</dt>
+            <dt>PRO fino a</dt>
             <dd>{formatDate(billing.premiumUntil)}</dd>
           </div>
         )}
@@ -100,12 +108,23 @@ export default function AccountProfilePanel() {
         )}
       </dl>
 
-      {!billing.isAdmin && !billing.isPremium && (
+      {!billing.isAdmin && (
         <div className="account-profile__upgrade">
           <Link to="/premium" className="btn btn-primary btn-sm">
-            Passa a Premium
+            Gestisci piano
           </Link>
+          {billing.testMode && (
+            <p className="account-profile__test-note">
+              Pagamenti in modalità test — nessun addebito reale finché Stripe non è configurato.
+            </p>
+          )}
         </div>
+      )}
+
+      {billing.isAdmin && (
+        <p className="account-profile__test-note">
+          Account Admin — accesso PRO illimitato, nessun pagamento richiesto.
+        </p>
       )}
 
       <form className="account-coupon" onSubmit={handleRedeem}>

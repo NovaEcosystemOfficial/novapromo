@@ -70,11 +70,45 @@ Su Vercel il backend usa SQLite in `/tmp` (effimero). Per persistenza account In
 
 Private — NovaPromo
 
-## Premium + AI Studio
+## Premium + NovaPromo PRO
 
-Vedi [docs/PREMIUM_AI.md](docs/PREMIUM_AI.md) per:
+### Come funziona
 
-- Variabili `OPENAI_API_KEY` / `OPENAI_MODEL`
-- Piani Free / Premium / Business e limiti AI
-- Attivazione manuale Premium in Firestore
-- Test AI Studio e pagamenti futuri
+| Piano | Crediti AI/mese | Creative Studio PRO |
+|-------|-----------------|---------------------|
+| **Free** | 30 | 3 prove benvenuto (`welcomeProCredits`) |
+| **NovaPromo PRO** | 300 | Illimitato (nei limiti crediti) |
+| **Admin** | ∞ | ∞ — nessun pagamento |
+
+Nuovi utenti partono da **Free** con **3 crediti benvenuto** per Creative Studio PRO completo. Dopo l’esaurimento, Creative Studio si blocca con invito ad attivare PRO.
+
+### Pagina e checkout
+
+- `/premium` — confronto Free vs PRO, prezzi (9,99 €/mese · 99 €/anno)
+- **Senza Stripe** → checkout mock (`/checkout/mock`) → attiva PRO per 30 giorni + 300 crediti
+- **Con Stripe** → redirect a Stripe Checkout → webhook aggiorna Firestore
+
+### Variabili Stripe (produzione reale)
+
+```env
+STRIPE_SECRET_KEY=sk_live_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+STRIPE_PRICE_MONTHLY=price_...
+STRIPE_PRICE_YEARLY=price_...
+```
+
+Endpoint webhook: `POST https://<BACKEND_URL>/api/billing/webhook`
+
+### Test locale
+
+```powershell
+npm run test:accounts-plans
+npm run dev
+```
+
+1. **Admin** (`ADMIN_EMAILS`) — Account mostra badge Admin, nessun checkout obbligatorio
+2. **Free** — `/premium` visibile; Generator mostra crediti benvenuto; 3 pack PRO poi blocco
+3. **Mock checkout** — Attiva PRO → `/checkout/success` → Account mostra piano PRO
+4. **IG/FB** — pubblicazione invariata (non legata al piano PRO)
+
+Vedi anche [docs/PREMIUM_AI.md](docs/PREMIUM_AI.md) per AI Studio e Creative Studio.

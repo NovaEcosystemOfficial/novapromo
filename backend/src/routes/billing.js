@@ -6,6 +6,11 @@ import { canUseAI, canUseCreativeStudio } from '../services/featureGate.js';
 import { getUserPlan } from '../services/planService.js';
 import { AI_CREDIT_COSTS, CREATIVE_STUDIO_DAILY_LIMIT } from '../constants/aiCredits.js';
 import { redeemCoupon } from '../services/couponService.js';
+import {
+  createCheckoutSession,
+  activateMockPremium,
+  getPaymentsInfo,
+} from '../services/billingCheckoutService.js';
 
 const router = Router();
 
@@ -15,6 +20,7 @@ router.get('/status', requireSession, async (req, res) => {
     const plan = await getUserPlan(req.sessionUser.docId);
     const aiGate = canUseAI(plan);
     const creativeGate = canUseCreativeStudio(plan);
+    const payments = getPaymentsInfo();
 
     res.json({
       ...billing,
@@ -33,13 +39,54 @@ router.get('/status', requireSession, async (req, res) => {
           ? null
           : creativeGate.reason,
       creativeStudioLockCode: !isOpenAIConfigured() ? 'AI_NOT_CONFIGURED' : creativeGate.code || null,
+      creativeStudioUsingWelcomeCredits: creativeGate.usingWelcomeCredits === true,
+      creativeStudioWelcomeRemaining: creativeGate.welcomeProCreditsRemaining ?? billing.welcomeProCredits,
       creativeStudioCreditCosts: AI_CREDIT_COSTS,
       creativeStudioDailyLimit: billing.isAdmin ? null : CREATIVE_STUDIO_DAILY_LIMIT,
-      paymentsEnabled: false,
-      upgradeNote: 'Pagamenti Stripe in arrivo — usa un coupon o contattaci per Premium',
+      paymentsEnabled: payments.paymentsEnabled,
+      paymentsMode: payments.paymentsMode,
+      stripeConfigured: payments.stripeConfigured,
+      mockCheckoutAvailable: payments.mockCheckoutAvailable,
+      testMode: payments.testMode,
+      upgradeNote: billing.isAdmin
+        ? 'Account Admin — accesso PRO illimitato, nessun pagamento richiesto'
+        : payments.stripeConfigured
+          ? 'Pagamenti Stripe attivi'
+          : 'Modalità test — attiva PRO senza pagamento reale',
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/create-checkout-session', requireSession, async (req, res) => {
+  try {
+    const interval = req.body?.plan || req.body?.interval || 'monthly';
+    const plan = await getUserPlan(req.sessionUser.docId);
+    const result = await createCheckoutSession(req.sessionUser.docId, {
+      email: plan.email || req.sessionUser.email,
+      interval,
+    });
+    res.json(result);
+  } catch (err) {
+    res.status(err.status || 500).json({
+      error: err.message,
+      code: err.code || 'CHECKOUT_ERROR',
+    });
+  }
+});
+
+router.post('/mock-activate', requireSession, async (req, res) => {
+  try {
+    const interval = req.body?.plan || req.body?.interval || 'monthly';
+    const result = await activateMockPremium(req.sessionUser.docId, { interval });
+    const billing = await getBillingStatus(req.sessionUser.docId);
+    res.json({ ...result, billing });
+  } catch (err) {
+    res.status(err.status || 500).json({
+      error: err.message,
+      code: err.code || 'MOCK_ACTIVATE_ERROR',
+    });
   }
 });
 

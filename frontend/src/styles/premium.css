@@ -580,3 +580,269 @@
   flex-direction: column;
   gap: 0.75rem;
 }
+
+/* NovaPromo PRO marketing + checkout */
+.premium-page--pro {
+  max-width: 1040px;
+}
+
+.premium-hero {
+  margin-bottom: 2.5rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid var(--ndl-border);
+}
+
+.premium-hero h1 {
+  font-size: clamp(1.75rem, 4vw, 2.25rem);
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  max-width: 18ch;
+}
+
+.premium-hero__sub {
+  margin-top: 0.75rem;
+  color: var(--ndl-text-secondary);
+  font-size: 1.05rem;
+  max-width: 52ch;
+}
+
+.premium-test-banner {
+  margin-top: 1rem;
+  padding: 0.65rem 0.9rem;
+  border-radius: 8px;
+  font-size: 0.8125rem;
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.08);
+  border: 1px solid rgba(251, 191, 36, 0.25);
+}
+
+.premium-admin-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+  padding: 1rem 1.25rem;
+}
+
+.premium-welcome {
+  margin-bottom: 1.5rem;
+  padding: 1.25rem;
+}
+
+.premium-section-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.premium-pricing {
+  margin-bottom: 2.5rem;
+}
+
+.premium-pricing__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+}
+
+.premium-price-card {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.premium-price-card--highlight {
+  border-color: rgba(249, 115, 22, 0.35);
+  box-shadow: 0 0 0 1px rgba(249, 115, 22, 0.12);
+}
+
+.premium-price-card__price {
+  font-size: 1.75rem;
+  font-weight: 700;
+}
+
+.premium-price-card__price span {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--ndl-text-tertiary);
+}
+
+.premium-price-card__note {
+  font-size: 0.8125rem;
+  color: var(--ndl-text-tertiary);
+  flex: 1;
+}
+
+.premium-price-card__cta {
+  margin-top: 0.75rem;
+  width: 100%;
+}
+
+.premium-price-card__active {
+  margin-top: 0.75rem;
+  font-size: 0.875rem;
+  color: var(--ndl-orange);
+}
+
+.premium-benefits {
+  margin-bottom: 2rem;
+}
+
+.premium-benefits__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.85rem;
+}
+
+.premium-benefit-card {
+  padding: 1.1rem 1.25rem;
+}
+
+.premium-benefit-card h3 {
+  font-size: 0.95rem;
+  margin-bottom: 0.35rem;
+}
+
+.premium-benefit-card p {
+  font-size: 0.8125rem;
+  color: var(--ndl-text-secondary);
+  line-height: 1.45;
+}
+
+.premium-credits-section,
+.premium-footer-cta {
+  margin-bottom: 1.5rem;
+  padding: 1.5rem;
+}
+
+.premium-footer-cta {
+  text-align: center;
+}
+
+.premium-note--error {
+  color: #f87171;
+  margin-top: 0.75rem;
+}
+
+.checkout-page {
+  max-width: 520px;
+  margin: 0 auto;
+  animation: ndlFadeIn 0.35s var(--ndl-ease);
+}
+
+.checkout-card {
+  padding: 2rem;
+}
+
+.checkout-card--success {
+  text-align: center;
+}
+
+.checkout-badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.25rem 0.55rem;
+  border-radius: 4px;
+  margin-bottom: 0.75rem;
+}
+
+.checkout-badge--test {
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.12);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+}
+
+.checkout-badge--ok {
+  color: #4ade80;
+  background: rgba(74, 222, 128, 0.1);
+  border: 1px solid rgba(74, 222, 128, 0.25);
+}
+
+.checkout-badge--muted {
+  color: var(--ndl-text-tertiary);
+  background: var(--ndl-surface-elevated);
+  border: 1px solid var(--ndl-border);
+}
+
+.checkout-lead {
+  color: var(--ndl-text-secondary);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  margin: 0.75rem 0 1.25rem;
+}
+
+.checkout-summary {
+  display: grid;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  border-radius: 8px;
+  background: var(--ndl-surface-elevated);
+  border: 1px solid var(--ndl-border);
+}
+
+.checkout-summary dt {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ndl-text-tertiary);
+}
+
+.checkout-summary dd {
+  margin: 0.15rem 0 0;
+  font-weight: 500;
+}
+
+.checkout-cta {
+  width: 100%;
+}
+
+.checkout-error {
+  color: #f87171;
+  font-size: 0.875rem;
+  margin-top: 0.75rem;
+}
+
+.checkout-cancel-link {
+  display: block;
+  text-align: center;
+  margin-top: 1rem;
+  font-size: 0.875rem;
+  color: var(--ndl-text-tertiary);
+}
+
+.checkout-test-note {
+  font-size: 0.8125rem;
+  color: #fbbf24;
+  margin-bottom: 1rem;
+}
+
+.checkout-meta {
+  font-size: 0.875rem;
+  color: var(--ndl-text-secondary);
+  margin-bottom: 1.25rem;
+}
+
+.checkout-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  align-items: center;
+}
+
+.account-profile__test-note {
+  margin: 0.5rem 0 0;
+  font-size: 0.8rem;
+  color: var(--text-muted, #8b95a8);
+}
+
+.generator-welcome-note {
+  font-size: 0.8rem;
+  color: var(--ndl-orange, #f97316);
+  margin-bottom: 0.5rem;
+}

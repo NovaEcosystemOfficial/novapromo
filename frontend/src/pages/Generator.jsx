@@ -73,9 +73,17 @@ export default function Generator() {
           <h3>Creative Studio PRO</h3>
           <p>Pacchetto creativo completo: testo, immagine AI, prompt video e anteprima pronta per pubblicare.</p>
           {creativeAvailable ? (
-            <button type="button" className="btn btn-ai" onClick={() => openCreativeStudio()}>
-              Apri Creative Studio PRO
-            </button>
+            <>
+              {billing?.creativeStudioUsingWelcomeCredits && (
+                <p className="generator-welcome-note">
+                  Stai usando un credito benvenuto PRO (
+                  {billing.creativeStudioWelcomeRemaining} rimanenti)
+                </p>
+              )}
+              <button type="button" className="btn btn-ai" onClick={() => openCreativeStudio()}>
+                Apri Creative Studio PRO
+              </button>
+            </>
           ) : (
             <>
               <button type="button" className="btn btn-ai" disabled>
@@ -83,7 +91,8 @@ export default function Generator() {
               </button>
               {billing && (
                 <PremiumLock
-                  reason={billing.creativeStudioLockReason || 'Disponibile nel piano Premium'}
+                  feature="creative"
+                  reason={billing.creativeStudioLockReason || 'Disponibile con NovaPromo PRO'}
                   code={billing.creativeStudioLockCode || 'CREATIVE_STUDIO_PREMIUM_ONLY'}
                   compact
                 />

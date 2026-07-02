@@ -14,6 +14,9 @@ import Drafts from './pages/Drafts.jsx';
 import Accounts from './pages/Accounts.jsx';
 import History from './pages/History.jsx';
 import Premium from './pages/Premium.jsx';
+import CheckoutMock from './pages/CheckoutMock.jsx';
+import CheckoutSuccess from './pages/CheckoutSuccess.jsx';
+import CheckoutCancel from './pages/CheckoutCancel.jsx';
 import { isTikTokEnabled } from './lib/features.js';
 import TikTokAuth from './pages/TikTokAuth.jsx';
 import ReviewDemo from './pages/ReviewDemo.jsx';
@@ -48,6 +51,9 @@ function AppRoutes() {
         {isTikTokEnabled() && <Route path="tiktok-test-publish" element={<TikTokTestPublish />} />}
         <Route path="history" element={<History />} />
         <Route path="premium" element={<Premium />} />
+        <Route path="checkout/mock" element={<CheckoutMock />} />
+        <Route path="checkout/success" element={<CheckoutSuccess />} />
+        <Route path="checkout/cancel" element={<CheckoutCancel />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/dashboard" replace />} />

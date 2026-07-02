@@ -21,7 +21,7 @@ export const PLAN_DEFINITIONS = {
   },
   premium: {
     id: 'premium',
-    label: 'Premium',
+    label: 'NovaPromo PRO',
     aiCreditsLimit: 300,
     aiEnabled: true,
     creativeStudio: true,
