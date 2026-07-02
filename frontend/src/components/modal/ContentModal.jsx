@@ -4,7 +4,11 @@ import { api } from '../../api/client.js';
 import { CONTENT_TYPES, TONES, TOPIC_EXAMPLES } from '../../constants/projects.js';
 import { useContentModal } from '../../context/ContentModalContext.jsx';
 import { useBilling } from '../../context/BillingContext.jsx';
-import { useBrandProjects, CUSTOM_PROJECT_ID, resolveProjectLabel } from '../../hooks/useBrandProjects.js';
+import {
+  useBrandProjects,
+  CUSTOM_PROJECT_ID,
+  resolveProjectLabel,
+} from '../../hooks/useBrandProjects.js';
 import ProjectPicker from '../generator/ProjectPicker.jsx';
 import { isTikTokEnabled } from '../../lib/features.js';
 import { isFacebookPublishReady, isFacebookPublishPending, FACEBOOK_PUBLISH_PENDING_UI_MESSAGE } from '../../lib/facebookStatus.js';
@@ -144,6 +148,19 @@ export default function ContentModal() {
   if (!isOpen) return null;
 
   const update = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+
+  const handleSelectProject = (id, name) => {
+    setForm((f) => ({
+      ...f,
+      brandId: id,
+      project: id === CUSTOM_PROJECT_ID ? '' : (name || ''),
+      customProject: id === CUSTOM_PROJECT_ID ? f.customProject : '',
+    }));
+  };
+
+  const handleProjectAdvance = () => {
+    setStep(1);
+  };
 
   const availableTypes = CONTENT_TYPES.filter(
     (t) => t.platforms.includes(form.platform)
@@ -402,13 +419,9 @@ export default function ContentModal() {
               loading={brandsLoading}
               brandId={form.brandId}
               customProject={form.customProject}
-              onSelectBrand={(id, name) => setForm((f) => ({
-                ...f,
-                brandId: id,
-                project: id === CUSTOM_PROJECT_ID ? '' : (name || ''),
-                customProject: id === CUSTOM_PROJECT_ID ? f.customProject : '',
-              }))}
+              onSelectBrand={handleSelectProject}
               onCustomProjectChange={(value) => setForm((f) => ({ ...f, customProject: value, project: value }))}
+              onProjectAdvance={handleProjectAdvance}
             />
           )}
 

@@ -47,12 +47,44 @@ async function seedBrandIfMissing(admin, brandId) {
   return doc;
 }
 
+const FIREBASE_UID_PATTERN = /^[A-Za-z0-9]{20,}$/;
+
+function looksLikeFirebaseUid(value) {
+  return typeof value === 'string' && FIREBASE_UID_PATTERN.test(value) && !value.includes('-');
+}
+
+/**
+ * Risolve il nome visualizzato del progetto senza esporre UID Firestore.
+ * Profili Brand Intelligence usano identity.companyName; i seed brand usano name.
+ */
+function resolveProjectDisplayName(brandId, data = {}) {
+  const companyName = data.identity?.companyName?.trim();
+  if (companyName && !looksLikeFirebaseUid(companyName)) {
+    return companyName;
+  }
+
+  const explicitName = typeof data.name === 'string' ? data.name.trim() : '';
+  if (explicitName && !looksLikeFirebaseUid(explicitName)) {
+    return explicitName;
+  }
+
+  if (brandId === NOVA_PROMO_BRAND_ID) return NOVA_PROMO_BRAND.name;
+  if (brandId === DEFAULT_BRAND_ID) return DEFAULT_BRAND.name;
+
+  if (looksLikeFirebaseUid(brandId)) return null;
+
+  return explicitName || null;
+}
+
 function toProjectOption(brandId, data) {
-  const colors = data.colors || [];
+  const name = resolveProjectDisplayName(brandId, data);
+  if (!name) return null;
+
+  const colors = data.colors || data.brand?.colors || [];
   return {
     id: brandId,
     brandId,
-    name: data.name || brandId,
+    name,
     color: colors[0] || '#7c3aed',
     colorRgb: null,
   };
@@ -77,7 +109,8 @@ export async function listBrands() {
   const byId = new Map();
 
   for (const doc of snap.docs) {
-    byId.set(doc.id, toProjectOption(doc.id, doc.data()));
+    const option = toProjectOption(doc.id, doc.data());
+    if (option) byId.set(doc.id, option);
   }
 
   if (!byId.has(NOVA_PROMO_BRAND_ID)) {

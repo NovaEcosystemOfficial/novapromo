@@ -7,7 +7,26 @@ export default function ProjectPicker({
   customProject,
   onSelectBrand,
   onCustomProjectChange,
+  onProjectAdvance,
 }) {
+  const handleBrandTap = (brand) => {
+    const id = brand.brandId || brand.id;
+    const name = brand.name;
+    console.log('Project tapped', { id, name });
+    onSelectBrand(id, name);
+    console.log('Project selected', { id, name });
+    if (id !== CUSTOM_PROJECT_ID) {
+      console.log('Moving to step 2');
+      onProjectAdvance?.(id, name);
+    }
+  };
+
+  const handleCustomTap = () => {
+    console.log('Project tapped', { id: CUSTOM_PROJECT_ID });
+    onSelectBrand(CUSTOM_PROJECT_ID);
+    console.log('Project selected', { id: CUSTOM_PROJECT_ID });
+  };
+
   if (loading) {
     return <p className="generator-muted">Caricamento progetti…</p>;
   }
@@ -19,7 +38,7 @@ export default function ProjectPicker({
         <button
           type="button"
           className={`modal-chip${brandId === CUSTOM_PROJECT_ID ? ' selected' : ''}`}
-          onClick={() => onSelectBrand(CUSTOM_PROJECT_ID)}
+          onClick={handleCustomTap}
         >
           Altro progetto
         </button>
@@ -39,22 +58,25 @@ export default function ProjectPicker({
   return (
     <div className="project-picker">
       <div className="modal-grid">
-        {brands.map((b) => (
-          <button
-            key={b.id}
-            type="button"
-            className={`modal-chip${brandId === b.brandId ? ' selected' : ''}`}
-            style={{ '--chip-color': b.color }}
-            onClick={() => onSelectBrand(b.brandId, b.name)}
-          >
-            <span className="modal-chip-dot" />
-            {b.name}
-          </button>
-        ))}
+        {brands.map((b) => {
+          const id = b.brandId || b.id;
+          return (
+            <button
+              key={id}
+              type="button"
+              className={`modal-chip${brandId === id ? ' selected' : ''}`}
+              style={{ '--chip-color': b.color }}
+              onClick={() => handleBrandTap(b)}
+            >
+              <span className="modal-chip-dot" />
+              {b.name}
+            </button>
+          );
+        })}
         <button
           type="button"
           className={`modal-chip${brandId === CUSTOM_PROJECT_ID ? ' selected' : ''}`}
-          onClick={() => onSelectBrand(CUSTOM_PROJECT_ID)}
+          onClick={handleCustomTap}
         >
           Altro progetto
         </button>

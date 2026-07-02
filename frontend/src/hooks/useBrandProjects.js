@@ -8,6 +8,47 @@ const FALLBACK_BRANDS = [
 
 export const CUSTOM_PROJECT_ID = '__custom__';
 
+const FIREBASE_UID_PATTERN = /^[A-Za-z0-9]{20,}$/;
+
+function looksLikeFirebaseUid(value) {
+  return typeof value === 'string' && FIREBASE_UID_PATTERN.test(value) && !value.includes('-');
+}
+
+const KNOWN_BRAND_NAMES = {
+  'nova-promo': 'NovaPromo',
+  'nova-ecosystem': 'Nova Ecosystem',
+};
+
+/** Normalizza nome progetto — mai mostrare UID grezzo. */
+export function normalizeBrandDisplayName(brand) {
+  const companyName = brand?.identity?.companyName?.trim();
+  if (companyName && !looksLikeFirebaseUid(companyName)) return companyName;
+
+  const rawName = typeof brand?.name === 'string' ? brand.name.trim() : '';
+  if (rawName && !looksLikeFirebaseUid(rawName)) return rawName;
+
+  const id = brand?.brandId || brand?.id;
+  if (id && KNOWN_BRAND_NAMES[id]) return KNOWN_BRAND_NAMES[id];
+
+  if (looksLikeFirebaseUid(rawName) || looksLikeFirebaseUid(id)) {
+    return 'Il mio brand';
+  }
+
+  return rawName || KNOWN_BRAND_NAMES[id] || 'Progetto';
+}
+
+export function normalizeBrandList(brands) {
+  if (!Array.isArray(brands)) return FALLBACK_BRANDS;
+
+  return brands
+    .map((b) => ({
+      ...b,
+      brandId: b.brandId || b.id,
+      name: normalizeBrandDisplayName(b),
+    }))
+    .filter((b) => b.brandId && b.name && !looksLikeFirebaseUid(b.name));
+}
+
 export function resolveProjectLabel({ brandId, project, customProject, brands }) {
   if (brandId === CUSTOM_PROJECT_ID) {
     return String(customProject || project || '').trim();
@@ -27,8 +68,10 @@ export function useBrandProjects() {
     api.getBrands()
       .then((data) => {
         if (cancelled) return;
-        const list = data?.brands?.length ? data.brands : FALLBACK_BRANDS;
-        setBrands(list);
+        const list = data?.brands?.length
+          ? normalizeBrandList(data.brands)
+          : FALLBACK_BRANDS;
+        setBrands(list.length ? list : FALLBACK_BRANDS);
         setError('');
       })
       .catch((err) => {
