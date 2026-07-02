@@ -330,6 +330,7 @@ export default function CreativeStudioModal() {
                 customProject: id === CUSTOM_PROJECT_ID ? f.customProject : '',
               }))}
               onCustomProjectChange={(value) => setForm((f) => ({ ...f, customProject: value, project: value }))}
+              onProjectAdvance={() => setStep(1)}
             />
           )}
 

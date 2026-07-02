@@ -197,6 +197,31 @@ export const api = {
 
   getIntegrationsStatus: () => request('/api/integrations/status'),
 
+  getBrandProfile: () => request('/api/brands/me'),
+
+  saveBrandProfile: (body) =>
+    request('/api/brands/me', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }),
+
+  getBrandAiContext: () => request('/api/brands/ai-context'),
+
+  uploadBrandLibraryAsset: (category, file) => {
+    const fd = new FormData();
+    fd.append('file', file);
+    return fetch(`${API_BASE}/api/brands/library/${category}`, {
+      method: 'POST',
+      body: fd,
+      credentials: 'include',
+    }).then(async (res) => {
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Errore upload libreria brand');
+      return data;
+    });
+  },
+
   deleteAccount: (id) => request(`/api/oauth/accounts/${id}`, { method: 'DELETE' }),
 
   startInstagramOAuth: () => request('/api/oauth/instagram/start'),

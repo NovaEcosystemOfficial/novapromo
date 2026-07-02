@@ -1,4 +1,8 @@
 import { PROJECTS, CONTENT_TYPES, TONES } from '../constants/projects.js';
+import {
+  buildBrandAiContext,
+  resolveBrandToneForGenerator,
+} from './brand/brandSchema.js';
 
 const TONE_OPENERS = {
   professionale: (topic, project) => `${topic} — l'evoluzione di ${project} che stavi aspettando.`,
@@ -36,16 +40,71 @@ const HASHTAG_BASE = {
   'ECHO-0': ['#ECHO0', '#gaming', '#tech', '#mystery'],
 };
 
-export function generateContent({ project, platform, contentType, tone, topic }) {
-  const subject = topic || project;
-  const opener = (TONE_OPENERS[tone] || TONE_OPENERS.professionale)(subject, project);
-  const body = (TYPE_BODY[contentType] || TYPE_BODY.post)(subject);
-  const caption = `${opener}\n\n${body}\n\n${CTA_BY_TONE[tone] || CTA_BY_TONE.professionale}`;
+function pickBrandCta(brandContext, tone) {
+  if (brandContext?.preferredCtas?.length) {
+    return brandContext.preferredCtas[0];
+  }
+  return CTA_BY_TONE[tone] || CTA_BY_TONE.professionale;
+}
 
+function buildHashtags({ project, platform, topic, brandContext }) {
+  const brandTags = (brandContext?.hashtags || [])
+    .map((tag) => (tag.startsWith('#') ? tag : `#${tag}`));
+
+  if (brandTags.length) {
+    const platformTags = platform === 'tiktok' ? ['#fyp', '#foryou'] : ['#instagram', '#reels'];
+    return [...brandTags, ...platformTags].slice(0, 8).join(' ');
+  }
+
+  const subject = topic || project;
   const baseTags = HASHTAG_BASE[project] || ['#NovaPromo'];
   const platformTags = platform === 'tiktok' ? ['#fyp', '#foryou'] : ['#instagram', '#reels'];
   const topicTag = `#${subject.replace(/[^a-zA-Z0-9]/g, '')}`;
-  const hashtags = [...baseTags, ...platformTags, topicTag].slice(0, 8).join(' ');
+  return [...baseTags, ...platformTags, topicTag].slice(0, 8).join(' ');
+}
+
+function applyBrandWords(caption, brandContext) {
+  let result = caption;
+  const wordsToUse = brandContext?.wordsToUse || [];
+
+  if (wordsToUse.length && !wordsToUse.some((word) => result.toLowerCase().includes(word.toLowerCase()))) {
+    result = `${result}\n\n${wordsToUse.slice(0, 2).join(' · ')}`;
+  }
+
+  for (const avoid of brandContext?.wordsToAvoid || []) {
+    if (!avoid?.trim()) continue;
+    const re = new RegExp(avoid.trim(), 'gi');
+    result = result.replace(re, '');
+  }
+
+  const emojis = brandContext?.emojis || [];
+  if (emojis.length && !/\p{Extended_Pictographic}/u.test(result)) {
+    result = `${result} ${emojis[0]}`;
+  }
+
+  return result.replace(/\n{3,}/g, '\n\n').trim();
+}
+
+function enrichOpener(opener, brandContext) {
+  if (!brandContext?.shortDescription) return opener;
+  if (opener.length > 120) return opener;
+  return `${opener}\n\n${brandContext.shortDescription}`;
+}
+
+export function generateContent({ project, platform, contentType, tone, topic, brandProfile }) {
+  const brandContext = buildBrandAiContext(brandProfile);
+  const resolvedTone = tone || brandContext?.generatorTone || 'professionale';
+  const brandName = brandContext?.companyName || project;
+  const subject = topic || brandName;
+
+  const opener = enrichOpener(
+    (TONE_OPENERS[resolvedTone] || TONE_OPENERS.professionale)(subject, brandName),
+    brandContext
+  );
+  const body = (TYPE_BODY[contentType] || TYPE_BODY.post)(subject);
+  const cta = pickBrandCta(brandContext, resolvedTone);
+  const caption = applyBrandWords(`${opener}\n\n${body}\n\n${cta}`, brandContext);
+  const hashtags = buildHashtags({ project: brandName, platform, topic: subject, brandContext });
 
   const reelIdea = contentType === 'reel' || contentType === 'tiktok_video'
     ? `Hook (0-2s): testo grande "${subject}"\nCorpo (3-20s): demo veloce / before-after\nFinale: CTA verbale + testo sovrapposto`
@@ -59,9 +118,19 @@ export function generateContent({ project, platform, contentType, tone, topic })
     caption,
     hashtags,
     reelIdea,
-    cta: CTA_BY_TONE[tone] || CTA_BY_TONE.professionale,
+    cta,
     overlayTitle,
+    brandApplied: Boolean(brandContext),
+    toneUsed: resolvedTone,
+    brandTone: brandContext?.toneOfVoice?.[0] || null,
   };
+}
+
+export function resolveGenerationFromBrand({ tone, brandProfile }) {
+  if (tone) return { tone, brandSkipped: false };
+  const brandTone = resolveBrandToneForGenerator(brandProfile?.toneOfVoice);
+  if (brandTone) return { tone: brandTone, brandSkipped: true };
+  return { tone: 'professionale', brandSkipped: false };
 }
 
 export { PROJECTS, CONTENT_TYPES, TONES };

@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import Layout from './components/Layout.jsx';
 import ContentModal from './components/modal/ContentModal.jsx';
 import CreativeStudioModal from './components/modal/CreativeStudioModal.jsx';
+import PwaManager from './components/pwa/PwaManager.jsx';
 import DesktopBridge from './components/DesktopBridge.jsx';
 import ProtectedRoute from './components/auth/ProtectedRoute.jsx';
 import { AppErrorBoundary } from './components/AppErrorBoundary.jsx';
@@ -13,6 +14,7 @@ import Calendar from './pages/Calendar.jsx';
 import Drafts from './pages/Drafts.jsx';
 import Accounts from './pages/Accounts.jsx';
 import History from './pages/History.jsx';
+import BrandIntelligence from './pages/BrandIntelligence.jsx';
 import Premium from './pages/Premium.jsx';
 import CheckoutMock from './pages/CheckoutMock.jsx';
 import CheckoutSuccess from './pages/CheckoutSuccess.jsx';
@@ -44,6 +46,7 @@ function AppRoutes() {
       >
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<Dashboard />} />
+        <Route path="brand-intelligence" element={<BrandIntelligence />} />
         <Route path="generator" element={<Generator />} />
         <Route path="calendar" element={<Calendar />} />
         <Route path="drafts" element={<Drafts />} />
@@ -65,6 +68,7 @@ export default function App() {
   return (
     <AppErrorBoundary>
       <DesktopBridge />
+      <PwaManager />
       <AppRoutes />
       <ContentModal />
       <CreativeStudioModal />

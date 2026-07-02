@@ -1,5 +1,7 @@
 /** Modalità demo: frontend senza backend (es. deploy Vercel fase 1). */
 
+import { createEmptyBrandProfile } from '../constants/brandIntelligence.js';
+
 export function isDemoMode() {
   return import.meta.env.VITE_DEMO_MODE === 'true';
 }
@@ -54,6 +56,15 @@ export function getDemoDashboardStats() {
       },
     ],
     integrations: getDemoIntegrationsStatus(),
+  };
+}
+
+export function getDemoBrandProfile() {
+  return {
+    ...createEmptyBrandProfile(),
+    completionPercent: 0,
+    brandId: 'demo:web',
+    ownerUid: 'demo:web',
   };
 }
 
@@ -129,6 +140,17 @@ export function resolveDemoResponse(path, method = 'GET') {
   if (path === '/api/dashboard/events' && m === 'GET') return { event: null };
   if (path === '/api/oauth/accounts' && m === 'GET') return [];
   if (path === '/api/integrations/status' && m === 'GET') return getDemoIntegrationsStatus();
+  if (path === '/api/brands/me' && (m === 'GET' || m === 'PUT')) return getDemoBrandProfile();
+  if (path === '/api/brands/ai-context' && m === 'GET') {
+    return {
+      hasProfile: false,
+      completionPercent: 0,
+      toneOfVoice: [],
+      preferredCtas: [],
+      hashtags: [],
+      generatorTone: null,
+    };
+  }
   if (path === '/api/oauth/integrations/status' && m === 'GET') return getDemoIntegrationsStatus();
   if (path.startsWith('/api/posts') && m === 'GET') {
     if (path === '/api/posts' || path.startsWith('/api/posts?')) return [];

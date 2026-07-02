@@ -104,6 +104,13 @@ function initSchema(database) {
     );
 
     CREATE INDEX IF NOT EXISTS idx_oauth_states_expires ON oauth_states(expires_at);
+
+    CREATE TABLE IF NOT EXISTS brand_profiles (
+      owner_uid TEXT PRIMARY KEY,
+      profile_json TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
   `);
 }
 

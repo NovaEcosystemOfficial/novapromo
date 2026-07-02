@@ -34,7 +34,7 @@ export default function Generator() {
   const creativeAvailable = billing?.creativeStudioAvailable;
 
   return (
-    <div className="generator-hub">
+    <div className="generator-hub mobile-screen">
       <div className="page-header">
         <h2>Generatore</h2>
         <p>Scegli come creare il prossimo contenuto — ogni modalità ha il suo flusso dedicato.</p>
