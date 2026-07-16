@@ -29,6 +29,15 @@ export async function publishPost(post) {
   if (PLATFORM_MAP.facebook.includes(post.platform)) targets.push('facebook');
   if (PLATFORM_MAP.tiktok.includes(post.platform)) targets.push('tiktok');
 
+  logger.info('[publisher:start] Pubblicazione avviata', {
+    phase: 'meta_publish_start',
+    postId: post.id,
+    platform: post.platform,
+    targets,
+    scheduledAt: post.scheduledAt || null,
+    status: post.status,
+  });
+
   for (const platform of targets) {
     try {
       const account = await ensureValidToken(platform);
@@ -44,10 +53,24 @@ export async function publishPost(post) {
         message: `Avvio pubblicazione su ${platform}`,
       });
 
+      logger.info('[publisher:meta] Chiamata Graph API', {
+        phase: 'meta_api_call',
+        postId: post.id,
+        platform,
+        accountId: account.instagramAccountId || account.pageId || account.externalUserId || null,
+      });
+
       let result;
       if (platform === 'instagram') {
         if (!post.mediaPath && !post.mediaPublicUrl) throw new Error('Media richiesto per Instagram');
         result = await publishToInstagram(post, account);
+        logger.info('[publisher:meta_response] Instagram OK', {
+          phase: 'meta_api_response',
+          postId: post.id,
+          platform,
+          containerId: result.containerId || null,
+          mediaId: result.mediaId || null,
+        });
         await updatePost(post.id, {
           instagramContainerId: result.containerId,
           instagramMediaId: result.mediaId,
@@ -82,9 +105,21 @@ export async function publishPost(post) {
         }
         if (!post.mediaPath && !post.mediaPublicUrl) throw new Error('Immagine richiesta per Facebook');
         result = await publishToFacebook(post, account);
+        logger.info('[publisher:meta_response] Facebook OK', {
+          phase: 'meta_api_response',
+          postId: post.id,
+          platform,
+          facebookPostId: result.postId || null,
+        });
         await updatePost(post.id, { facebookPostId: result.postId });
       } else {
         result = await publishToTikTok(post, account);
+        logger.info('[publisher:meta_response] TikTok OK', {
+          phase: 'meta_api_response',
+          postId: post.id,
+          platform,
+          publishId: result.publishId || null,
+        });
         await updatePost(post.id, { tiktokPublishId: result.publishId });
       }
 
@@ -106,7 +141,13 @@ export async function publishPost(post) {
         message: `Pubblicato su ${platform}`,
       });
     } catch (err) {
-      logger.error(`Publish failed on ${platform}`, { postId: post.id, error: err.message });
+      logger.error('[publisher:meta_error] Publish failed', {
+        phase: 'meta_api_error',
+        postId: post.id,
+        platform,
+        error: err.message,
+        code: err.code || null,
+      });
       addPublicationLog({
         postId: post.id,
         platform,

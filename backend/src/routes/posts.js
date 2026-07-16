@@ -8,15 +8,28 @@ import {
   listPublicationLogs,
 } from '../services/postService.js';
 import { publishPost } from '../services/publisherService.js';
+import { runDuePublishes } from '../services/schedulerRunner.js';
 import { upload, validateContentTypeForPlatform, stageLocalMediaFile } from '../middleware/upload.js';
 import { config } from '../config.js';
 import path from 'path';
 import { generateContent } from '../services/contentGeneratorService.js';
 import { getBrandProfileForAi } from '../services/brand/brandService.js';
-import { resolveSessionUser } from '../middleware/sessionUser.js';
+import { resolveSessionUser, requireSession } from '../middleware/sessionUser.js';
 import { persistUploadedMedia } from '../services/media/publicMediaService.js';
+import { logger } from '../utils/logger.js';
 
 const router = Router();
+
+/** Process due scheduled posts (authenticated client tick while app is open). */
+router.post('/publish-due', requireSession, async (req, res) => {
+  try {
+    const result = await runDuePublishes({ source: 'client-tick' });
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    logger.error('[scheduler] client-tick failed', { error: err.message });
+    res.status(500).json({ error: err.message });
+  }
+});
 
 router.get('/', async (req, res) => {
   const posts = await listPosts({
@@ -203,8 +216,28 @@ router.post('/:id/schedule', async (req, res) => {
     const { scheduledAt } = req.body;
     if (!scheduledAt) return res.status(400).json({ error: 'scheduledAt richiesto' });
 
-    const post = await updatePost(req.params.id, { scheduledAt, status: 'scheduled' });
+    const when = new Date(scheduledAt);
+    if (Number.isNaN(when.getTime())) {
+      return res.status(400).json({ error: 'scheduledAt non valido' });
+    }
+    const scheduledAtIso = when.toISOString();
+
+    const post = await updatePost(req.params.id, {
+      scheduledAt: scheduledAtIso,
+      status: 'scheduled',
+    });
     if (!post) return res.status(404).json({ error: 'Post non trovato' });
+
+    logger.info('[scheduler:job_created] Post scheduled', {
+      phase: 'job_created',
+      postId: post.id,
+      platform: post.platform,
+      scheduledAt: scheduledAtIso,
+      scheduledAtLocal: when.toString(),
+      now: new Date().toISOString(),
+      debug: config.schedulerDebug,
+    });
+
     res.json(post);
   } catch (err) {
     res.status(500).json({ error: err.message });

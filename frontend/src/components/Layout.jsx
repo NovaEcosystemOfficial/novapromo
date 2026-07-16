@@ -10,6 +10,7 @@ import { useViewport } from '../hooks/useViewport.js';
 import MobileBottomNav from './layout/MobileBottomNav.jsx';
 import MobileFab from './layout/MobileFab.jsx';
 import PwaInstalledBadge from './pwa/PwaInstalledBadge.jsx';
+import SchedulePublisherTick from './SchedulePublisherTick.jsx';
 
 const NAV_ITEMS = [
   { to: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
@@ -47,6 +48,7 @@ export default function Layout() {
 
   return (
     <div className={shellClass}>
+      <SchedulePublisherTick />
       <aside className="desktop-sidebar sidebar sidebar--premium" aria-label="Navigazione desktop">
         <div className="sidebar-brand sidebar-brand--premium">
           <div className="sidebar-brand__mark" aria-hidden>N</div>

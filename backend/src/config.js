@@ -180,6 +180,12 @@ export const config = {
   uploadDir,
   maxFileSizeMb: parseInt(process.env.MAX_FILE_SIZE_MB || '50', 10),
   schedulerCron: process.env.SCHEDULER_CRON || '* * * * *',
+  /** Vercel Cron auth — required in production serverless */
+  cronSecret: (process.env.CRON_SECRET || '').trim(),
+  /** Detailed scheduler phase logs (job created/detected/executed/Meta) */
+  schedulerDebug: process.env.SCHEDULER_DEBUG === 'true'
+    || process.env.LOG_LEVEL === 'debug'
+    || !isProduction,
 
   meta: {
     appId: process.env.META_APP_ID || '',

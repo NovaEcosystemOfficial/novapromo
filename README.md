@@ -62,6 +62,15 @@ Deploy separato della cartella `api/` + `backend/` con il proprio `vercel.json`.
 - **OAuth Instagram:** `GET /api/oauth/instagram/start` → Meta → `GET /api/oauth/instagram/callback`
 - **Post-OAuth redirect:** `https://<APP_URL>/accounts`
 
+## Pubblicazione programmata
+
+Su Vercel **non** gira `node-cron` (processo serverless). I post due vengono pubblicati da:
+
+1. **Vercel Cron** ogni minuto → `GET /api/cron/publish-due` (header `Authorization: Bearer $CRON_SECRET`)
+2. **Client tick** ogni 30s mentre l’app è aperta → `POST /api/posts/publish-due` (sessione autenticata)
+
+Env: `CRON_SECRET`, `SCHEDULER_DEBUG=true` (log fasi: job_created / jobs_detected / job_execute / meta_api).
+
 ## Note database su Vercel
 
 Su Vercel il backend usa SQLite in `/tmp` (effimero). Per persistenza account Instagram in produzione, configura un database esterno (es. Turso/Postgres) in un secondo momento.

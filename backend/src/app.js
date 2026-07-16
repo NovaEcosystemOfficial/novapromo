@@ -12,6 +12,7 @@ import aiRoutes from './routes/ai.js';
 import billingRoutes from './routes/billing.js';
 import { stripeWebhookHandler } from './routes/billingWebhook.js';
 import brandsRoutes from './routes/brands.js';
+import cronRoutes from './routes/cron.js';
 import { getAllIntegrationsStatus } from './services/integrationService.js';
 import { logger } from './utils/logger.js';
 
@@ -96,6 +97,7 @@ app.get('/api/auth/tiktok/setup', (_req, res) => {
 });
 
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/cron', cronRoutes);
 app.use('/api/posts', postsRoutes);
 app.use('/api/oauth', oauthRoutes);
 app.use('/api/auth', authRoutes);

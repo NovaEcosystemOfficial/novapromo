@@ -1,41 +1,41 @@
 import cron from 'node-cron';
 import { config } from '../config.js';
-import { getDueScheduledPosts } from './postService.js';
-import { publishPost } from './publisherService.js';
+import { runDuePublishes } from './schedulerRunner.js';
 import { logger } from '../utils/logger.js';
 
 let task = null;
 
+/**
+ * In-process cron for long-lived Node servers (local / desktop).
+ * On Vercel this must NOT be the only mechanism — use /api/cron/publish-due.
+ */
 export function startScheduler() {
   if (task) return;
 
+  if (config.isVercel) {
+    logger.warn(
+      '[scheduler] node-cron non avviato su Vercel — usare Cron Job → /api/cron/publish-due'
+    );
+    return;
+  }
+
   task = cron.schedule(config.schedulerCron, async () => {
     try {
-      const duePosts = await getDueScheduledPosts();
-      if (duePosts.length === 0) return;
-
-      logger.info(`Scheduler: ${duePosts.length} post da pubblicare`);
-
-      for (const post of duePosts) {
-        try {
-          await publishPost(post);
-          logger.info(`Scheduler: post ${post.id} pubblicato`);
-        } catch (err) {
-          logger.error(`Scheduler: errore post ${post.id}`, { error: err.message });
-        }
-      }
+      await runDuePublishes({ source: 'node-cron' });
     } catch (err) {
-      logger.error('Scheduler error', { error: err.message });
+      logger.error('[scheduler] node-cron tick error', { error: err.message });
     }
   });
 
-  logger.info(`Scheduler avviato (cron: ${config.schedulerCron})`);
+  logger.info(`[scheduler] node-cron avviato (cron: ${config.schedulerCron})`);
 }
 
 export function stopScheduler() {
   if (task) {
     task.stop();
     task = null;
-    logger.info('Scheduler fermato');
+    logger.info('[scheduler] node-cron fermato');
   }
 }
+
+export { runDuePublishes } from './schedulerRunner.js';

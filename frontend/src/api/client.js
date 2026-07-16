@@ -193,6 +193,10 @@ export const api = {
 
   publishPost: (id) => request(`/api/posts/${id}/publish`, { method: 'POST' }),
 
+  /** Process due scheduled posts (called while the app is open). */
+  publishDuePosts: () =>
+    request('/api/posts/publish-due', { method: 'POST' }),
+
   deletePost: (id) => request(`/api/posts/${id}`, { method: 'DELETE' }),
 
   getLogs: (params = {}) => {
