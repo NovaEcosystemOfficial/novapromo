@@ -388,7 +388,7 @@ export async function publishToFacebook(post, account) {
     return {
       postId: result.id || result.post_id || null,
       pageId,
-      pageAccessToken: pageToken,
+      // never return page tokens — they must not be logged or stored in publication_logs
     };
   } catch (err) {
     if (

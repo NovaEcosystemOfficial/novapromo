@@ -1,6 +1,7 @@
 import { config } from '../config.js';
 import { getDueScheduledPosts, getPostById, updatePost } from './postService.js';
 import { publishPost } from './publisherService.js';
+import { resolveRecoveryStatus } from './publishStatus.js';
 import { logger } from '../utils/logger.js';
 
 const publishingLocks = new Set();
@@ -154,18 +155,45 @@ export async function runDuePublishes({ source = 'unknown' } = {}) {
         source,
         postId: post.id,
         error: err.message,
+        stack: err.stack,
       });
-      // Restore scheduled if stuck in publishing without error status from publishPost
       try {
         const after = await getPostById(post.id);
-        if (after?.status === 'publishing') {
+        const recovery = resolveRecoveryStatus(after, err.message);
+        logger.info('[scheduler:status_recovery] Post-exception status decision', {
+          phase: 'status_recovery',
+          postId: post.id,
+          beforeStatus: after?.status || null,
+          hasInstagramMediaId: Boolean(after?.instagramMediaId),
+          hasFacebookPostId: Boolean(after?.facebookPostId),
+          recovery,
+          stack: err.stack,
+        });
+        if (recovery) {
           await updatePost(post.id, {
-            status: 'error',
-            errorMessage: err.message,
+            status: recovery.status,
+            errorMessage: recovery.errorMessage,
+            ...(recovery.publishedAt ? { publishedAt: recovery.publishedAt } : {}),
           });
+          if (recovery.status === 'published') {
+            // Meta already succeeded — do not count as hard failure for history
+            published += 1;
+            failed -= 1;
+            results.push({
+              postId: post.id,
+              status: 'published',
+              recovered: true,
+              error: err.message,
+            });
+            continue;
+          }
         }
-      } catch {
-        // ignore recovery errors
+      } catch (recoveryErr) {
+        logger.error('[scheduler:recovery_error] Failed to recover post status', {
+          postId: post.id,
+          error: recoveryErr.message,
+          stack: recoveryErr.stack,
+        });
       }
       results.push({ postId: post.id, status: 'error', error: err.message });
     } finally {

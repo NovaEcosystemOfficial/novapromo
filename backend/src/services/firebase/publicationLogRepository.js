@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { getFirestoreDb } from './admin.js';
+import { sanitizeForFirestore } from '../../utils/sanitizeForFirestore.js';
 
 const COLLECTION = 'publication_logs';
 
@@ -8,7 +9,7 @@ export async function addPublicationLog({ postId, platform, action, status, mess
   const id = uuidv4();
   const createdAt = new Date().toISOString();
 
-  const doc = {
+  const doc = sanitizeForFirestore({
     postId,
     platform,
     action,
@@ -16,7 +17,7 @@ export async function addPublicationLog({ postId, platform, action, status, mess
     message: message || null,
     details: details || null,
     createdAt,
-  };
+  });
 
   await db.collection(COLLECTION).doc(id).set(doc);
   return id;

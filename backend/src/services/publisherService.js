@@ -13,6 +13,11 @@ import { FACEBOOK_PUBLISH_PENDING_MESSAGE } from './facebook/facebookPublishRead
 import { publishToTikTok, refreshTikTokToken } from './tiktok/tiktokService.js';
 import { logger } from '../utils/logger.js';
 import { recordPublishEvent } from './desktopEvents.js';
+import {
+  resolveFinalPublishStatus,
+  sanitizePublishDetails,
+} from './publishStatus.js';
+import { sanitizeForFirestore } from '../utils/sanitizeForFirestore.js';
 
 const PLATFORM_MAP = {
   instagram: ['instagram', 'both', 'multi'],
@@ -20,9 +25,28 @@ const PLATFORM_MAP = {
   tiktok: ['tiktok', 'both'],
 };
 
+async function safeAddPublicationLog(entry) {
+  try {
+    const details = entry.details != null
+      ? sanitizeForFirestore(sanitizePublishDetails(entry.details))
+      : null;
+    await addPublicationLog({ ...entry, details });
+  } catch (err) {
+    logger.error('[publisher:log_error] Failed to write publication log (ignored)', {
+      phase: 'publication_log_error',
+      postId: entry.postId,
+      platform: entry.platform,
+      action: entry.action,
+      error: err.message,
+      stack: err.stack,
+    });
+  }
+}
+
 export async function publishPost(post) {
   const results = [];
   const errors = [];
+  const skips = [];
 
   const targets = [];
   if (PLATFORM_MAP.instagram.includes(post.platform)) targets.push('instagram');
@@ -45,7 +69,7 @@ export async function publishPost(post) {
         throw new Error(`Nessun account ${platform} collegato`);
       }
 
-      addPublicationLog({
+      await safeAddPublicationLog({
         postId: post.id,
         platform,
         action: 'publish_start',
@@ -68,23 +92,27 @@ export async function publishPost(post) {
           phase: 'meta_api_response',
           postId: post.id,
           platform,
-          containerId: result.containerId || null,
-          mediaId: result.mediaId || null,
+          metaResponse: { containerId: result.containerId || null, mediaId: result.mediaId || null },
         });
         await updatePost(post.id, {
           instagramContainerId: result.containerId,
           instagramMediaId: result.mediaId,
+          // Persist progress immediately so a later failure cannot erase Meta success
+          status: 'published',
+          publishedAt: new Date().toISOString(),
+          errorMessage: null,
         });
       } else if (platform === 'facebook') {
         const publishCheck = await canPublishToFacebook(account);
         if (!publishCheck.canPublish) {
           const skipMessage = FACEBOOK_PUBLISH_PENDING_MESSAGE;
-          logger.info('Facebook publish skipped — missing Meta permission', {
+          logger.info('[publisher:skip] Facebook skipped — missing Meta permission', {
+            phase: 'meta_skip',
             postId: post.id,
             grantedScopes: publishCheck.grantedScopes,
             missingPublishScopes: publishCheck.missingPublishScopes,
           });
-          addPublicationLog({
+          await safeAddPublicationLog({
             postId: post.id,
             platform,
             action: 'publish_skipped',
@@ -101,29 +129,48 @@ export async function publishPost(post) {
             status: 'skipped',
             message: skipMessage,
           });
+          skips.push({ platform, reason: skipMessage });
           continue;
         }
         if (!post.mediaPath && !post.mediaPublicUrl) throw new Error('Immagine richiesta per Facebook');
         result = await publishToFacebook(post, account);
+        const safeResult = {
+          postId: result.postId || null,
+          pageId: result.pageId || null,
+        };
         logger.info('[publisher:meta_response] Facebook OK', {
           phase: 'meta_api_response',
           postId: post.id,
           platform,
-          facebookPostId: result.postId || null,
+          metaResponse: safeResult,
         });
-        await updatePost(post.id, { facebookPostId: result.postId });
+        await updatePost(post.id, {
+          facebookPostId: safeResult.postId,
+          status: 'published',
+          publishedAt: new Date().toISOString(),
+          errorMessage: null,
+        });
+        result = safeResult;
       } else {
         result = await publishToTikTok(post, account);
         logger.info('[publisher:meta_response] TikTok OK', {
           phase: 'meta_api_response',
           postId: post.id,
           platform,
-          publishId: result.publishId || null,
+          metaResponse: { publishId: result.publishId || null },
         });
-        await updatePost(post.id, { tiktokPublishId: result.publishId });
+        await updatePost(post.id, {
+          tiktokPublishId: result.publishId,
+          status: 'published',
+          publishedAt: new Date().toISOString(),
+          errorMessage: null,
+        });
       }
 
-      addPublicationLog({
+      // Record success before optional logging (logging must never flip status to error)
+      results.push({ platform, ...sanitizePublishDetails(result) });
+
+      await safeAddPublicationLog({
         postId: post.id,
         platform,
         action: 'publish_complete',
@@ -131,8 +178,6 @@ export async function publishPost(post) {
         message: `Pubblicato su ${platform}`,
         details: result,
       });
-
-      results.push({ platform, ...result });
 
       recordPublishEvent({
         postId: post.id,
@@ -146,9 +191,10 @@ export async function publishPost(post) {
         postId: post.id,
         platform,
         error: err.message,
-        code: err.code || null,
+        code: err.code || err.metaCode || null,
+        stack: err.stack,
       });
-      addPublicationLog({
+      await safeAddPublicationLog({
         postId: post.id,
         platform,
         action: 'publish_error',
@@ -166,24 +212,47 @@ export async function publishPost(post) {
     }
   }
 
-  if (errors.length > 0 && results.length === 0) {
-    await updatePost(post.id, {
-      status: 'error',
-      errorMessage: errors.map((e) => `${e.platform}: ${e.error}`).join('; '),
-    });
-    throw new Error(errors.map((e) => e.error).join('; '));
-  }
-
+  const final = resolveFinalPublishStatus(results, errors);
   const now = new Date().toISOString();
-  const mockViews = estimateMockViews();
-  await updatePost(post.id, {
-    status: errors.length > 0 ? 'error' : 'published',
-    publishedAt: now,
-    viewCount: errors.length === 0 ? mockViews : undefined,
-    errorMessage: errors.length > 0 ? errors.map((e) => `${e.platform}: ${e.error}`).join('; ') : null,
+
+  logger.info('[publisher:status_final] Determinazione stato finale', {
+    phase: 'status_final',
+    postId: post.id,
+    resultsCount: results.length,
+    errorsCount: errors.length,
+    skipsCount: skips.length,
+    nextStatus: final.status,
+    errorMessage: final.errorMessage,
+    stackHint: final.ok ? null : 'no successful platforms',
   });
 
-  return { results, errors };
+  if (!final.ok) {
+    await updatePost(post.id, {
+      status: 'error',
+      errorMessage: final.errorMessage,
+    });
+    const err = new Error(final.errorMessage);
+    err.code = 'PUBLISH_FAILED';
+    throw err;
+  }
+
+  const mockViews = estimateMockViews();
+  await updatePost(post.id, {
+    status: 'published',
+    publishedAt: now,
+    viewCount: mockViews,
+    // Keep partial platform errors visible without marking the post as failed
+    errorMessage: final.errorMessage,
+  });
+
+  logger.info('[publisher:status_saved] Stato salvato come published', {
+    phase: 'status_saved',
+    postId: post.id,
+    status: 'published',
+    partialErrors: final.errorMessage,
+  });
+
+  return { results, errors, skips };
 }
 
 async function ensureValidToken(platform) {
@@ -220,7 +289,11 @@ async function ensureValidToken(platform) {
         },
       });
     } catch (err) {
-      logger.error('Facebook page token resolve failed', { error: err.message, code: err.code });
+      logger.error('Facebook page token resolve failed', {
+        error: err.message,
+        code: err.code,
+        stack: err.stack,
+      });
       throw err;
     }
   }
@@ -264,7 +337,10 @@ async function ensureValidToken(platform) {
       });
     }
   } catch (err) {
-    logger.error(`Token refresh failed for ${platform}`, { error: err.message });
+    logger.error(`Token refresh failed for ${platform}`, {
+      error: err.message,
+      stack: err.stack,
+    });
   }
 
   return account;

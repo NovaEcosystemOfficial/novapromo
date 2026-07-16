@@ -29,6 +29,7 @@
     "test:accounts-plans": "node scripts/test-accounts-plans.mjs",
     "test:stripe-subscriptions": "node scripts/test-stripe-subscriptions.mjs",
     "test:scheduler": "node scripts/test-scheduler.mjs",
+    "test:publish-status": "node scripts/test-publish-status.mjs",
     "test:ai-firestore": "node scripts/test-ai-firestore-sanitize.mjs",
     "setup:firebase": "node scripts/setup-firebase-env.mjs",
     "bootstrap:firebase": "node scripts/bootstrap-firebase-project.mjs",
