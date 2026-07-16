@@ -91,24 +91,43 @@ Nuovi utenti partono da **Free** con **3 crediti benvenuto** per Creative Studio
 ### Variabili Stripe (produzione reale)
 
 ```env
-STRIPE_SECRET_KEY=sk_live_...
+STRIPE_SECRET_KEY=sk_test_...   # usa sk_test_ in Test Mode — mai sk_live_ finché non sei pronto
 STRIPE_WEBHOOK_SECRET=whsec_...
 STRIPE_PRICE_MONTHLY=price_...
 STRIPE_PRICE_YEARLY=price_...
+STRIPE_DISABLE_MOCK=true        # opzionale: disabilita mock quando Stripe è pronto
 ```
 
-Endpoint webhook: `POST https://<BACKEND_URL>/api/billing/webhook`
+Endpoint:
+- Checkout: `POST /api/billing/create-checkout-session`
+- Portal: `POST /api/billing/create-portal-session` (richiede `stripeCustomerId`)
+- Webhook: `POST https://<BACKEND_URL>/api/billing/webhook`
+
+Eventi webhook gestiti: `checkout.session.completed`, `invoice.paid`, `invoice.payment_failed`, `customer.subscription.created|updated|deleted` (idempotenti via `stripe_webhook_events`).
+
+Campi Firestore su `users/{uid}`: `stripeCustomerId`, `stripeSubscriptionId`, `stripePriceId`, `stripeSubscriptionStatus`, `stripeCurrentPeriodEnd`, `cancelAtPeriodEnd`, `billingStatus`, `lastStripeEventId`.
 
 ### Test locale
 
 ```powershell
 npm run test:accounts-plans
+npm run test:stripe-subscriptions
+npm run build
 npm run dev
 ```
 
 1. **Admin** (`ADMIN_EMAILS`) — Account mostra badge Admin, nessun checkout obbligatorio
 2. **Free** — `/premium` visibile; Generator mostra crediti benvenuto; 3 pack PRO poi blocco
 3. **Mock checkout** — Attiva PRO → `/checkout/success` → Account mostra piano PRO
-4. **IG/FB** — pubblicazione invariata (non legata al piano PRO)
+4. **Stripe Test Mode** — con env `sk_test_` → Checkout Stripe → webhook attiva PRO → Account mostra “Gestisci abbonamento”
+5. **IG/FB** — pubblicazione invariata (non legata al piano PRO)
+
+### Passaggi manuali Stripe Dashboard (Test Mode)
+
+1. Crea prodotto NovaPromo PRO + prezzi mensile/annuale
+2. Webhook → `https://novapromo-backend.vercel.app/api/billing/webhook` con gli eventi sopra
+3. Abilita Customer Portal (pagamenti, fatture, cancellazione)
+4. Copia Price ID e webhook secret nelle env Vercel del **backend**
+5. Redeploy backend — non passare a Live finché i test non sono ok
 
 Vedi anche [docs/PREMIUM_AI.md](docs/PREMIUM_AI.md) per AI Studio e Creative Studio.

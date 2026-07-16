@@ -51,6 +51,7 @@ function AppRoutes() {
         <Route path="calendar" element={<Calendar />} />
         <Route path="drafts" element={<Drafts />} />
         <Route path="accounts" element={<Accounts />} />
+        <Route path="account" element={<Navigate to="/accounts" replace />} />
         {isTikTokEnabled() && <Route path="tiktok-test-publish" element={<TikTokTestPublish />} />}
         <Route path="history" element={<History />} />
         <Route path="premium" element={<Premium />} />

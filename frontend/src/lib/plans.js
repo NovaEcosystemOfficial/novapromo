@@ -101,6 +101,11 @@ export function getDemoBillingStatus() {
     paymentsMode: 'mock',
     mockCheckoutAvailable: true,
     testMode: true,
+    stripeTestMode: false,
+    stripeCustomerId: null,
+    canManageSubscription: false,
+    hasStripeCustomer: false,
+    billingStatus: null,
     upgradeNote: 'Collega il backend per testare il flusso PRO',
     plans: PLAN_COMPARISON.map((p) => ({
       id: p.id,

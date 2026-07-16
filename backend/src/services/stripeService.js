@@ -7,6 +7,11 @@ export function isStripeConfigured() {
   return Boolean(config.stripe.secretKey);
 }
 
+export function isStripeTestMode() {
+  const key = config.stripe.secretKey || '';
+  return key.startsWith('sk_test_');
+}
+
 export function isStripeCheckoutReady(interval = 'monthly') {
   if (!isStripeConfigured()) return false;
   const priceId = interval === 'yearly'

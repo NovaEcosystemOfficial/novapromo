@@ -103,6 +103,13 @@ export const api = {
       body: JSON.stringify({ plan }),
     }),
 
+  createPortalSession: () =>
+    request('/api/billing/create-portal-session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    }),
+
   syncFirebaseSession: (idToken) =>
     request('/api/auth/firebase/session', {
       method: 'POST',

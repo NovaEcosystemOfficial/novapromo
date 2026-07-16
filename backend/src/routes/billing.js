@@ -9,6 +9,7 @@ import { redeemCoupon } from '../services/couponService.js';
 import {
   createCheckoutSession,
   activateMockPremium,
+  createBillingPortalSession,
   getPaymentsInfo,
 } from '../services/billingCheckoutService.js';
 
@@ -48,10 +49,11 @@ router.get('/status', requireSession, async (req, res) => {
       stripeConfigured: payments.stripeConfigured,
       mockCheckoutAvailable: payments.mockCheckoutAvailable,
       testMode: payments.testMode,
+      stripeTestMode: payments.stripeTestMode,
       upgradeNote: billing.isAdmin
         ? 'Account Admin — accesso PRO illimitato, nessun pagamento richiesto'
         : payments.stripeConfigured
-          ? 'Pagamenti Stripe attivi'
+          ? (payments.stripeTestMode ? 'Stripe Test Mode attivo' : 'Pagamenti Stripe attivi')
           : 'Modalità test — attiva PRO senza pagamento reale',
     });
   } catch (err) {
@@ -72,6 +74,18 @@ router.post('/create-checkout-session', requireSession, async (req, res) => {
     res.status(err.status || 500).json({
       error: err.message,
       code: err.code || 'CHECKOUT_ERROR',
+    });
+  }
+});
+
+router.post('/create-portal-session', requireSession, async (req, res) => {
+  try {
+    const result = await createBillingPortalSession(req.sessionUser.docId);
+    res.json(result);
+  } catch (err) {
+    res.status(err.status || 500).json({
+      error: err.message,
+      code: err.code || 'PORTAL_ERROR',
     });
   }
 });

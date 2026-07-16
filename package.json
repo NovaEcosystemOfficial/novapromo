@@ -27,6 +27,7 @@
     "test:premium-ai": "node scripts/test-premium-ai.mjs",
     "test:creative-studio": "node scripts/test-creative-studio.mjs",
     "test:accounts-plans": "node scripts/test-accounts-plans.mjs",
+    "test:stripe-subscriptions": "node scripts/test-stripe-subscriptions.mjs",
     "test:ai-firestore": "node scripts/test-ai-firestore-sanitize.mjs",
     "setup:firebase": "node scripts/setup-firebase-env.mjs",
     "bootstrap:firebase": "node scripts/bootstrap-firebase-project.mjs",

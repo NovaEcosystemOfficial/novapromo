@@ -246,9 +246,33 @@ function migrateSchema(database) {
     if (!cols.includes('welcome_pro_credits')) {
       database.exec('ALTER TABLE user_plans ADD COLUMN welcome_pro_credits INTEGER NOT NULL DEFAULT 0');
     }
+    const stripeCols = [
+      ['stripe_customer_id', 'TEXT'],
+      ['stripe_subscription_id', 'TEXT'],
+      ['stripe_price_id', 'TEXT'],
+      ['stripe_subscription_status', 'TEXT'],
+      ['stripe_current_period_end', 'TEXT'],
+      ['cancel_at_period_end', 'INTEGER NOT NULL DEFAULT 0'],
+      ['billing_status', 'TEXT'],
+      ['last_stripe_event_id', 'TEXT'],
+      ['premium_source', 'TEXT'],
+    ];
+    for (const [name, type] of stripeCols) {
+      if (!cols.includes(name)) {
+        database.exec(`ALTER TABLE user_plans ADD COLUMN ${name} ${type}`);
+      }
+    }
   } catch {
     // migration skipped
   }
+
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS stripe_webhook_events (
+      event_id TEXT PRIMARY KEY,
+      type TEXT,
+      processed_at TEXT NOT NULL
+    );
+  `);
 }
 
 export function closeDb() {

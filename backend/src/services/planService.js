@@ -25,6 +25,15 @@ import { logger } from '../utils/logger.js';
  * @property {string} [trialEndsAt]
  * @property {string} [premiumUntil]
  * @property {number} [welcomeProCredits]
+ * @property {string} [stripeCustomerId]
+ * @property {string} [stripeSubscriptionId]
+ * @property {string} [stripePriceId]
+ * @property {string} [stripeSubscriptionStatus]
+ * @property {string} [stripeCurrentPeriodEnd]
+ * @property {boolean} [cancelAtPeriodEnd]
+ * @property {string} [billingStatus]
+ * @property {string} [lastStripeEventId]
+ * @property {string} [premiumSource]
  * @property {number} aiCreditsUsedThisMonth
  * @property {number} aiCreditsLimit
  * @property {string} aiCreditsMonth
@@ -107,6 +116,15 @@ function applyPlanTransitions(raw, docId) {
       premiumUntil: raw.premiumUntil || null,
       welcomeProCredits: raw.welcomeProCredits ?? (plan === 'free' ? 0 : null),
       creditsResetAt: raw.creditsResetAt || nextCreditsResetAt(),
+      stripeCustomerId: raw.stripeCustomerId || null,
+      stripeSubscriptionId: raw.stripeSubscriptionId || null,
+      stripePriceId: raw.stripePriceId || null,
+      stripeSubscriptionStatus: raw.stripeSubscriptionStatus || null,
+      stripeCurrentPeriodEnd: raw.stripeCurrentPeriodEnd || null,
+      cancelAtPeriodEnd: Boolean(raw.cancelAtPeriodEnd),
+      billingStatus: raw.billingStatus || null,
+      lastStripeEventId: raw.lastStripeEventId || null,
+      premiumSource: raw.premiumSource || null,
       businessActive: Boolean(raw.businessActive),
       createdAt: raw.createdAt || new Date().toISOString(),
       updatedAt: raw.updatedAt || new Date().toISOString(),
@@ -188,34 +206,68 @@ export async function activatePremiumSubscription(docId, { interval = 'monthly',
     creditsResetAt: nextCreditsResetAt(),
     updatedAt: now,
     premiumSource: source,
+    billingStatus: source === 'mock' ? 'active_mock' : 'active',
   };
+
+  await applyUserBillingPatch(docId, payload);
+
+  logger.info('Premium subscription activated', { docId, interval, source, premiumUntil });
+  return getUserPlan(docId);
+}
+
+/**
+ * Merge billing / Stripe fields onto the user document (Firestore or SQLite).
+ * Does not delete unrelated profile fields (drafts/history live elsewhere).
+ */
+export async function applyUserBillingPatch(docId, patch = {}) {
+  if (!docId || !patch || !Object.keys(patch).length) return null;
+  const now = new Date().toISOString();
+  const payload = { ...patch, updatedAt: patch.updatedAt || now };
 
   if (useFirebaseDataStore()) {
     const admin = await getFirebaseAdmin();
     if (admin) {
       await admin.db.collection('users').doc(docId).set(payload, { merge: true });
     }
-  } else {
-    const db = getDb();
-    db.prepare(`
-      UPDATE user_plans
-      SET plan = ?, premium_until = ?, ai_credits_limit = ?, credits = ?,
-          ai_credits_used = 0, ai_credits_month = ?, credits_reset_at = ?, updated_at = ?
-      WHERE user_doc_id = ?
-    `).run(
-      payload.plan,
-      payload.premiumUntil,
-      payload.aiCreditsLimit,
-      payload.credits,
-      payload.aiCreditsMonth,
-      payload.creditsResetAt,
-      now,
-      docId
-    );
+    return payload;
   }
 
-  logger.info('Premium subscription activated', { docId, interval, source, premiumUntil });
-  return getUserPlan(docId);
+  const db = getDb();
+  const map = {
+    plan: 'plan',
+    aiCreditsLimit: 'ai_credits_limit',
+    aiCreditsUsedThisMonth: 'ai_credits_used',
+    aiCreditsMonth: 'ai_credits_month',
+    credits: 'credits',
+    premiumUntil: 'premium_until',
+    creditsResetAt: 'credits_reset_at',
+    welcomeProCredits: 'welcome_pro_credits',
+    stripeCustomerId: 'stripe_customer_id',
+    stripeSubscriptionId: 'stripe_subscription_id',
+    stripePriceId: 'stripe_price_id',
+    stripeSubscriptionStatus: 'stripe_subscription_status',
+    stripeCurrentPeriodEnd: 'stripe_current_period_end',
+    cancelAtPeriodEnd: 'cancel_at_period_end',
+    billingStatus: 'billing_status',
+    lastStripeEventId: 'last_stripe_event_id',
+    premiumSource: 'premium_source',
+  };
+
+  const sets = [];
+  const vals = [];
+  for (const [k, col] of Object.entries(map)) {
+    if (Object.prototype.hasOwnProperty.call(payload, k)) {
+      let v = payload[k];
+      if (k === 'cancelAtPeriodEnd') v = v ? 1 : 0;
+      sets.push(`${col} = ?`);
+      vals.push(v);
+    }
+  }
+  if (!sets.length) return payload;
+  sets.push('updated_at = ?');
+  vals.push(now, docId);
+  db.prepare(`UPDATE user_plans SET ${sets.join(', ')} WHERE user_doc_id = ?`).run(...vals);
+  return payload;
 }
 
 function buildDefaultPlan(docId, uid = null) {
@@ -348,6 +400,15 @@ function mapSqliteRow(row) {
     trialEndsAt: row.trial_ends_at,
     premiumUntil: row.premium_until,
     welcomeProCredits: row.welcome_pro_credits,
+    stripeCustomerId: row.stripe_customer_id,
+    stripeSubscriptionId: row.stripe_subscription_id,
+    stripePriceId: row.stripe_price_id,
+    stripeSubscriptionStatus: row.stripe_subscription_status,
+    stripeCurrentPeriodEnd: row.stripe_current_period_end,
+    cancelAtPeriodEnd: row.cancel_at_period_end === 1,
+    billingStatus: row.billing_status,
+    lastStripeEventId: row.last_stripe_event_id,
+    premiumSource: row.premium_source,
     aiCreditsUsedThisMonth: row.ai_credits_used,
     aiCreditsLimit: row.ai_credits_limit,
     aiCreditsMonth: row.ai_credits_month,
@@ -500,6 +561,16 @@ export async function getBillingStatus(docId) {
       || (userPlan.plan === 'business' && userPlan.businessActive),
     isTrial: userPlan.plan === 'trial',
     businessActive: userPlan.businessActive,
+    stripeCustomerId: userPlan.stripeCustomerId || null,
+    stripeSubscriptionId: userPlan.stripeSubscriptionId || null,
+    stripePriceId: userPlan.stripePriceId || null,
+    stripeSubscriptionStatus: userPlan.stripeSubscriptionStatus || null,
+    stripeCurrentPeriodEnd: userPlan.stripeCurrentPeriodEnd || null,
+    cancelAtPeriodEnd: Boolean(userPlan.cancelAtPeriodEnd),
+    billingStatus: userPlan.billingStatus || null,
+    premiumSource: userPlan.premiumSource || null,
+    hasStripeCustomer: Boolean(userPlan.stripeCustomerId),
+    canManageSubscription: Boolean(userPlan.stripeCustomerId) && !isAdmin(userPlan),
     plans: Object.values(PLAN_DEFINITIONS).map((p) => ({
       id: p.id,
       label: p.label,
