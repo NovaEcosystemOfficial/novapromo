@@ -66,8 +66,8 @@ Deploy separato della cartella `api/` + `backend/` con il proprio `vercel.json`.
 
 Su Vercel **non** gira `node-cron` (processo serverless). I post due vengono pubblicati da:
 
-1. **Vercel Cron** ogni minuto → `GET /api/cron/publish-due` (header `Authorization: Bearer $CRON_SECRET`)
-2. **Client tick** ogni 30s mentre l’app è aperta → `POST /api/posts/publish-due` (sessione autenticata)
+1. **Client tick** ogni 30s mentre l’app è aperta → `POST /api/posts/publish-due` (sessione autenticata) — percorso principale su Hobby
+2. **Vercel Cron** giornaliero → `GET /api/cron/publish-due` (header `Authorization: Bearer $CRON_SECRET`) — backup; su piano **Pro** si può impostare `* * * * *` per esecuzione ogni minuto anche a app chiusa
 
 Env: `CRON_SECRET`, `SCHEDULER_DEBUG=true` (log fasi: job_created / jobs_detected / job_execute / meta_api).
 

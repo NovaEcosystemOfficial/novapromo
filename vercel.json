@@ -9,7 +9,7 @@
   "crons": [
     {
       "path": "/api/cron/publish-due",
-      "schedule": "* * * * *"
+      "schedule": "0 4 * * *"
     }
   ],
   "rewrites": [

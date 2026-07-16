@@ -2,8 +2,8 @@ import { useEffect, useRef } from 'react';
 import { api } from '../api/client.js';
 import { isDemoMode } from '../lib/features.js';
 
-/** How often the open app asks the backend to publish due scheduled posts */
-const TICK_MS = 30_000;
+/** How often the open app asks the backend to publish due scheduled posts (Hobby: primary scheduler) */
+const TICK_MS = 20_000;
 
 /**
  * While the user keeps NovaPromo open, poll the backend to publish due jobs.
