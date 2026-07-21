@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../api/client.js';
 import { useCreativeStudio } from '../../context/CreativeStudioContext.jsx';
@@ -43,6 +43,7 @@ export default function CreativeStudioModal() {
   const [phase, setPhase] = useState('wizard');
   const [loading, setLoading] = useState(false);
   const [v2Ux, setV2Ux] = useState('idle'); // idle | running | success
+  const v2OpenResolver = useRef(null);
   const [error, setError] = useState('');
   const [lock, setLock] = useState(null);
   const [pack, setPack] = useState(null);
@@ -139,6 +140,25 @@ export default function CreativeStudioModal() {
     ...opts,
   });
 
+  const waitForV2Open = (ms = 5000) => new Promise((resolve) => {
+    let settled = false;
+    const done = () => {
+      if (settled) return;
+      settled = true;
+      v2OpenResolver.current = null;
+      window.clearTimeout(timer);
+      resolve();
+    };
+    v2OpenResolver.current = done;
+    const timer = window.setTimeout(done, ms);
+  });
+
+  const handleOpenV2Content = () => {
+    if (typeof v2OpenResolver.current === 'function') {
+      v2OpenResolver.current();
+    }
+  };
+
   const runCreativePack = async (opts = {}) => {
     const useV2 = opts.useCreativeEngineV2 === true
       || opts.engine === 'v2'
@@ -152,13 +172,14 @@ export default function CreativeStudioModal() {
       setPack(result);
       if (useV2 || result?.engineId === 'creative-engine-v2') {
         setV2Ux('success');
-        await new Promise((r) => setTimeout(r, 1100));
+        await waitForV2Open(5200);
         setV2Ux('idle');
       }
       setPhase('result');
       await refreshBilling();
     } catch (err) {
       setV2Ux('idle');
+      v2OpenResolver.current = null;
       handleStudioError(err);
     } finally {
       setLoading(false);
@@ -197,12 +218,13 @@ export default function CreativeStudioModal() {
       setPack((p) => ({ ...p, ...result }));
       if (useV2) {
         setV2Ux('success');
-        await new Promise((r) => setTimeout(r, 900));
+        await waitForV2Open(4200);
         setV2Ux('idle');
       }
       await refreshBilling();
     } catch (err) {
       setV2Ux('idle');
+      v2OpenResolver.current = null;
       handleStudioError(err);
     } finally {
       setLoading(false);
@@ -442,6 +464,7 @@ export default function CreativeStudioModal() {
                 <CreativeEngineV2Progress
                   active={v2Ux === 'running'}
                   succeeded={v2Ux === 'success'}
+                  onOpenContent={handleOpenV2Content}
                 />
               ) : (
                 <>
@@ -502,6 +525,7 @@ export default function CreativeStudioModal() {
                 <CreativeEngineV2Progress
                   active={v2Ux === 'running'}
                   succeeded={v2Ux === 'success'}
+                  onOpenContent={handleOpenV2Content}
                 />
               )}
 
