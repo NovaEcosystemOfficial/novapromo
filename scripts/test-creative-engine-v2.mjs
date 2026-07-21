@@ -1,76 +1,139 @@
 /**
- * Smoke test — Nova Creative Engine V2 modules (no OpenAI / network).
+ * Smoke test — Creative Engine V2 director process (no OpenAI / network).
  * Run: node scripts/test-creative-engine-v2.mjs
  */
 
-import { resolveStyle, suggestConceptFromHints, listConcepts } from '../backend/src/services/creative-engine-v2/StyleEngine.js';
+import { buildCreativeBrief } from '../backend/src/services/creative-engine-v2/CreativeBrief.js';
+import { selectStyleFromBrief, listStyles } from '../backend/src/services/creative-engine-v2/StyleEngine.js';
 import { planLayout, listLayouts } from '../backend/src/services/creative-engine-v2/LayoutPlanner.js';
-import { resolveTemplate, listTemplates } from '../backend/src/services/creative-engine-v2/TemplateEngine.js';
+import { resolveTemplate } from '../backend/src/services/creative-engine-v2/TemplateEngine.js';
 import { composePrompts } from '../backend/src/services/creative-engine-v2/PromptComposer.js';
 import { assemblePost } from '../backend/src/services/creative-engine-v2/PostAssembler.js';
 import { reinforcePrompt } from '../backend/src/services/creative-engine-v2/QualityChecker.js';
+import { buildAndLogReport } from '../backend/src/services/creative-engine-v2/CreativeReport.js';
 import {
-  VISUAL_CONCEPTS,
+  DIRECTOR_STYLES,
+  LAYOUT_TYPES,
   ENGINE_ID,
-  FUTURE_CAPABILITIES,
+  FUTURE_OUTPUT_TYPES,
+  QUALITY_SCORE_THRESHOLD,
 } from '../backend/src/services/creative-engine-v2/constants.js';
 
 function assert(cond, msg) {
   if (!cond) throw new Error(msg);
 }
 
-const concept = suggestConceptFromHints({ style: 'tech', sector: 'SaaS AI' });
-assert(VISUAL_CONCEPTS.includes(concept), 'concept must be valid');
-
-const style = resolveStyle(concept, { palette: ['#7C3AED', '#F97316'] });
-assert(style.palette.includes('#7C3AED'), 'brand palette merged');
-
-const template = resolveTemplate({ platform: 'instagram', format: 'square' });
-assert(template.id === 'instagram_feed', 'instagram feed template');
-
-const layout = planLayout({ conceptId: 'split_layout', format: 'square', templateId: template.id });
-assert(layout.id === 'split', 'split layout');
-
 const brandAnalysis = {
+  brandId: 'nova-promo',
   companyName: 'NovaPromo',
-  sector: 'MarTech',
-  shortDescription: 'Autopublisher',
-  palette: ['#7C3AED'],
-  toneOfVoice: ['professionale'],
+  sector: 'SaaS MarTech',
+  shortDescription: 'Autopublisher social AI',
+  mission: 'Automate social publishing',
+  palette: ['#7C3AED', '#F97316', '#0B0B0F'],
+  toneOfVoice: ['professionale', 'tecnico'],
+  target: { audienceType: 'founder', profession: 'marketer', ageRange: '25-45' },
   wordsToUse: ['automazione'],
   wordsToAvoid: ['clickbait'],
   hashtags: ['#NovaPromo'],
-  preferredCtas: ['Prova gratis'],
+  preferredCtas: ['Prova gratis', 'Scopri di più'],
   marketingGoals: ['brand_awareness'],
+  graphicStyles: ['tech', 'premium'],
+  hasBrandIntelligence: true,
   summary: 'Brand: NovaPromo',
-  project: 'Demo',
+  project: 'Demo Launch',
 };
 
-const director = {
-  conceptId: concept,
-  conceptLabel: style.label,
-  rationale: 'Test rationale',
-  marketingObjective: 'brand_awareness',
-  ctaStrategy: 'Prova gratis',
-  tonePlan: 'professionale',
-  photographyMode: concept === 'brand_photography',
-  stylePack: style,
-};
-
-const prompts = composePrompts({
-  brandAnalysis,
-  director,
-  layout,
-  template,
-  idea: 'Lancio Nova Creative Engine V2',
+const params = {
+  idea: 'Lancio Nova Creative Engine V2 come direttore creativo AI',
   platform: 'instagram',
   format: 'square',
+  style: 'tech',
+  project: 'Demo Launch',
+  includeImage: true,
   includeVideoPrompt: true,
+};
+
+const brief = buildCreativeBrief({ brandAnalysis, params });
+assert(brief.projectName === 'Demo Launch', 'brief project');
+assert(brief.objective, 'brief objective');
+assert(brief.palette.length > 0, 'brief palette');
+assert(brief.cta, 'brief cta');
+
+const stylePack = selectStyleFromBrief(brief);
+assert(DIRECTOR_STYLES.includes(stylePack.id), 'style from brief must be director style');
+assert(stylePack.label, 'style label');
+
+const template = resolveTemplate({ platform: 'instagram', format: 'square' });
+const layout = planLayout({
+  brief,
+  styleId: stylePack.id,
+  format: 'square',
+  templateId: template.id,
+});
+assert(LAYOUT_TYPES.includes(layout.id), 'layout id valid');
+assert(layout.chosenAt, 'layout persisted timestamp');
+
+const prompts = composePrompts({
+  brief,
+  stylePack,
+  layout,
+  template,
+  includeVideoPrompt: true,
+  brandAnalysis,
 });
 
-assert(prompts.imagePrompt.length > 500, 'image prompt must be long');
-assert(/NEGATIVE PROMPT/i.test(prompts.imagePrompt), 'negative prompt present');
-assert(/Camera:/i.test(prompts.imagePrompt), 'camera direction present');
+assert(prompts.imagePrompt.length > 800, 'image prompt must be long');
+assert(/NEGATIVE PROMPT/i.test(prompts.imagePrompt), 'negative prompt');
+assert(/PHOTOGRAPHY DIRECTION/i.test(prompts.imagePrompt), 'photography');
+assert(/Camera|optics/i.test(prompts.imagePrompt), 'optics');
+assert(/illumin/i.test(prompts.imagePrompt) || /Lighting/i.test(prompts.imagePrompt), 'lighting');
+assert(/texture|Materials/i.test(prompts.imagePrompt), 'materials');
+assert(/MARKETING OBJECTIVE/i.test(prompts.imagePrompt), 'marketing objective');
+
+const director = {
+  conceptId: stylePack.id,
+  conceptLabel: stylePack.label,
+  styleId: stylePack.id,
+  rationale: 'Test',
+  marketingObjective: brief.objective,
+  ctaStrategy: brief.cta,
+  tonePlan: brief.toneOfVoice.join(', '),
+  photographyMode: true,
+  stylePack,
+};
+
+const quality = {
+  pass: true,
+  score: 86,
+  threshold: QUALITY_SCORE_THRESHOLD,
+  dimensions: {
+    brandCoherence: 88,
+    readability: 84,
+    composition: 86,
+    cleanliness: 90,
+    realism: 82,
+    color: 85,
+    contrast: 84,
+    balance: 87,
+  },
+  issues: [],
+  shouldRegenerate: false,
+};
+
+const report = buildAndLogReport({
+  brief,
+  stylePack,
+  layout,
+  prompts,
+  quality,
+  startedAt: Date.now() - 1200,
+  userDocId: 'test',
+});
+
+assert(report.style.id === stylePack.id, 'report style');
+assert(report.layout.id === layout.id, 'report layout');
+assert(report.qualityScore.score === 86, 'report quality');
+assert(report.elapsedMs >= 1000, 'report timing');
 
 const pack = assemblePost({
   rawPack: {
@@ -85,36 +148,49 @@ const pack = assemblePost({
     carouselSlides: [{ title: '1', body: 'Hook' }],
     platformVariants: {},
   },
-  params: { style: 'tech', format: 'square', includeVideoPrompt: true, idea: 'test' },
+  params,
   brandAnalysis,
   director,
   layout,
   template,
   prompts,
   asset: { imageUrl: 'https://example.com/x.png', storagePath: 'ai/x.png', imageMimeType: 'image/png' },
-  quality: { pass: true, score: 88, issues: [] },
+  quality,
+  brief,
+  report,
 });
 
 assert(pack.engine.id === ENGINE_ID, 'engine id');
-assert(pack.variantA && pack.variantB, 'variants');
-assert(pack.story?.copy, 'story');
-assert(pack.coverReel?.line, 'cover reel');
-assert(pack.carousel?.length === 1, 'carousel');
-assert(FUTURE_CAPABILITIES.videoAi.status === 'planned', 'future hooks');
+assert(pack.creativeBrief?.projectName === 'Demo Launch', 'pack brief');
+assert(pack.engine.qualityScore === 86, 'pack quality score');
+assert(pack.engine.report?.elapsedMs != null, 'pack report');
+assert(FUTURE_OUTPUT_TYPES.carousel.status === 'planned', 'future carousel');
+assert(FUTURE_OUTPUT_TYPES.story.status === 'planned', 'future story');
+assert(FUTURE_OUTPUT_TYPES.reelCover.status === 'planned', 'future reel cover');
+assert(FUTURE_OUTPUT_TYPES.productMockup.status === 'planned', 'future mockup');
 
-const reinforced = reinforcePrompt(prompts.imagePrompt, { issues: ['testo errato'] });
-assert(reinforced.includes('CRITICAL QUALITY'), 'reinforce works');
+const reinforced = reinforcePrompt(prompts.imagePrompt, {
+  score: 60,
+  threshold: QUALITY_SCORE_THRESHOLD,
+  issues: ['composizione'],
+  dimensions: { composition: 55, realism: 60 },
+});
+assert(reinforced.includes('CRITICAL QUALITY'), 'reinforce');
 
-assert(listConcepts().length === VISUAL_CONCEPTS.length, 'list concepts');
-assert(listLayouts().length > 0, 'list layouts');
-assert(listTemplates().length > 0, 'list templates');
+assert(listStyles().length === DIRECTOR_STYLES.length, 'list styles');
+assert(listLayouts().length === LAYOUT_TYPES.length, 'list layouts');
 
-console.log('OK — Creative Engine V2 smoke test passed');
+// Style must not be random for same brief
+const style2 = selectStyleFromBrief(brief);
+assert(style2.id === stylePack.id, 'style selection deterministic');
+
+console.log('OK — Creative Engine V2 director smoke test passed');
 console.log({
   engine: ENGINE_ID,
-  concept,
+  brief: brief.projectName,
+  style: stylePack.id,
   layout: layout.id,
-  template: template.id,
   promptChars: prompts.imagePrompt.length,
-  futureHooks: Object.keys(FUTURE_CAPABILITIES).length,
+  qualityThreshold: QUALITY_SCORE_THRESHOLD,
+  futureOutputs: Object.keys(FUTURE_OUTPUT_TYPES).length,
 });

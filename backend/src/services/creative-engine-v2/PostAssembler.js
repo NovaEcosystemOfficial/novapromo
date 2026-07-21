@@ -3,7 +3,7 @@
  * Returns image + caption + hashtags + CTA + alt + variants + story + reel cover + carousel.
  */
 
-import { ENGINE_ID, ENGINE_LABEL, ENGINE_VERSION, FUTURE_CAPABILITIES } from './constants.js';
+import { ENGINE_ID, ENGINE_LABEL, ENGINE_VERSION, FUTURE_CAPABILITIES, FUTURE_OUTPUT_TYPES } from './constants.js';
 import { CREATIVE_FORMATS } from '../../constants/aiCredits.js';
 
 /**
@@ -19,6 +19,8 @@ export function assemblePost({
   prompts,
   asset = null,
   quality = null,
+  brief = null,
+  report = null,
 }) {
   const videoScript = rawPack.videoScript || {};
   const videoPrompt = rawPack.videoPrompt
@@ -42,7 +44,6 @@ export function assemblePost({
     : buildDefaultCarousel(rawPack, director);
 
   const pack = {
-    // V1-compatible fields (Creative Studio modal + publish)
     caption: rawPack.caption || '',
     hashtags: rawPack.hashtags || (brandAnalysis.hashtags || []).join(' '),
     cta: rawPack.cta || director.ctaStrategy,
@@ -70,8 +71,6 @@ export function assemblePost({
     imageUrl: asset?.imageUrl || null,
     storagePath: asset?.storagePath || null,
     imageMimeType: asset?.imageMimeType || null,
-
-    // V2 deliverables
     altText: rawPack.altText
       || `Creatività ${brandAnalysis.companyName}: ${String(rawPack.caption || params.idea).slice(0, 120)}`,
     variantA,
@@ -85,29 +84,43 @@ export function assemblePost({
       format: '9:16',
     },
     carousel,
+    creativeBrief: brief
+      ? {
+        projectName: brief.projectName,
+        objective: brief.objective,
+        platform: brief.platform,
+        target: brief.target,
+        toneOfVoice: brief.toneOfVoice,
+        format: brief.format,
+        brand: brief.brand?.name,
+        palette: brief.palette,
+        cta: brief.cta,
+      }
+      : null,
     engine: {
       id: ENGINE_ID,
       label: ENGINE_LABEL,
       version: ENGINE_VERSION,
       conceptId: director.conceptId,
       conceptLabel: director.conceptLabel,
+      styleId: director.styleId || director.conceptId,
       rationale: director.rationale,
       layoutId: layout.id,
       layoutLabel: layout.label,
       templateId: template.id,
       templateLabel: template.label,
-      photographyMode: Boolean(director.photographyMode || director.conceptId === 'brand_photography'),
+      photographyMode: Boolean(director.photographyMode),
       quality,
+      qualityScore: quality?.score ?? null,
+      report,
       future: FUTURE_CAPABILITIES,
+      futureOutputs: FUTURE_OUTPUT_TYPES,
     },
   };
 
   return pack;
 }
 
-/**
- * Assemble regenerate-image path while preserving prior copy.
- */
 export function assembleRegenerateBase(input, params) {
   return {
     caption: input.caption || '',

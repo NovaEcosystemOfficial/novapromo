@@ -54,15 +54,20 @@ export async function generateAndStoreImage({
 }
 
 /**
- * Future hooks — not implemented.
+ * Future hooks — reserved for images, carousels, stories, reel covers, mockups.
+ * Not implemented yet.
  */
 export function prepareFutureAssetSlots() {
   return {
+    image: null,
+    carousel: null,
+    story: null,
+    reelCover: null,
+    productMockup: null,
     videoAi: null,
     reelAi: null,
     voiceOver: null,
     avatar: null,
-    productMockup: null,
     logoAsset: null,
   };
 }

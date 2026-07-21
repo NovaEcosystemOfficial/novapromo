@@ -1,13 +1,14 @@
 /**
- * LayoutPlanner — designs layout structure BEFORE image generation.
+ * LayoutPlanner — designs layout BEFORE image generation.
+ * Choice is driven by Creative Brief + selected style (not random).
  */
 
 import { LAYOUT_TYPES } from './constants.js';
 
 const LAYOUTS = {
-  hero_stack: {
-    id: 'hero_stack',
-    label: 'Hero grande → Titolo → Sottotitolo → CTA',
+  hero: {
+    id: 'hero',
+    label: 'Hero',
     zones: [
       { id: 'hero', role: 'dominant visual', weight: 0.55 },
       { id: 'title', role: 'primary headline', weight: 0.2 },
@@ -18,7 +19,7 @@ const LAYOUTS = {
   },
   split: {
     id: 'split',
-    label: 'Split — Foto | Testo',
+    label: 'Split',
     zones: [
       { id: 'photo', role: 'visual half', weight: 0.5 },
       { id: 'copy', role: 'title + subtitle + CTA', weight: 0.5 },
@@ -27,7 +28,7 @@ const LAYOUTS = {
   },
   magazine: {
     id: 'magazine',
-    label: 'Magazine cover',
+    label: 'Magazine',
     zones: [
       { id: 'masthead', role: 'brand / section', weight: 0.1 },
       { id: 'hero', role: 'cover image', weight: 0.6 },
@@ -36,41 +37,58 @@ const LAYOUTS = {
     ],
     flow: 'cover hierarchy',
   },
-  apple_keynote: {
-    id: 'apple_keynote',
-    label: 'Apple Keynote',
+  centered: {
+    id: 'centered',
+    label: 'Centered',
     zones: [
-      { id: 'product', role: 'centered product hero', weight: 0.7 },
-      { id: 'title', role: 'sparse title under/over', weight: 0.2 },
+      { id: 'product', role: 'centered hero subject', weight: 0.7 },
+      { id: 'title', role: 'sparse title', weight: 0.2 },
       { id: 'sub', role: 'one calm line', weight: 0.1 },
     ],
     flow: 'center stage, massive negative space',
   },
-  canva_social: {
-    id: 'canva_social',
-    label: 'Canva Social',
+  grid: {
+    id: 'grid',
+    label: 'Grid',
     zones: [
-      { id: 'visual', role: 'engaging visual block', weight: 0.45 },
-      { id: 'headline', role: 'bold social headline', weight: 0.25 },
-      { id: 'support', role: 'short support', weight: 0.15 },
-      { id: 'cta', role: 'friendly CTA', weight: 0.15 },
+      { id: 'cell_a', role: 'primary visual cell', weight: 0.4 },
+      { id: 'cell_b', role: 'secondary visual/text', weight: 0.3 },
+      { id: 'cell_c', role: 'support / CTA', weight: 0.3 },
     ],
-    flow: 'friendly social template zones',
+    flow: 'modular grid rhythm',
   },
-  product_hero: {
-    id: 'product_hero',
-    label: 'Product Hero',
+  floating_card: {
+    id: 'floating_card',
+    label: 'Floating Card',
     zones: [
-      { id: 'product', role: 'hero product', weight: 0.65 },
-      { id: 'badge', role: 'optional launch cue', weight: 0.1 },
-      { id: 'title', role: 'product name line', weight: 0.15 },
-      { id: 'cta', role: 'CTA', weight: 0.1 },
+      { id: 'background', role: 'atmospheric field', weight: 0.45 },
+      { id: 'card', role: 'floating content card', weight: 0.4 },
+      { id: 'cta', role: 'CTA on card', weight: 0.15 },
     ],
-    flow: 'product-first announcement',
+    flow: 'elevated card over soft field',
   },
-  editorial_column: {
-    id: 'editorial_column',
-    label: 'Editorial column',
+  glass: {
+    id: 'glass',
+    label: 'Glass',
+    zones: [
+      { id: 'backdrop', role: 'blurred premium backdrop', weight: 0.5 },
+      { id: 'glass_panel', role: 'frosted content panel', weight: 0.35 },
+      { id: 'accent', role: 'accent CTA', weight: 0.15 },
+    ],
+    flow: 'glassmorphism panels over depth',
+  },
+  minimal: {
+    id: 'minimal',
+    label: 'Minimal',
+    zones: [
+      { id: 'subject', role: 'single subject', weight: 0.75 },
+      { id: 'caption', role: 'tiny supporting line', weight: 0.25 },
+    ],
+    flow: 'extreme negative space',
+  },
+  editorial: {
+    id: 'editorial',
+    label: 'Editorial',
     zones: [
       { id: 'image', role: 'editorial photo', weight: 0.5 },
       { id: 'headline', role: 'serif headline', weight: 0.25 },
@@ -78,70 +96,66 @@ const LAYOUTS = {
     ],
     flow: 'magazine column rhythm',
   },
-  story_vertical: {
-    id: 'story_vertical',
-    label: 'Story vertical',
-    zones: [
-      { id: 'safe_top', role: 'avoid UI chrome', weight: 0.12 },
-      { id: 'hero', role: 'vertical hero', weight: 0.55 },
-      { id: 'copy', role: 'large short copy', weight: 0.2 },
-      { id: 'cta', role: 'bottom CTA zone', weight: 0.13 },
-    ],
-    flow: '9:16 safe-zone aware',
-  },
 };
 
-const CONCEPT_TO_LAYOUT = {
-  apple_style: 'apple_keynote',
-  editorial: 'editorial_column',
-  luxury: 'hero_stack',
-  startup: 'canva_social',
-  corporate: 'split',
-  minimal: 'apple_keynote',
-  lifestyle: 'hero_stack',
-  fashion: 'magazine',
-  dark_premium: 'hero_stack',
-  canva_style: 'canva_social',
-  notion_style: 'split',
-  stripe_style: 'split',
-  tech_workspace: 'split',
-  product_launch: 'product_hero',
-  hero_shot: 'product_hero',
-  split_layout: 'split',
-  magazine: 'magazine',
-  modern_ui: 'split',
-  glassmorphism: 'canva_social',
-  soft_minimal: 'apple_keynote',
-  brand_photography: 'hero_stack',
+const STYLE_TO_LAYOUT = {
+  modern_tech: 'split',
+  startup: 'floating_card',
+  premium: 'hero',
+  editorial: 'editorial',
+  luxury: 'centered',
+  minimal: 'minimal',
+  dark: 'hero',
+  corporate: 'grid',
+  product_launch: 'hero',
+  apple_inspired: 'centered',
+  canva_inspired: 'floating_card',
+  notion_inspired: 'split',
 };
 
 /**
- * Plan layout from concept + format + template.
+ * Plan and persist layout choice from brief + style.
  */
-export function planLayout({ conceptId, format, templateId }) {
-  let layoutId = CONCEPT_TO_LAYOUT[conceptId] || 'hero_stack';
+export function planLayout({ brief, styleId, format, templateId = null }) {
+  let layoutId = STYLE_TO_LAYOUT[styleId] || 'hero';
+
+  const objective = String(brief?.objective || '').toLowerCase();
+  const platform = brief?.platform;
 
   if (format === 'story' || format === 'reel') {
-    layoutId = 'story_vertical';
-  } else if (conceptId === 'split_layout') {
+    layoutId = 'hero';
+  } else if (/editorial|magazine/.test(objective) || styleId === 'editorial') {
+    layoutId = 'magazine';
+  } else if (styleId === 'minimal' || styleId === 'apple_inspired') {
+    layoutId = styleId === 'minimal' ? 'minimal' : 'centered';
+  } else if (styleId === 'modern_tech' && platform === 'linkedin') {
     layoutId = 'split';
-  } else if (templateId === 'instagram_carousel') {
-    layoutId = 'canva_social';
+  } else if (styleId === 'canva_inspired') {
+    layoutId = 'floating_card';
+  } else if (styleId === 'premium' || styleId === 'dark') {
+    layoutId = 'hero';
   }
 
-  if (!LAYOUT_TYPES.includes(layoutId)) layoutId = 'hero_stack';
-  const layout = LAYOUTS[layoutId] || LAYOUTS.hero_stack;
+  // Legacy conceptId support
+  if (!LAYOUT_TYPES.includes(layoutId)) {
+    layoutId = mapLegacyLayout(layoutId);
+  }
+
+  const layout = LAYOUTS[layoutId] || LAYOUTS.hero;
 
   return {
     ...layout,
     zones: layout.zones.map((z) => ({ ...z })),
     format,
     templateId,
+    styleId,
+    chosenAt: new Date().toISOString(),
     compositionBrief: [
-      `Layout: ${layout.label}`,
+      `Layout scelto: ${layout.label} (${layout.id})`,
       `Flow: ${layout.flow}`,
       `Zones: ${layout.zones.map((z) => `${z.id}(${z.role})`).join(' → ')}`,
-      'Do not invent unreadable text; prefer photographic subject over dense typography in the image.',
+      'Prefer photographic subject over dense typography in the image.',
+      'Do not invent unreadable text or fake logos.',
     ].join('\n'),
   };
 }
@@ -151,4 +165,17 @@ export function listLayouts() {
     id,
     label: LAYOUTS[id]?.label || id,
   }));
+}
+
+function mapLegacyLayout(id) {
+  const map = {
+    hero_stack: 'hero',
+    apple_keynote: 'centered',
+    canva_social: 'floating_card',
+    product_hero: 'hero',
+    editorial_column: 'editorial',
+    story_vertical: 'hero',
+    split_layout: 'split',
+  };
+  return map[id] || 'hero';
 }

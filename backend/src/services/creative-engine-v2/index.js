@@ -1,11 +1,11 @@
 /**
- * Nova Creative Engine V2 — orchestrator.
+ * Nova Creative Engine V2 — orchestrator (Creative Director AI).
  * Parallel engine: does not replace Creative Studio V1.
  *
  * Pipeline:
- * BrandAnalyzer → CreativeDirector → StyleEngine → TemplateEngine →
- * LayoutPlanner → PromptComposer → (text LLM) → AssetManager →
- * QualityChecker → PostAssembler
+ * BrandAnalyzer → CreativeBrief → CreativeDirector → StyleEngine →
+ * TemplateEngine → LayoutPlanner → PromptComposer → (text LLM) →
+ * AssetManager → QualityChecker → PostAssembler → CreativeReport
  */
 
 import { chatCompletion } from '../openaiService.js';
@@ -26,6 +26,7 @@ import { logger } from '../../utils/logger.js';
 
 import { ENGINE_ID, ENGINE_LABEL, ENGINE_VERSION } from './constants.js';
 import { analyzeBrand } from './BrandAnalyzer.js';
+import { buildCreativeBrief } from './CreativeBrief.js';
 import { directCreative } from './CreativeDirector.js';
 import { resolveTemplate } from './TemplateEngine.js';
 import { planLayout } from './LayoutPlanner.js';
@@ -33,6 +34,7 @@ import { composePrompts } from './PromptComposer.js';
 import { generateAndStoreImage, prepareFutureAssetSlots } from './AssetManager.js';
 import { checkQuality, reinforcePrompt } from './QualityChecker.js';
 import { assemblePost, assembleRegenerateBase } from './PostAssembler.js';
+import { buildAndLogReport } from './CreativeReport.js';
 
 function validateInput(input) {
   const idea = String(input.idea || '').trim();
@@ -105,6 +107,7 @@ async function assertCreativeAccess(userDocId, creditCost, { regenerateImage = f
  * Response stays compatible with Creative Studio V1 UI + publish flow.
  */
 export async function generateCreativePackV2(userDocId, input) {
+  const startedAt = Date.now();
   const params = validateInput(input);
   const creditCost = resolveCreditCost(params);
   const { useWelcomeCredit } = await assertCreativeAccess(userDocId, creditCost, {
@@ -117,17 +120,18 @@ export async function generateCreativePackV2(userDocId, input) {
     project: params.project,
   });
 
-  // Keep legacy brand id for persistence compatibility
   const brand = brandAnalysis.legacy || await getBrand(params.brandId || DEFAULT_BRAND_ID);
 
+  // 1) Creative Brief — drives the whole engine
+  const brief = buildCreativeBrief({ brandAnalysis, params });
+
+  // 2) Creative Director + Style Engine (brief-driven, not random)
   const director = await directCreative({
+    brief,
     brandAnalysis,
-    idea: params.idea,
-    platform: params.platform,
-    format: params.format,
-    style: params.style,
     includeVideoPrompt: params.includeVideoPrompt,
   });
+  const stylePack = director.stylePack;
 
   const template = resolveTemplate({
     platform: params.platform,
@@ -135,21 +139,22 @@ export async function generateCreativePackV2(userDocId, input) {
     contentType: director.contentType,
   });
 
+  // 3) Layout Planner — before image
   const layout = planLayout({
-    conceptId: director.conceptId,
+    brief,
+    styleId: stylePack.id,
     format: params.format,
     templateId: template.id,
   });
 
+  // 4) Prompt Composer — long professional prompts
   const prompts = composePrompts({
-    brandAnalysis,
-    director,
+    brief,
+    stylePack,
     layout,
     template,
-    idea: params.idea,
-    platform: params.platform,
-    format: params.format,
     includeVideoPrompt: params.includeVideoPrompt,
+    brandAnalysis,
   });
 
   let rawPack;
@@ -167,12 +172,11 @@ export async function generateCreativePackV2(userDocId, input) {
       throw err;
     }
     rawPack = assembleRegenerateBase(input, params);
-    // Prefer V2 reinforced prompt when regenerating under V2
     prompts.imagePrompt = params.imagePrompt;
   } else {
     logger.info('Creative Engine V2 text pack', {
       userDocId,
-      concept: director.conceptId,
+      style: stylePack.id,
       layout: layout.id,
     });
     const raw = await chatCompletion({
@@ -192,11 +196,15 @@ export async function generateCreativePackV2(userDocId, input) {
       : prompts.imagePrompt;
 
     let attempt = 0;
-    // Pre-check prompt quality before first render
+
+    // 5) Quality Score — pre-check
     quality = await checkQuality({
       imagePrompt,
       pack: rawPack,
       director,
+      brief,
+      stylePack,
+      layout,
       attempt,
     });
 
@@ -212,16 +220,23 @@ export async function generateCreativePackV2(userDocId, input) {
       negativePrompt: prompts.negativePrompt,
     });
 
-    // Post-check (heuristic + llm on prompt; vision reserved)
     const postQuality = await checkQuality({
       imagePrompt,
       pack: { ...rawPack, imageUrl: asset.imageUrl },
       director,
+      brief,
+      stylePack,
+      layout,
       attempt,
     });
 
     if (postQuality.shouldRegenerate && attempt < postQuality.maxRegenerations) {
-      logger.info('Creative Engine V2 auto-regenerate image', { userDocId, issues: postQuality.issues });
+      logger.info('Creative Engine V2 auto-regenerate image', {
+        userDocId,
+        score: postQuality.score,
+        threshold: postQuality.threshold,
+        issues: postQuality.issues,
+      });
       imagePrompt = reinforcePrompt(imagePrompt, postQuality);
       asset = await generateAndStoreImage({
         prompt: imagePrompt,
@@ -234,6 +249,9 @@ export async function generateCreativePackV2(userDocId, input) {
         imagePrompt,
         pack: { ...rawPack, imageUrl: asset.imageUrl },
         director,
+        brief,
+        stylePack,
+        layout,
         attempt,
       });
     } else {
@@ -242,6 +260,17 @@ export async function generateCreativePackV2(userDocId, input) {
 
     prompts.imagePrompt = imagePrompt;
   }
+
+  // 7) Report
+  const report = buildAndLogReport({
+    brief,
+    stylePack,
+    layout,
+    prompts,
+    quality,
+    startedAt,
+    userDocId,
+  });
 
   const pack = assemblePost({
     rawPack,
@@ -253,9 +282,11 @@ export async function generateCreativePackV2(userDocId, input) {
     prompts,
     asset,
     quality,
+    brief,
+    report,
   });
 
-  // Attach future slots (null placeholders)
+  // 6) Future-ready slots
   pack.futureAssets = prepareFutureAssetSlots();
 
   if (useWelcomeCredit) {
