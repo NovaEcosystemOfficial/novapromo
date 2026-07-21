@@ -11,6 +11,7 @@ import {
   generateCarouselIdea,
 } from '../services/aiStudioService.js';
 import { generateCreativePack } from '../services/creativeStudioService.js';
+import { generateCreativePackV2 } from '../services/creative-engine-v2/index.js';
 import { logger } from '../utils/logger.js';
 
 const router = Router();
@@ -58,10 +59,14 @@ router.post('/creative-pack', async (req, res) => {
   }
 
   try {
-    const result = await generateCreativePack(req.sessionUser.docId, req.body || {});
+    const body = req.body || {};
+    const useV2 = body.useCreativeEngineV2 === true || body.engine === 'v2';
+    const result = useV2
+      ? await generateCreativePackV2(req.sessionUser.docId, body)
+      : await generateCreativePack(req.sessionUser.docId, body);
     res.json(result);
   } catch (err) {
-    logger.error('Creative pack error', { code: err.code, user: req.sessionUser?.docId });
+    logger.error('Creative pack error', { code: err.code, user: req.sessionUser?.docId, engine: req.body?.useCreativeEngineV2 ? 'v2' : 'v1' });
     res.status(err.status || 500).json({
       error: err.message,
       code: err.code || 'CREATIVE_STUDIO_ERROR',

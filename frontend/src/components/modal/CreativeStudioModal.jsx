@@ -6,10 +6,10 @@ import { useBilling } from '../../context/BillingContext.jsx';
 import { useBrandProjects, CUSTOM_PROJECT_ID, resolveProjectLabel } from '../../hooks/useBrandProjects.js';
 import ProjectPicker from '../generator/ProjectPicker.jsx';
 import { isFacebookPublishReady, isFacebookPublishPending, FACEBOOK_PUBLISH_PENDING_UI_MESSAGE } from '../../lib/facebookStatus.js';
+import { isCreativeEngineV2BetaVisible } from '../../lib/features.js';
 import PremiumLock from '../ai/PremiumLock.jsx';
 import '../../styles/modal.css';
 import '../../styles/premium.css';
-
 const PLATFORMS = [
   { id: 'instagram', label: 'Instagram', icon: '📸' },
   { id: 'facebook', label: 'Facebook', icon: '📘' },
@@ -59,8 +59,8 @@ export default function CreativeStudioModal() {
     style: 'premium',
     includeImage: true,
     includeVideoPrompt: true,
+    useCreativeEngineV2: false,
   });
-
   useEffect(() => {
     if (isOpen) {
       setStep(0);
@@ -81,6 +81,7 @@ export default function CreativeStudioModal() {
         style: prefill?.style || 'premium',
         includeImage: true,
         includeVideoPrompt: true,
+        useCreativeEngineV2: false,
       });
       api.getIntegrationsStatus().then(setIntegrations).catch(() => setIntegrations({}));
     }
@@ -130,6 +131,8 @@ export default function CreativeStudioModal() {
     includeImage: form.includeImage,
     includeVideoPrompt: form.includeVideoPrompt,
     brandId: resolveBrandId(),
+    useCreativeEngineV2: form.useCreativeEngineV2 === true,
+    engine: form.useCreativeEngineV2 ? 'v2' : 'v1',
     ...opts,
   });
 
@@ -167,6 +170,14 @@ export default function CreativeStudioModal() {
         visualStyle: pack.visualStyle,
         platformVariants: pack.platformVariants,
         videoScript: pack.videoScript,
+        altText: pack.altText,
+        variantA: pack.variantA,
+        variantB: pack.variantB,
+        story: pack.story,
+        coverReel: pack.coverReel,
+        carousel: pack.carousel,
+        useCreativeEngineV2: pack.engineId === 'creative-engine-v2' || form.useCreativeEngineV2,
+        engine: (pack.engineId === 'creative-engine-v2' || form.useCreativeEngineV2) ? 'v2' : 'v1',
       }));
       setPack((p) => ({ ...p, ...result }));
       await refreshBilling();
@@ -422,6 +433,22 @@ export default function CreativeStudioModal() {
                 />
                 Includi prompt video professionale
               </label>
+              {isCreativeEngineV2BetaVisible() && (
+                <label className="creative-toggle creative-toggle--beta">
+                  <input
+                    type="checkbox"
+                    checked={form.useCreativeEngineV2}
+                    onChange={(e) => setForm((f) => ({ ...f, useCreativeEngineV2: e.target.checked }))}
+                  />
+                  Usa Nova Creative Engine V2 (Beta)
+                  <span className="creative-beta-badge">BETA</span>
+                </label>
+              )}
+              {form.useCreativeEngineV2 && (
+                <p className="creative-engine-hint">
+                  Motore nuovo: Creative Director, layout, prompt lunghi, Brand Photography, quality check e pacchetto completo (varianti A/B, story, cover, carousel).
+                </p>
+              )}
               <p className="creative-cost-hint">
                 Costo: <strong>{packCost} crediti</strong>
                 {!form.includeImage && ` · senza immagine ${costs.creativePackNoImage} crediti`}
@@ -432,16 +459,25 @@ export default function CreativeStudioModal() {
                 onClick={() => runCreativePack()}
                 disabled={loading || !creativeAvailable}
               >
-                {loading ? 'Generazione pacchetto…' : '✦ Genera pacchetto creativo'}
+                {loading
+                  ? (form.useCreativeEngineV2 ? 'Creative Engine V2 in corso…' : 'Generazione pacchetto…')
+                  : '✦ Genera pacchetto creativo'}
               </button>
             </div>
           )}
 
           {phase === 'result' && pack && (
             <div className="modal-result creative-result">
+              {(pack.engineId === 'creative-engine-v2' || pack.engine?.label) && (
+                <p className="creative-engine-badge">
+                  {pack.engineLabel || pack.engine?.label || 'Nova Creative Engine V2'}
+                  {pack.engine?.conceptLabel ? ` · ${pack.engine.conceptLabel}` : ''}
+                  {pack.engine?.photographyMode ? ' · Brand Photography' : ''}
+                </p>
+              )}
               {pack.imageUrl && (
                 <div className="creative-preview-image">
-                  <img src={pack.imageUrl} alt="Anteprima generata" />
+                  <img src={pack.imageUrl} alt={pack.altText || 'Anteprima generata'} />
                   <p className="creative-preview-meta">{pack.socialFormat || form.format} · {pack.visualStyle}</p>
                 </div>
               )}
@@ -450,10 +486,52 @@ export default function CreativeStudioModal() {
                 <Field label="Caption" value={pack.caption} />
                 <Field label="Hashtag" value={pack.hashtags} />
                 <Field label="CTA" value={pack.cta} />
+                {pack.altText && <Field label="Alt text" value={pack.altText} />}
                 <Field label="Mood musica" value={pack.musicMood} />
                 <Field label="Prompt video" value={pack.videoPrompt} multiline />
                 <Field label="Prompt immagine" value={pack.imagePrompt} multiline />
               </div>
+
+              {(pack.variantA || pack.variantB) && (
+                <div className="ai-result-section">
+                  <p className="modal-result-label">Varianti A / B</p>
+                  {pack.variantA && (
+                    <Field label="Variante A" value={`${pack.variantA.caption || ''}\nCTA: ${pack.variantA.cta || ''}`} multiline />
+                  )}
+                  {pack.variantB && (
+                    <Field label="Variante B" value={`${pack.variantB.caption || ''}\nCTA: ${pack.variantB.cta || ''}`} multiline />
+                  )}
+                </div>
+              )}
+
+              {(pack.story?.copy || pack.coverReel?.line) && (
+                <div className="modal-result-grid">
+                  {pack.story?.copy && <Field label="Story" value={pack.story.copy} multiline />}
+                  {pack.coverReel?.line && <Field label="Cover Reel" value={pack.coverReel.line} />}
+                </div>
+              )}
+
+              {Array.isArray(pack.carousel) && pack.carousel.length > 0 && (
+                <div className="ai-result-section">
+                  <p className="modal-result-label">Carousel</p>
+                  {pack.carousel.map((slide, i) => (
+                    <Field
+                      key={`carousel-${i}`}
+                      label={`Slide ${i + 1}${slide.title ? ` — ${slide.title}` : ''}`}
+                      value={slide.body || slide.title || ''}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {pack.engine?.quality && (
+                <p className="creative-quality-meta">
+                  Quality check: {pack.engine.quality.pass ? 'OK' : 'review'} · score {pack.engine.quality.score}
+                  {pack.engine.quality.issues?.length
+                    ? ` · ${pack.engine.quality.issues.slice(0, 3).join(', ')}`
+                    : ''}
+                </p>
+              )}
 
               {pack.videoScript?.scenes?.length > 0 && (
                 <div className="ai-result-section">

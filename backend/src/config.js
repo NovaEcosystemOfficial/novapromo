@@ -319,5 +319,7 @@ export function getAppFeatures() {
     aiConfigured: Boolean(config.openai.apiKey?.trim()),
     aiModel: config.openai.model,
     premiumEnabled: true,
+    /** Nova Creative Engine V2 available behind Creative Studio beta toggle (default OFF). */
+    creativeEngineV2Beta: true,
   };
 }
