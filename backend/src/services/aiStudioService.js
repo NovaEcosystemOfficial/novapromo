@@ -13,6 +13,64 @@ const TRANSFORM_PLATFORMS = {
   twitter_post: 'X/Twitter Post',
 };
 
+function asText(value) {
+  if (value == null) return '';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (Array.isArray(value)) {
+    return value.map((item) => asText(item)).filter(Boolean).join('\n');
+  }
+  if (typeof value === 'object') {
+    if (typeof value.text === 'string') return value.text;
+    if (typeof value.content === 'string') return value.content;
+    if (typeof value.caption === 'string') return value.caption;
+  }
+  return '';
+}
+
+function asStringList(value) {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => asText(item)).filter(Boolean);
+}
+
+function asVariantMap(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const out = {};
+  for (const [key, item] of Object.entries(value)) {
+    out[key] = asText(item);
+  }
+  return out;
+}
+
+/**
+ * Normalizes free-text topic flow. Topic is the primary input; suggestions/templates are optional.
+ * For transform endpoints, sourceText alone is accepted as the working content.
+ */
+function normalizeStudioInput(input = {}, { allowSourceOnly = false } = {}) {
+  const topic = asText(input.topic).trim();
+  const sourceText = asText(input.sourceText).trim();
+
+  if (!topic && !(allowSourceOnly && sourceText)) {
+    const err = new Error('Argomento obbligatorio');
+    err.code = 'VALIDATION_ERROR';
+    err.status = 400;
+    throw err;
+  }
+
+  const resolvedTopic = (topic || sourceText).slice(0, 500);
+  const project = asText(input.project).trim() || resolvedTopic;
+
+  return {
+    topic: resolvedTopic,
+    project: project.slice(0, 120),
+    platform: asText(input.platform).trim().slice(0, 40) || 'instagram',
+    contentType: asText(input.contentType).trim().slice(0, 40) || 'post',
+    tone: asText(input.tone).trim().slice(0, 40) || 'professionale',
+    sourceText: sourceText.slice(0, 4000),
+    targetPlatforms: Array.isArray(input.targetPlatforms) ? input.targetPlatforms : undefined,
+  };
+}
+
 async function assertAiAccess(userDocId) {
   const plan = await getUserPlan(userDocId);
   const gate = canUseAI(plan);
@@ -26,25 +84,41 @@ async function assertAiAccess(userDocId) {
   return plan;
 }
 
-async function runAi({ userDocId, type, input, brandId, buildUserPrompt, parseOutput }) {
+async function runAi({
+  userDocId,
+  type,
+  input,
+  brandId,
+  buildUserPrompt,
+  parseOutput,
+  allowSourceOnly = false,
+}) {
   await assertAiAccess(userDocId);
-  const brand = await getBrand(brandId || DEFAULT_BRAND_ID);
+  const normalized = normalizeStudioInput(input, { allowSourceOnly });
+  const resolvedBrandId = brandId && brandId !== '__custom__' ? brandId : DEFAULT_BRAND_ID;
+  const brand = await getBrand(resolvedBrandId);
   const system = buildBrandSystemPrompt(brand);
-  const user = buildUserPrompt(input, brand);
+  const user = buildUserPrompt(normalized, brand);
   const raw = await chatCompletion({ system, user, json: true });
-  const output = parseOutput(raw);
+  const output = parseOutput(raw || {});
   await consumeAICredit(userDocId);
-  const saved = await saveAiGeneration({ userDocId, type, input, output, brandId: brand.id });
+  const saved = await saveAiGeneration({
+    userDocId,
+    type,
+    input: normalized,
+    output,
+    brandId: brand.id,
+  });
   return { ...output, generationId: saved.id, brandId: brand.id };
 }
 
 function baseContext(input) {
   return [
+    `Argomento: ${input.topic}`,
     input.project && `Progetto: ${input.project}`,
     input.platform && `Piattaforma: ${input.platform}`,
     input.contentType && `Formato: ${input.contentType}`,
     input.tone && `Tono: ${input.tone}`,
-    input.topic && `Argomento: ${input.topic}`,
   ].filter(Boolean).join('\n');
 }
 
@@ -55,8 +129,8 @@ export async function generateCaption(userDocId, input, brandId) {
     input,
     brandId,
     buildUserPrompt: (inp) =>
-      `${baseContext(inp)}\n\nGenera una caption per social media.\nRispondi JSON: {"caption":"..."}`,
-    parseOutput: (raw) => ({ caption: raw.caption || '' }),
+      `${baseContext(inp)}\n\nGenera una caption per social media basata sull'argomento indicato dall'utente.\nRispondi JSON: {"caption":"..."}`,
+    parseOutput: (raw) => ({ caption: asText(raw.caption) }),
   });
 }
 
@@ -67,8 +141,8 @@ export async function generateHashtags(userDocId, input, brandId) {
     input,
     brandId,
     buildUserPrompt: (inp) =>
-      `${baseContext(inp)}\n\nGenera 8-12 hashtag rilevanti.\nRispondi JSON: {"hashtags":"#uno #due ..."}`,
-    parseOutput: (raw) => ({ hashtags: raw.hashtags || '' }),
+      `${baseContext(inp)}\n\nGenera 8-12 hashtag rilevanti per l'argomento.\nRispondi JSON: {"hashtags":"#uno #due ..."}`,
+    parseOutput: (raw) => ({ hashtags: asText(raw.hashtags) }),
   });
 }
 
@@ -79,16 +153,22 @@ export async function generateContentPack(userDocId, input, brandId) {
     input,
     brandId,
     buildUserPrompt: (inp) =>
-      `${baseContext(inp)}\n\nGenera un content pack completo.\nRispondi JSON con chiavi:
+      `${baseContext(inp)}
+
+L'argomento sopra è l'input principale dell'utente (testo libero). Usalo come soggetto del contenuto.
+Non dipendere da template o suggerimenti predefiniti.
+
+Genera un content pack completo.
+Rispondi JSON con chiavi:
 {"caption":"","hashtags":"","cta":"","reelIdea":"","carouselSlides":["slide1","slide2","slide3"],"storyText":"","platformVariants":{"instagram_post":"","instagram_story":"","facebook_post":"","linkedin_post":"","twitter_post":""}}`,
     parseOutput: (raw) => ({
-      caption: raw.caption || '',
-      hashtags: raw.hashtags || '',
-      cta: raw.cta || '',
-      reelIdea: raw.reelIdea || '',
-      carouselSlides: Array.isArray(raw.carouselSlides) ? raw.carouselSlides : [],
-      storyText: raw.storyText || '',
-      platformVariants: raw.platformVariants || {},
+      caption: asText(raw.caption),
+      hashtags: asText(raw.hashtags),
+      cta: asText(raw.cta),
+      reelIdea: asText(raw.reelIdea),
+      carouselSlides: asStringList(raw.carouselSlides),
+      storyText: asText(raw.storyText),
+      platformVariants: asVariantMap(raw.platformVariants),
     }),
   });
 }
@@ -103,13 +183,15 @@ export async function transformContent(userDocId, input, brandId) {
     type: 'transform',
     input: { ...input, targetPlatforms: targets },
     brandId,
+    allowSourceOnly: true,
     buildUserPrompt: (inp) => {
       const list = targets.map((k) => TRANSFORM_PLATFORMS[k] || k).join(', ');
-      return `Contenuto sorgente:\n${inp.sourceText || inp.topic || ''}\n\n${baseContext(inp)}\n\nAdatta per: ${list}.\nRispondi JSON: {"platformVariants":{"instagram_post":"","instagram_story":"","facebook_post":"","linkedin_post":"","twitter_post":""}}`;
+      const source = inp.sourceText || inp.topic;
+      return `Contenuto sorgente:\n${source}\n\n${baseContext(inp)}\n\nAdatta per: ${list}.\nRispondi JSON: {"platformVariants":{"instagram_post":"","instagram_story":"","facebook_post":"","linkedin_post":"","twitter_post":""}}`;
     },
     parseOutput: (raw) => ({
-      platformVariants: raw.platformVariants || {},
-      sourceText: input.sourceText || input.topic || '',
+      platformVariants: asVariantMap(raw.platformVariants),
+      sourceText: asText(input.sourceText || input.topic),
     }),
   });
 }
@@ -121,8 +203,8 @@ export async function generateCta(userDocId, input, brandId) {
     input,
     brandId,
     buildUserPrompt: (inp) =>
-      `${baseContext(inp)}\n\nGenera una CTA efficace.\nRispondi JSON: {"cta":"..."}`,
-    parseOutput: (raw) => ({ cta: raw.cta || '' }),
+      `${baseContext(inp)}\n\nGenera una CTA efficace sull'argomento.\nRispondi JSON: {"cta":"..."}`,
+    parseOutput: (raw) => ({ cta: asText(raw.cta) }),
   });
 }
 
@@ -133,8 +215,8 @@ export async function generateReelIdea(userDocId, input, brandId) {
     input,
     brandId,
     buildUserPrompt: (inp) =>
-      `${baseContext(inp)}\n\nGenera idea per Reel (hook, corpo, CTA).\nRispondi JSON: {"reelIdea":"..."}`,
-    parseOutput: (raw) => ({ reelIdea: raw.reelIdea || '' }),
+      `${baseContext(inp)}\n\nGenera idea per Reel (hook, corpo, CTA) sull'argomento.\nRispondi JSON: {"reelIdea":"..."}`,
+    parseOutput: (raw) => ({ reelIdea: asText(raw.reelIdea) }),
   });
 }
 
@@ -145,9 +227,9 @@ export async function generateCarouselIdea(userDocId, input, brandId) {
     input,
     brandId,
     buildUserPrompt: (inp) =>
-      `${baseContext(inp)}\n\nGenera idea carosello (3-5 slide).\nRispondi JSON: {"carouselSlides":["..."]}`,
+      `${baseContext(inp)}\n\nGenera idea carosello (3-5 slide) sull'argomento.\nRispondi JSON: {"carouselSlides":["..."]}`,
     parseOutput: (raw) => ({
-      carouselSlides: Array.isArray(raw.carouselSlides) ? raw.carouselSlides : [],
+      carouselSlides: asStringList(raw.carouselSlides),
     }),
   });
 }

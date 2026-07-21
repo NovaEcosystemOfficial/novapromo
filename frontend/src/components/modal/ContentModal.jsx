@@ -44,16 +44,40 @@ function getPlatforms() {
 
 const ALL_STEPS = ['Progetto', 'Piattaforma', 'Tipo', 'Tono', 'Argomento'];
 
-function normalizeAiPack(pack) {
+function asText(value) {
+  if (value == null) return '';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (Array.isArray(value)) {
+    return value.map((item) => asText(item)).filter(Boolean).join('\n');
+  }
+  if (typeof value === 'object') {
+    if (typeof value.text === 'string') return value.text;
+    if (typeof value.content === 'string') return value.content;
+    if (typeof value.caption === 'string') return value.caption;
+  }
+  return '';
+}
+
+function normalizeAiPack(pack = {}) {
+  const caption = asText(pack.caption);
+  const variants = pack.platformVariants && typeof pack.platformVariants === 'object'
+    ? Object.fromEntries(
+      Object.entries(pack.platformVariants).map(([key, value]) => [key, asText(value)])
+    )
+    : {};
+
   return {
-    caption: pack.caption || '',
-    hashtags: pack.hashtags || '',
-    cta: pack.cta || '',
-    reelIdea: pack.reelIdea || '',
-    overlayTitle: pack.caption?.slice(0, 28) || '',
-    carouselSlides: pack.carouselSlides || [],
-    storyText: pack.storyText || '',
-    platformVariants: pack.platformVariants || {},
+    caption,
+    hashtags: asText(pack.hashtags),
+    cta: asText(pack.cta),
+    reelIdea: asText(pack.reelIdea),
+    overlayTitle: caption.slice(0, 28),
+    carouselSlides: Array.isArray(pack.carouselSlides)
+      ? pack.carouselSlides.map((slide) => asText(slide)).filter(Boolean)
+      : [],
+    storyText: asText(pack.storyText),
+    platformVariants: variants,
     aiGenerated: true,
     generationId: pack.generationId,
   };
@@ -92,15 +116,24 @@ export default function ContentModal() {
   const [media, setMedia] = useState(null);
   const [integrations, setIntegrations] = useState({});
 
-  const buildFormPayload = () => ({
-    ...form,
-    project: resolveProjectLabel({
+  const buildFormPayload = () => {
+    const topic = String(form.topic || '').trim();
+    const project = resolveProjectLabel({
       brandId: form.brandId,
       project: form.project,
       customProject: form.customProject,
       brands,
-    }),
-  });
+    }) || topic;
+
+    return {
+      brandId: form.brandId === CUSTOM_PROJECT_ID ? undefined : form.brandId,
+      project,
+      platform: form.platform,
+      contentType: form.contentType,
+      tone: form.tone,
+      topic,
+    };
+  };
 
   const usesBrandTone = Boolean(brandContext?.hasProfile && brandContext?.toneOfVoice?.length);
   const steps = usesBrandTone
@@ -183,6 +216,10 @@ export default function ContentModal() {
     setSourceMode('template');
     try {
       const payload = buildFormPayload();
+      if (!payload.topic) {
+        setError('Inserisci un argomento per generare il contenuto');
+        return;
+      }
       if (usesBrandTone) {
         delete payload.tone;
       }
@@ -202,10 +239,19 @@ export default function ContentModal() {
     setLoading(true);
     setSourceMode('ai');
     try {
-      const pack = await api.aiGenerateContentPack(buildFormPayload());
+      const payload = buildFormPayload();
+      if (!payload.topic) {
+        setError('Inserisci un argomento per generare il contenuto');
+        return;
+      }
+      const pack = await api.aiGenerateContentPack(payload);
       setGenerated(normalizeAiPack(pack));
       setPhase('result');
-      await refreshBilling();
+      try {
+        await refreshBilling();
+      } catch {
+        // Generation succeeded; billing refresh must not block the result.
+      }
     } catch (err) {
       handleAiError(err);
     } finally {

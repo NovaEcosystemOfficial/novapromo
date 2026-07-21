@@ -147,13 +147,23 @@ export async function getBrand(brandId = DEFAULT_BRAND_ID) {
 }
 
 export function buildBrandSystemPrompt(brand) {
+  const name = brand?.name || 'NovaPromo';
+  const tone = Array.isArray(brand?.tone) ? brand.tone.join(', ') : (brand?.tone || 'professionale');
+  const styleNotes = Array.isArray(brand?.styleNotes)
+    ? brand.styleNotes.join('. ')
+    : (brand?.styleNotes || '');
+  const forbidden = Array.isArray(brand?.forbiddenWords)
+    ? brand.forbiddenWords.join(', ')
+    : '';
+
   return [
-    `Sei il copywriter di ${brand.name}.`,
-    `Tono: ${brand.tone}.`,
-    `Note di stile: ${brand.styleNotes}.`,
-    `CTA preferita: ${brand.preferredCTA}.`,
-    `Parole da evitare: ${(brand.forbiddenWords || []).join(', ')}.`,
+    `Sei il copywriter di ${name}.`,
+    `Tono: ${tone}.`,
+    `Note di stile: ${styleNotes}.`,
+    `CTA preferita: ${brand?.preferredCTA || 'Scopri di più nel link in bio'}.`,
+    `Parole da evitare: ${forbidden}.`,
     'Scrivi in italiano. Output conciso, premium, senza emoji eccessive.',
     'Non usare clickbait. Non inventare dati o statistiche.',
+    'Usa sempre l\'argomento indicato dall\'utente come soggetto principale del contenuto.',
   ].join('\n');
 }

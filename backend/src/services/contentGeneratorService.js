@@ -73,7 +73,8 @@ function applyBrandWords(caption, brandContext) {
 
   for (const avoid of brandContext?.wordsToAvoid || []) {
     if (!avoid?.trim()) continue;
-    const re = new RegExp(avoid.trim(), 'gi');
+    const escaped = avoid.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const re = new RegExp(escaped, 'gi');
     result = result.replace(re, '');
   }
 
@@ -94,8 +95,9 @@ function enrichOpener(opener, brandContext) {
 export function generateContent({ project, platform, contentType, tone, topic, brandProfile }) {
   const brandContext = buildBrandAiContext(brandProfile);
   const resolvedTone = tone || brandContext?.generatorTone || 'professionale';
-  const brandName = brandContext?.companyName || project;
-  const subject = topic || brandName;
+  const freeTopic = typeof topic === 'string' ? topic.trim() : '';
+  const brandName = brandContext?.companyName || project || freeTopic || 'NovaPromo';
+  const subject = freeTopic || brandName;
 
   const opener = enrichOpener(
     (TONE_OPENERS[resolvedTone] || TONE_OPENERS.professionale)(subject, brandName),

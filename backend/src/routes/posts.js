@@ -49,9 +49,15 @@ router.get('/logs', async (req, res) => {
 
 router.post('/generate', async (req, res) => {
   try {
-    const { project, platform, contentType, tone, topic } = req.body;
-    if (!project || !platform || !contentType) {
-      return res.status(400).json({ error: 'Campi obbligatori: project, platform, contentType' });
+    const { platform, contentType, tone } = req.body;
+    const topic = typeof req.body.topic === 'string' ? req.body.topic.trim() : '';
+    const project = (typeof req.body.project === 'string' ? req.body.project.trim() : '') || topic;
+
+    if (!topic) {
+      return res.status(400).json({ error: 'Argomento obbligatorio' });
+    }
+    if (!platform || !contentType) {
+      return res.status(400).json({ error: 'Campi obbligatori: platform, contentType' });
     }
 
     const sessionUser = await resolveSessionUser(req);
