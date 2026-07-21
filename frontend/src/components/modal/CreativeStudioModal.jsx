@@ -8,6 +8,7 @@ import ProjectPicker from '../generator/ProjectPicker.jsx';
 import { isFacebookPublishReady, isFacebookPublishPending, FACEBOOK_PUBLISH_PENDING_UI_MESSAGE } from '../../lib/facebookStatus.js';
 import { isCreativeEngineV2BetaVisible } from '../../lib/features.js';
 import PremiumLock from '../ai/PremiumLock.jsx';
+import CreativeEngineV2Progress from '../creative/CreativeEngineV2Progress.jsx';
 import '../../styles/modal.css';
 import '../../styles/premium.css';
 const PLATFORMS = [
@@ -41,6 +42,7 @@ export default function CreativeStudioModal() {
   const [step, setStep] = useState(0);
   const [phase, setPhase] = useState('wizard');
   const [loading, setLoading] = useState(false);
+  const [v2Ux, setV2Ux] = useState('idle'); // idle | running | success
   const [error, setError] = useState('');
   const [lock, setLock] = useState(null);
   const [pack, setPack] = useState(null);
@@ -71,6 +73,7 @@ export default function CreativeStudioModal() {
       setSavedPostId(null);
       setShowSchedule(false);
       setScheduleAt('');
+      setV2Ux('idle');
       setForm({
         brandId: prefill?.brandId || 'nova-promo',
         project: prefill?.project || '',
@@ -137,15 +140,25 @@ export default function CreativeStudioModal() {
   });
 
   const runCreativePack = async (opts = {}) => {
+    const useV2 = opts.useCreativeEngineV2 === true
+      || opts.engine === 'v2'
+      || (opts.useCreativeEngineV2 !== false && form.useCreativeEngineV2 === true);
     setLoading(true);
     setError('');
     setLock(null);
+    if (useV2) setV2Ux('running');
     try {
       const result = await api.aiCreativePack(buildPackBody(opts));
       setPack(result);
+      if (useV2 || result?.engineId === 'creative-engine-v2') {
+        setV2Ux('success');
+        await new Promise((r) => setTimeout(r, 1100));
+        setV2Ux('idle');
+      }
       setPhase('result');
       await refreshBilling();
     } catch (err) {
+      setV2Ux('idle');
       handleStudioError(err);
     } finally {
       setLoading(false);
@@ -154,8 +167,10 @@ export default function CreativeStudioModal() {
 
   const handleRegenerateImage = async () => {
     if (!pack?.imagePrompt) return;
+    const useV2 = pack.engineId === 'creative-engine-v2' || form.useCreativeEngineV2;
     setLoading(true);
     setError('');
+    if (useV2) setV2Ux('running');
     try {
       const result = await api.aiCreativePack(buildPackBody({
         includeImage: true,
@@ -176,12 +191,18 @@ export default function CreativeStudioModal() {
         story: pack.story,
         coverReel: pack.coverReel,
         carousel: pack.carousel,
-        useCreativeEngineV2: pack.engineId === 'creative-engine-v2' || form.useCreativeEngineV2,
-        engine: (pack.engineId === 'creative-engine-v2' || form.useCreativeEngineV2) ? 'v2' : 'v1',
+        useCreativeEngineV2: useV2,
+        engine: useV2 ? 'v2' : 'v1',
       }));
       setPack((p) => ({ ...p, ...result }));
+      if (useV2) {
+        setV2Ux('success');
+        await new Promise((r) => setTimeout(r, 900));
+        setV2Ux('idle');
+      }
       await refreshBilling();
     } catch (err) {
+      setV2Ux('idle');
       handleStudioError(err);
     } finally {
       setLoading(false);
@@ -417,6 +438,13 @@ export default function CreativeStudioModal() {
                 <li><strong>Formato:</strong> {form.format}</li>
                 <li><strong>Stile:</strong> {form.style}</li>
               </ul>
+              {form.useCreativeEngineV2 && (v2Ux === 'running' || v2Ux === 'success') ? (
+                <CreativeEngineV2Progress
+                  active={v2Ux === 'running'}
+                  succeeded={v2Ux === 'success'}
+                />
+              ) : (
+                <>
               <label className="creative-toggle">
                 <input
                   type="checkbox"
@@ -460,14 +488,25 @@ export default function CreativeStudioModal() {
                 disabled={loading || !creativeAvailable}
               >
                 {loading
-                  ? (form.useCreativeEngineV2 ? 'Creative Engine V2 in corso…' : 'Generazione pacchetto…')
+                  ? 'Generazione pacchetto…'
                   : '✦ Genera pacchetto creativo'}
               </button>
+                </>
+              )}
             </div>
           )}
 
           {phase === 'result' && pack && (
             <div className="modal-result creative-result">
+              {(v2Ux === 'running' || v2Ux === 'success') && (
+                <CreativeEngineV2Progress
+                  active={v2Ux === 'running'}
+                  succeeded={v2Ux === 'success'}
+                />
+              )}
+
+              {v2Ux === 'idle' && (
+              <>
               {(pack.engineId === 'creative-engine-v2' || pack.engine?.label) && (
                 <p className="creative-engine-badge">
                   {pack.engineLabel || pack.engine?.label || 'Nova Creative Engine V2'}
@@ -579,6 +618,8 @@ export default function CreativeStudioModal() {
                   Rigenera tutto
                 </button>
               </div>
+              </>
+              )}
             </div>
           )}
         </div>
