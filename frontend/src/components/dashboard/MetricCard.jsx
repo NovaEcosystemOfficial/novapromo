@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { MetricIcon } from '../icons/DashboardIcons.jsx';
 
 const QUALITY_LABELS = {
@@ -15,12 +16,16 @@ export default function MetricCard({
   icon,
   featured = false,
   delay = 0,
+  secondary = null,
+  actionLabel = null,
+  actionHref = null,
 }) {
   const qualityTag = QUALITY_LABELS[quality];
+  const showPending = quality === 'pending' && !value;
 
   return (
     <article
-      className={`ndl-metric${featured ? ' ndl-metric--featured' : ''}`}
+      className={`ndl-metric${featured ? ' ndl-metric--featured' : ''}${showPending ? ' ndl-metric--pending' : ''}`}
       style={{ animationDelay: `${delay}ms` }}
     >
       <div className="ndl-metric__top">
@@ -35,19 +40,28 @@ export default function MetricCard({
       </div>
 
       <div className="ndl-metric__value">
-        {quality === 'pending' && !value ? (
-          <span className="ndl-metric__pending">—</span>
+        {showPending ? (
+          <span className="ndl-metric__pending">In attesa dati</span>
         ) : (
           value ?? '—'
         )}
       </div>
 
+      {secondary && <p className="ndl-metric__secondary">{secondary}</p>}
+
       <p className="ndl-metric__label">{label}</p>
       <p className="ndl-metric__desc">{description}</p>
 
-      {qualityTag && (
-        <span className={`ndl-metric__tag ndl-metric__tag--${quality}`}>{qualityTag}</span>
-      )}
+      <div className="ndl-metric__footer">
+        {qualityTag && (
+          <span className={`ndl-metric__tag ndl-metric__tag--${quality}`}>{qualityTag}</span>
+        )}
+        {actionHref && actionLabel && (
+          <Link to={actionHref} className="ndl-metric__action">
+            {actionLabel}
+          </Link>
+        )}
+      </div>
     </article>
   );
 }

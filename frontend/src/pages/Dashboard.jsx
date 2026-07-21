@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '../api/client.js';
 import { isDemoMode } from '../lib/features.js';
 import { getDemoDashboardStats } from '../lib/demo.js';
@@ -10,13 +10,18 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { useBilling } from '../context/BillingContext.jsx';
 import { useViewport } from '../hooks/useViewport.js';
 import {
-  buildMetricCards,
   buildLast7DaysSeries,
   buildNextActions,
   enrichSuggestions,
   getGreeting,
   getFirstName,
 } from '../utils/dashboardMetrics.js';
+import {
+  buildAnalyticsV2Cards,
+  buildPerformanceAiTips,
+  buildAnalyticsInsights,
+  buildAnalyticsGoals,
+} from '../utils/dashboardAnalyticsV2.js';
 import DashboardHeader from '../components/dashboard/DashboardHeader.jsx';
 import MetricCard from '../components/dashboard/MetricCard.jsx';
 import InsightPanel from '../components/dashboard/InsightPanel.jsx';
@@ -26,8 +31,14 @@ import ChannelStatusCard from '../components/dashboard/ChannelStatusCard.jsx';
 import NextActionsPanel from '../components/dashboard/NextActionsPanel.jsx';
 import AiSuggestionsPanel from '../components/dashboard/AiSuggestionsPanel.jsx';
 import MobileDashboard from '../components/dashboard/MobileDashboard.jsx';
+import PerformanceAiPanel, {
+  AnalyticsInsightsPanel,
+  AnalyticsGoalsPanel,
+} from '../components/dashboard/AnalyticsV2Panels.jsx';
 import { IconCalendar, IconDrafts } from '../components/icons/DashboardIcons.jsx';
 import '../styles/dashboard.css';
+
+const REFRESH_MS = 60_000;
 
 function formatLastUpdated(date) {
   return date.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
@@ -48,34 +59,48 @@ export default function Dashboard() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    Promise.all([
-      api.getDashboard(),
-      api.getPosts(),
-      api.getAccounts(),
-      api.getFeatures().catch(() => null),
-      api.getBrandAiContext().catch(() => null),
-    ])
-      .then(([dash, allPosts, accs, features, brand]) => {
-        setStats(dash);
-        setPosts(allPosts);
-        setAccounts(accs);
-        setFirebaseStatus(features?.firebase || null);
-        setBrandContext(brand);
+  const loadDashboard = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) setLoading(true);
+    try {
+      const [dash, allPosts, accs, features, brand] = await Promise.all([
+        api.getDashboard(),
+        api.getPosts(),
+        api.getAccounts(),
+        api.getFeatures().catch(() => null),
+        api.getBrandAiContext().catch(() => null),
+      ]);
+      setStats(dash);
+      setPosts(allPosts);
+      setAccounts(accs);
+      setFirebaseStatus(features?.firebase || null);
+      setBrandContext(brand);
+      setLastUpdated(new Date());
+      setError('');
+    } catch (err) {
+      if (isDemoMode()) {
+        setStats(getDemoDashboardStats());
+        setPosts([]);
+        setAccounts([]);
         setLastUpdated(new Date());
-      })
-      .catch((err) => {
-        if (isDemoMode()) {
-          setStats(getDemoDashboardStats());
-          setPosts([]);
-          setAccounts([]);
-          setLastUpdated(new Date());
-        } else {
-          setError(err.message);
-        }
-      })
-      .finally(() => setLoading(false));
+        setError('');
+      } else if (!silent) {
+        setError(err.message);
+      }
+    } finally {
+      if (!silent) setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadDashboard();
+  }, [loadDashboard]);
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      loadDashboard({ silent: true });
+    }, REFRESH_MS);
+    return () => window.clearInterval(id);
+  }, [loadDashboard]);
 
   const calendarPosts = useMemo(
     () => posts.filter((p) => p.scheduledAt || p.publishedAt),
@@ -88,11 +113,33 @@ export default function Dashboard() {
   );
 
   const metricCards = useMemo(
-    () => (stats ? buildMetricCards(stats, posts) : []),
-    [stats, posts]
+    () => (stats
+      ? buildAnalyticsV2Cards({
+        stats,
+        posts,
+        integrations: stats.integrations || {},
+        accounts,
+      })
+      : []),
+    [stats, posts, accounts]
   );
 
   const performanceSeries = useMemo(() => buildLast7DaysSeries(posts), [posts]);
+
+  const performanceTips = useMemo(
+    () => buildPerformanceAiTips({ posts, stats }),
+    [posts, stats]
+  );
+
+  const analyticsInsights = useMemo(
+    () => buildAnalyticsInsights({ posts }),
+    [posts]
+  );
+
+  const analyticsGoals = useMemo(
+    () => buildAnalyticsGoals({ stats, posts, billing }),
+    [stats, posts, billing]
+  );
 
   const nextActions = useMemo(
     () =>
@@ -216,6 +263,9 @@ export default function Dashboard() {
         extraCards={mobileExtraCards}
         quickActions={mobileQuickActions}
         onNewContent={() => openModal()}
+        performanceTips={performanceTips}
+        analyticsInsights={analyticsInsights}
+        analyticsGoals={analyticsGoals}
       />
     );
   }
@@ -236,11 +286,18 @@ export default function Dashboard() {
         quickActions={quickActions}
       />
 
-      <section className="ndl-metrics" aria-label="Metriche principali">
+      <section className="ndl-metrics ndl-metrics--v2" aria-label="Dashboard Analytics V2">
         {metricCards.map((card, index) => (
           <MetricCard key={card.id} {...card} delay={index * 35} />
         ))}
       </section>
+
+      <div className="nda-analytics-row">
+        <PerformanceAiPanel tips={performanceTips} />
+        <AnalyticsInsightsPanel insights={analyticsInsights} />
+      </div>
+
+      <AnalyticsGoalsPanel goals={analyticsGoals} />
 
       <InsightPanel series={performanceSeries} />
 

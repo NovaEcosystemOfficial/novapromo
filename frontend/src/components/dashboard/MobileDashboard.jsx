@@ -1,5 +1,9 @@
 import { Link } from 'react-router-dom';
 import MetricCard from './MetricCard.jsx';
+import PerformanceAiPanel, {
+  AnalyticsInsightsPanel,
+  AnalyticsGoalsPanel,
+} from './AnalyticsV2Panels.jsx';
 import { IconPlus } from '../icons/DashboardIcons.jsx';
 
 export default function MobileDashboard({
@@ -10,18 +14,21 @@ export default function MobileDashboard({
   extraCards = [],
   quickActions,
   onNewContent,
+  performanceTips = [],
+  analyticsInsights = null,
+  analyticsGoals = [],
 }) {
   const allCards = [...metricCards, ...extraCards];
 
   return (
     <div className="mobile-dashboard mobile-screen">
       <section className="mobile-dashboard__hero mobile-card">
-        <p className="mobile-dashboard__eyebrow">Command Center</p>
+        <p className="mobile-dashboard__eyebrow">Brand Control Center</p>
         <h1 className="mobile-dashboard__title">
           {greeting}, {firstName}
         </h1>
         <p className="mobile-dashboard__subtitle">
-          Centro operativo per contenuti, pubblicazioni e crescita del brand.
+          Analytics del brand con dati reali — niente stime inventate.
         </p>
 
         <div className="mobile-dashboard__services" role="list" aria-label="Stato servizi">
@@ -42,11 +49,15 @@ export default function MobileDashboard({
         </button>
       </section>
 
-      <section className="mobile-dashboard__metrics" aria-label="Metriche rapide">
+      <section className="mobile-dashboard__metrics" aria-label="Metriche Analytics V2">
         {allCards.map((card, index) => (
           <MetricCard key={card.id} {...card} delay={index * 40} />
         ))}
       </section>
+
+      {performanceTips.length > 0 && <PerformanceAiPanel tips={performanceTips} />}
+      {analyticsInsights && <AnalyticsInsightsPanel insights={analyticsInsights} />}
+      {analyticsGoals.length > 0 && <AnalyticsGoalsPanel goals={analyticsGoals} />}
 
       <section className="mobile-dashboard__actions" aria-label="Azioni rapide">
         <h2>Azioni rapide</h2>
