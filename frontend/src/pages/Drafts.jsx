@@ -28,8 +28,15 @@ export default function Drafts() {
 
   const handleDelete = async (id) => {
     if (!confirm('Eliminare questa bozza?')) return;
-    await api.deletePost(id);
-    load();
+    setError('');
+    setMessage('');
+    try {
+      await api.deletePost(id);
+      setMessage('Bozza eliminata.');
+      load();
+    } catch (err) {
+      setError(err.message || 'Impossibile eliminare la bozza. Riprova.');
+    }
   };
 
   return (

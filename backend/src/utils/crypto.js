@@ -8,6 +8,9 @@ const AUTH_TAG_LENGTH = 16;
 
 function getKey() {
   if (!isEncryptionConfigured()) {
+    if (config.isProduction && !config.isDesktop) {
+      throw new Error('ENCRYPTION_KEY mancante: obbligatoria in produzione web.');
+    }
     logger.warn('ENCRYPTION_KEY not configured — using dev-only key. Set a 32+ char key in production.');
     return crypto.scryptSync('novapromo-dev-key', 'salt', 32);
   }

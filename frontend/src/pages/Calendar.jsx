@@ -58,9 +58,9 @@ export default function Calendar() {
             + Nuovo contenuto
           </button>
           <div className="cal-nav">
-            <button type="button" className="btn btn-secondary btn-sm" onClick={() => setCurrentMonth((d) => new Date(d.getFullYear(), d.getMonth() - 1))}>←</button>
+            <button type="button" className="btn btn-secondary btn-sm" aria-label="Mese precedente" onClick={() => setCurrentMonth((d) => new Date(d.getFullYear(), d.getMonth() - 1))}>←</button>
             <span className="cal-month-label">{format(currentMonth, 'MMMM yyyy', { locale: it })}</span>
-            <button type="button" className="btn btn-secondary btn-sm" onClick={() => setCurrentMonth((d) => new Date(d.getFullYear(), d.getMonth() + 1))}>→</button>
+            <button type="button" className="btn btn-secondary btn-sm" aria-label="Mese successivo" onClick={() => setCurrentMonth((d) => new Date(d.getFullYear(), d.getMonth() + 1))}>→</button>
           </div>
         </div>
       </div>

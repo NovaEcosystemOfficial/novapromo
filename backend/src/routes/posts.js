@@ -20,8 +20,10 @@ import { logger } from '../utils/logger.js';
 
 const router = Router();
 
+router.use(requireSession);
+
 /** Process due scheduled posts (authenticated client tick while app is open). */
-router.post('/publish-due', requireSession, async (req, res) => {
+router.post('/publish-due', async (req, res) => {
   try {
     const result = await runDuePublishes({ source: 'client-tick' });
     res.json({ ok: true, ...result });

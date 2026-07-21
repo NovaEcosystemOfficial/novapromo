@@ -11,6 +11,16 @@ const API_BASE = getApiBaseUrl();
 
 const defaultFetchOpts = { credentials: 'include' };
 
+function friendlyHttpMessage(status) {
+  if (status === 401) return 'Sessione scaduta. Accedi di nuovo.';
+  if (status === 403) return 'Non hai i permessi per questa operazione.';
+  if (status === 404) return 'Risorsa non trovata.';
+  if (status === 408 || status === 504) return 'La richiesta ha impiegato troppo tempo. Riprova.';
+  if (status === 429) return 'Troppe richieste. Attendi qualche secondo e riprova.';
+  if (status >= 500) return 'Il server non è disponibile al momento. Riprova tra poco.';
+  return `Operazione non riuscita (codice ${status}).`;
+}
+
 async function request(path, options = {}) {
   const method = (options.method || 'GET').toUpperCase();
 
@@ -36,7 +46,11 @@ async function request(path, options = {}) {
   const data = await res.json().catch(() => ({}));
 
   if (!res.ok) {
-    const err = new Error(data.error || data.credentialsError || `HTTP ${res.status}`);
+    const err = new Error(
+      data.error
+      || data.credentialsError
+      || friendlyHttpMessage(res.status),
+    );
     err.code = data.code;
     err.status = res.status;
     err.details = data;

@@ -86,6 +86,12 @@ function instagramAuthPayload(integration) {
 }
 
 router.post('/local/enter', async (_req, res) => {
+  if (!config.isDesktop && config.isProduction) {
+    return res.status(403).json({
+      error: 'Accesso locale non disponibile in produzione web.',
+      code: 'LOCAL_ENTER_DISABLED',
+    });
+  }
   setLocalSession(res);
   await ensureUserPlan('local-desktop', { uid: LOCAL_USER.uid, displayName: LOCAL_USER.displayName, username: LOCAL_USER.username });
   const instagram = await getInstagramIntegrationStatus();

@@ -22,18 +22,19 @@ import { createOAuthState, validateAndConsumeOAuthState } from '../services/auth
 import { requireTikTokEnabled } from '../middleware/tiktokPaused.js';
 import { mapOAuthDenial, toUserFriendlyMetaError } from '../services/instagram/metaErrors.js';
 import { getFacebookSetupChecklist } from '../services/facebook/metaFacebookConfig.js';
+import { requireSession } from '../middleware/sessionUser.js';
 
 const router = Router();
 
-router.get('/integrations/status', async (_req, res) => {
+router.get('/integrations/status', requireSession, async (_req, res) => {
   res.json(await getAllIntegrationsStatus());
 });
 
-router.get('/accounts', async (_req, res) => {
+router.get('/accounts', requireSession, async (_req, res) => {
   res.json(await listAccounts());
 });
 
-router.delete('/accounts/:id', async (req, res) => {
+router.delete('/accounts/:id', requireSession, async (req, res) => {
   const result = await deleteAccount(req.params.id);
   if (result.changes === 0) return res.status(404).json({ error: 'Account non trovato' });
   res.json({ success: true });

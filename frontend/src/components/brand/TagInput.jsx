@@ -21,7 +21,13 @@ export default function TagInput({ label, value = [], onChange, placeholder, hin
       {hint && <p className="bi-field-hint">{hint}</p>}
       <div className="bi-tag-list">
         {value.map((item) => (
-          <button key={item} type="button" className="bi-tag" onClick={() => remove(item)}>
+          <button
+            key={item}
+            type="button"
+            className="bi-tag"
+            aria-label={`Rimuovi ${item}`}
+            onClick={() => remove(item)}
+          >
             {item} <span aria-hidden>×</span>
           </button>
         ))}

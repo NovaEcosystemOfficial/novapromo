@@ -12,19 +12,14 @@ export default function ProjectPicker({
   const handleBrandTap = (brand) => {
     const id = brand.brandId || brand.id;
     const name = brand.name;
-    console.log('Project tapped', { id, name });
     onSelectBrand(id, name);
-    console.log('Project selected', { id, name });
     if (id !== CUSTOM_PROJECT_ID) {
-      console.log('Moving to step 2');
       onProjectAdvance?.(id, name);
     }
   };
 
   const handleCustomTap = () => {
-    console.log('Project tapped', { id: CUSTOM_PROJECT_ID });
     onSelectBrand(CUSTOM_PROJECT_ID);
-    console.log('Project selected', { id: CUSTOM_PROJECT_ID });
   };
 
   if (loading) {

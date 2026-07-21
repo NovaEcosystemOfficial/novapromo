@@ -111,7 +111,11 @@ app.use((err, _req, res, _next) => {
     return res.status(413).json({ error: `File troppo grande (max ${config.maxFileSizeMb}MB)` });
   }
   logger.error('Unhandled error', { error: err.message });
-  res.status(err.status || 500).json({ error: err.message || 'Errore interno' });
+  res.status(err.status || 500).json({
+    error: err.status && err.status < 500 && err.message
+      ? err.message
+      : 'Il servizio non è disponibile al momento. Riprova tra poco.',
+  });
 });
 
 export default app;
