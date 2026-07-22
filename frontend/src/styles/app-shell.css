@@ -19,15 +19,17 @@
   min-height: 100vh;
   min-height: 100dvh;
   background: var(--ndl-bg);
-  overflow-x: hidden;
 }
 
 .app-shell--desktop {
   display: flex;
+  overflow-x: hidden;
 }
 
 .app-shell--mobile {
   display: block;
+  /* Do NOT set overflow on the shell: on iOS it breaks position:fixed bottom nav */
+  overflow: visible;
 }
 
 /* ── Desktop sidebar ── */
@@ -61,6 +63,18 @@
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
+  }
+}
+
+/* iOS/PWA: avoid transform on page change — it can hide fixed bottom nav until tap */
+@media (max-width: 768px) {
+  .page-transition {
+    animation: app-page-in-mobile 0.22s ease both;
+  }
+
+  @keyframes app-page-in-mobile {
+    from { opacity: 0; }
+    to { opacity: 1; }
   }
 }
 
@@ -155,6 +169,17 @@
   border: none;
   box-shadow: none;
   height: auto;
+  /* Keep dock on its own compositor layer (iOS PWA paint bugs) */
+  transform: translate3d(0, 0, 0);
+  -webkit-transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  isolation: isolate;
+}
+
+.mobile-bottom-nav--paint {
+  transform: translate3d(0, 0, 0.01px);
+  -webkit-transform: translate3d(0, 0, 0.01px);
 }
 
 .mobile-bottom-nav__dock {
@@ -167,14 +192,17 @@
   min-height: 4rem;
   padding: 0.45rem 0.5rem;
   border-radius: 24px;
-  background: rgba(22, 22, 28, 0.92);
-  backdrop-filter: saturate(200%) blur(28px);
-  -webkit-backdrop-filter: saturate(200%) blur(28px);
+  background: rgba(22, 22, 28, 0.96);
+  /* Softer blur: heavy backdrop-filter often fails to repaint on iOS route changes */
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 122, 26, 0.28);
   box-shadow:
     0 14px 48px rgba(0, 0, 0, 0.55),
     0 0 0 1px rgba(255, 255, 255, 0.06) inset,
     0 0 28px rgba(255, 122, 26, 0.12);
+  transform: translate3d(0, 0, 0);
+  -webkit-transform: translate3d(0, 0, 0);
 }
 
 .mobile-bottom-nav__item {
@@ -493,6 +521,7 @@ html.standalone-mode body {
     margin-left: 0;
     max-width: none;
     width: 100%;
+    overflow-x: clip;
     padding:
       0
       var(--mobile-content-pad)

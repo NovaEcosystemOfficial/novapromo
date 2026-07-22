@@ -64,6 +64,21 @@ export default function Layout() {
     };
   }, [isStandalone, isMobile]);
 
+  useEffect(() => {
+    if (!isMobile) return;
+    // iOS PWA: reset scroll + nudge fixed dock so it repaints after route change
+    window.scrollTo(0, 0);
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+    const nav = document.querySelector('.mobile-bottom-nav');
+    if (nav instanceof HTMLElement) {
+      nav.classList.add('mobile-bottom-nav--paint');
+      requestAnimationFrame(() => {
+        nav.classList.remove('mobile-bottom-nav--paint');
+      });
+    }
+  }, [location.pathname, isMobile]);
+
   const shellClass = [
     'app-shell',
     'app-layout',
