@@ -46,18 +46,20 @@ export default defineConfig(({ mode }) => {
           'icons/icon-192.png',
           'icons/icon-512.png',
           'icons/apple-touch-icon.png',
+          'splashes/*.png',
         ],
         manifest: {
           name: 'NovaPromo',
           short_name: 'NovaPromo',
           description: 'NovaPromo AutoPublisher — AI Marketing Assistant',
-          start_url: '/',
+          start_url: '/?source=pwa',
           scope: '/',
           display: 'standalone',
-          orientation: 'portrait',
+          orientation: 'any',
           theme_color: '#ff7a1a',
           background_color: '#050506',
           lang: 'it',
+          categories: ['business', 'productivity', 'marketing'],
           icons: PWA_ICONS,
         },
         manifestFilename: 'manifest.webmanifest',
@@ -109,7 +111,9 @@ export default defineConfig(({ mode }) => {
         process.env.VITE_RUNTIME || (isElectronBuild ? 'desktop' : 'web')
       ),
       'import.meta.env.VITE_TIKTOK_ENABLED': JSON.stringify(process.env.VITE_TIKTOK_ENABLED || 'false'),
-      'import.meta.env.VITE_DESKTOP_API_URL': JSON.stringify(process.env.VITE_DESKTOP_API_URL || 'http://localhost:3001'),
+      'import.meta.env.VITE_DESKTOP_API_URL': JSON.stringify(
+        process.env.VITE_DESKTOP_API_URL || (isElectronBuild ? 'http://localhost:3001' : '')
+      ),
       'import.meta.env.VITE_DEMO_MODE': JSON.stringify(mergedEnv.VITE_DEMO_MODE || 'false'),
     },
     server: {

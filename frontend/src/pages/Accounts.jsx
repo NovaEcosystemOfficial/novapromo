@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../api/client.js';
 import { openOAuthUrl } from '../lib/electron.js';
-import { isDesktopApp } from '../lib/runtime.js';
 import { isDemoMode } from '../lib/features.js';
 import { getDemoIntegrationsStatus, DEMO_BACKEND_MESSAGE } from '../lib/demo.js';
 import { markOAuthReturn } from '../lib/postAuthRedirect.js';
@@ -89,11 +88,7 @@ export default function Accounts() {
     try {
       const start = await api.startInstagramOAuth();
       markOAuthReturn('/accounts');
-      if (isDesktopApp()) {
-        await openOAuthUrl(start.url);
-      } else {
-        window.location.href = start.url;
-      }
+      await openOAuthUrl(start.url);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -127,11 +122,7 @@ export default function Accounts() {
     try {
       const start = await api.startFacebookOAuth();
       markOAuthReturn('/accounts');
-      if (isDesktopApp()) {
-        await openOAuthUrl(start.url);
-      } else {
-        window.location.href = start.url;
-      }
+      await openOAuthUrl(start.url);
     } catch (err) {
       setError(err.message);
     } finally {

@@ -23,12 +23,12 @@ export default function MobileDashboard({
   return (
     <div className="mobile-dashboard mobile-screen">
       <section className="mobile-dashboard__hero mobile-card">
-        <p className="mobile-dashboard__eyebrow">Brand Control Center</p>
+        <p className="mobile-dashboard__eyebrow">Oggi</p>
         <h1 className="mobile-dashboard__title">
           {greeting}, {firstName}
         </h1>
         <p className="mobile-dashboard__subtitle">
-          Analytics del brand con dati reali — niente stime inventate.
+          Il tuo centro di controllo — analytics reali, zero stime inventate.
         </p>
 
         <div className="mobile-dashboard__services" role="list" aria-label="Stato servizi">

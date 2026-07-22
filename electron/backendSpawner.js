@@ -1,8 +1,12 @@
+/**
+ * Optional legacy local Express backend for Electron.
+ * Thin-client packaged builds do NOT use this — API lives on Vercel.
+ * Enable only with NOVAPROMO_SPAWN_BACKEND=1 during local experiments.
+ */
 import { spawn } from 'child_process';
 import http from 'http';
 import path from 'path';
-import fs from 'fs';
-import { BACKEND_DEV_URL, BACKEND_PORT, OAUTH_BACKEND_URL, getBackendEntry, getProjectRoot } from './paths.js';
+import { BACKEND_DEV_URL, BACKEND_PORT, getBackendEntry, getProjectRoot } from './paths.js';
 
 let backendProcess = null;
 
@@ -18,29 +22,14 @@ export function startBackend({ isPackaged, resourcesPath, userDataPath }) {
     NODE_ENV: 'development',
     PORT: String(BACKEND_PORT),
     TIKTOK_ENABLED: 'false',
-    APP_URL: OAUTH_BACKEND_URL,
-    BACKEND_URL: OAUTH_BACKEND_URL,
-    FRONTEND_URL: `http://localhost:${process.env.NOVAPROMO_FRONTEND_PORT || '5173'}`,
-    META_REDIRECT_URI: `${OAUTH_BACKEND_URL}/api/oauth/instagram/callback`,
   };
-
-  if (isPackaged) {
-    env.NODE_PATH = path.join(process.resourcesPath, 'app.asar', 'node_modules');
-  }
 
   backendProcess = spawn(process.execPath, [entry], {
     env,
     cwd: root,
-    stdio: isPackaged ? 'pipe' : 'inherit',
+    stdio: 'inherit',
     windowsHide: true,
   });
-
-  if (backendProcess.stdout) {
-    backendProcess.stdout.on('data', (d) => process.stdout.write(`[backend] ${d}`));
-  }
-  if (backendProcess.stderr) {
-    backendProcess.stderr.on('data', (d) => process.stderr.write(`[backend] ${d}`));
-  }
 
   backendProcess.on('exit', (code) => {
     if (code !== 0 && code !== null) {
@@ -86,28 +75,4 @@ export function waitForBackend(maxAttempts = 60, intervalMs = 500) {
 
     check();
   });
-}
-
-export function ensureUserEnvFile(userDataPath) {
-  const envPath = path.join(userDataPath, '.env.local');
-  if (!fs.existsSync(envPath)) {
-    const template = `# NovaPromo Desktop — configurazione locale
-# Percorso: ${envPath}
-
-NODE_ENV=development
-APP_URL=${OAUTH_BACKEND_URL}
-BACKEND_URL=${OAUTH_BACKEND_URL}
-META_APP_ID=
-META_APP_SECRET=
-META_REDIRECT_URI=${OAUTH_BACKEND_URL}/api/oauth/instagram/callback
-
-SESSION_SECRET=
-ENCRYPTION_KEY=
-
-TIKTOK_ENABLED=false
-`;
-    fs.mkdirSync(userDataPath, { recursive: true });
-    fs.writeFileSync(envPath, template, 'utf8');
-  }
-  return envPath;
 }

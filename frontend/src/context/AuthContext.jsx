@@ -4,6 +4,7 @@ import { auth, hasClientConfig } from '../lib/firebase.js';
 import { api } from '../api/client.js';
 import { isTikTokEnabled, isDemoMode } from '../lib/features.js';
 import { getDemoAuthPayload } from '../lib/demo.js';
+import { isCloudDesktopShell } from '../lib/runtime.js';
 import {
   LOCAL_USER,
   markLocalAuth,
@@ -138,6 +139,10 @@ export function AuthProvider({ children }) {
 
     (async () => {
       try {
+        // Thin client cloud: niente sessione locale — login Firebase come sul web
+        if (isCloudDesktopShell()) {
+          return; // finally → setLoading(false)
+        }
         if (!isTikTokEnabled()) {
           if (hasLocalAuthMarker()) {
             localSessionRef.current = true;

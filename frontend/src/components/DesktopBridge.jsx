@@ -1,11 +1,11 @@
 import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { isDesktopApp } from '../lib/runtime.js';
+import { isCloudDesktopShell, isDesktopApp, isLocalDesktopBuild } from '../lib/runtime.js';
 import { showDesktopNotification } from '../lib/electron.js';
 import { api } from '../api/client.js';
 
 /**
- * Desktop-only: handle novapromo:// OAuth callbacks + scheduler publish notifications.
+ * Desktop-only: handle novapromo:// OAuth callbacks + (legacy) scheduler toasts.
  */
 export default function DesktopBridge() {
   const navigate = useNavigate();
@@ -32,7 +32,10 @@ export default function DesktopBridge() {
   }, [navigate]);
 
   useEffect(() => {
-    if (!isDesktopApp()) return undefined;
+    // Event bus in-memory solo sul backend locale legacy
+    if (!isDesktopApp() || isCloudDesktopShell() || !isLocalDesktopBuild()) {
+      return undefined;
+    }
 
     const interval = setInterval(async () => {
       try {

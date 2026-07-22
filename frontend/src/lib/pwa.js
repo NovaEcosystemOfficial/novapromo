@@ -32,7 +32,11 @@ export function isPwaSupportedPlatform() {
   return true;
 }
 
+/** iPhone / iPad / iPod, inclusa iPadOS con UA desktop. */
 export function isIosDevice() {
   if (typeof navigator === 'undefined') return false;
-  return /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const ua = navigator.userAgent || '';
+  if (/iphone|ipad|ipod/i.test(ua)) return true;
+  // iPadOS 13+ spesso si presenta come Macintosh
+  return /macintosh/i.test(ua) && Number(navigator.maxTouchPoints || 0) > 1;
 }

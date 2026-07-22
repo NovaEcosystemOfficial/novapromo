@@ -1,9 +1,13 @@
-import { isDesktopApp } from './runtime.js';
+import { isCloudDesktopShell, isDesktopApp, isLocalDesktopBuild } from './runtime.js';
 
 export const electron = isDesktopApp() ? window.electronAPI : null;
 
+/**
+ * OAuth: nel thin client cloud naviga in-app come il web.
+ * Solo il desktop locale legacy apre browser/sistema esterno.
+ */
 export async function openOAuthUrl(url) {
-  if (electron) {
+  if (electron && isLocalDesktopBuild() && !isCloudDesktopShell()) {
     await electron.openOAuth(url, 'external');
     return;
   }
@@ -11,7 +15,7 @@ export async function openOAuthUrl(url) {
 }
 
 export async function pickMediaFiles({ multiple = false } = {}) {
-  if (electron) {
+  if (electron && isLocalDesktopBuild() && !isCloudDesktopShell()) {
     const result = await electron.selectMediaFiles({ multiple });
     if (result.canceled) return [];
     return result.files;

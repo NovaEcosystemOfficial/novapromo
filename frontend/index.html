@@ -3,7 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#ff7a1a" />
+    <meta name="theme-color" content="#050506" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#050506" />
     <meta name="description" content="NovaPromo AutoPublisher — AI Marketing Assistant" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -14,11 +15,89 @@
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
     <link rel="icon" type="image/png" sizes="512x512" href="/icons/icon-512.png" />
+
+    <!-- iOS native launch images (Add to Home Screen) -->
+    <link rel="apple-touch-startup-image" href="/splashes/iphone-14-pro-max.png" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
+    <link rel="apple-touch-startup-image" href="/splashes/iphone-14-pro.png" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
+    <link rel="apple-touch-startup-image" href="/splashes/iphone-13.png" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
+    <link rel="apple-touch-startup-image" href="/splashes/iphone-x.png" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
+    <link rel="apple-touch-startup-image" href="/splashes/iphone-xs-max.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
+    <link rel="apple-touch-startup-image" href="/splashes/iphone-xr.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" />
+    <link rel="apple-touch-startup-image" href="/splashes/iphone-8-plus.png" media="(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
+    <link rel="apple-touch-startup-image" href="/splashes/iphone-8.png" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" />
+    <link rel="apple-touch-startup-image" href="/splashes/ipad-pro-129.png" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" />
+    <link rel="apple-touch-startup-image" href="/splashes/ipad-pro-11.png" media="(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" />
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <style>
+      html, body {
+        margin: 0;
+        background: #050506;
+        color: #fafafa;
+      }
+      #novapromo-boot {
+        position: fixed;
+        inset: 0;
+        z-index: 2147483000;
+        display: grid;
+        place-items: center;
+        background:
+          radial-gradient(ellipse 70% 45% at 50% 35%, rgba(255, 122, 26, 0.22), transparent 60%),
+          #050506;
+        transition: opacity 0.45s ease, visibility 0.45s ease;
+      }
+      #novapromo-boot.is-done {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+      }
+      #novapromo-boot .boot-mark {
+        width: 88px;
+        height: 88px;
+        border-radius: 22px;
+        object-fit: cover;
+        box-shadow: 0 0 40px rgba(255, 122, 26, 0.35);
+        animation: boot-pop 0.7s cubic-bezier(0.32, 0.72, 0, 1) both;
+      }
+      #novapromo-boot .boot-title {
+        margin-top: 1.1rem;
+        font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+        font-size: 1.35rem;
+        font-weight: 700;
+        letter-spacing: -0.04em;
+        text-align: center;
+        animation: boot-fade 0.8s ease 0.12s both;
+      }
+      #novapromo-boot .boot-sub {
+        margin-top: 0.35rem;
+        font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+        font-size: 0.8rem;
+        color: rgba(255, 255, 255, 0.45);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        text-align: center;
+        animation: boot-fade 0.8s ease 0.2s both;
+      }
+      @keyframes boot-pop {
+        from { opacity: 0; transform: scale(0.86); }
+        to { opacity: 1; transform: scale(1); }
+      }
+      @keyframes boot-fade {
+        from { opacity: 0; transform: translateY(6px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+    </style>
   </head>
   <body>
+    <div id="novapromo-boot" aria-hidden="true">
+      <div>
+        <img class="boot-mark" src="/icons/icon-192.png" width="88" height="88" alt="" />
+        <div class="boot-title">NovaPromo</div>
+        <div class="boot-sub">AutoPublisher</div>
+      </div>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

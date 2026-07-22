@@ -1,17 +1,18 @@
 import { useCallback, useRef, useState } from 'react';
-import { isDesktopApp } from '../lib/runtime.js';
+import { isCloudDesktopShell, isLocalDesktopBuild } from '../lib/runtime.js';
 import { pickMediaFiles } from '../lib/electron.js';
 import '../styles/media-picker.css';
 
 const ACCEPT = 'image/jpeg,image/png,image/webp,video/mp4,video/quicktime';
 
 /**
- * Media input with drag-and-drop + native desktop file picker.
+ * Media input with drag-and-drop + native desktop file picker (legacy local desktop only).
  * @returns {{ file: File|null, localPath: string|null, preview: string|null, ... }}
  */
 export default function MediaPicker({ value, onChange, label = 'Media (immagine/video)' }) {
   const [dragOver, setDragOver] = useState(false);
   const inputRef = useRef(null);
+  const showNativeBrowse = isLocalDesktopBuild() && !isCloudDesktopShell();
 
   const setMedia = useCallback(
     (next) => {
@@ -86,7 +87,7 @@ export default function MediaPicker({ value, onChange, label = 'Media (immagine/
         onChange={(e) => handleFiles(e.target.files)}
       />
 
-      {isDesktopApp() && (
+      {showNativeBrowse && (
         <button type="button" className="btn btn-secondary btn-sm media-picker-browse" onClick={browseDesktop}>
           Sfoglia PC…
         </button>

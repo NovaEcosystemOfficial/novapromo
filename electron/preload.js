@@ -7,7 +7,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   /** Open TikTok OAuth in system browser (recommended) or secure OAuth window */
   openOAuth: (url, mode = 'external') => ipcRenderer.invoke('oauth:open', { url, mode }),
 
-  /** Subscribe to novapromo:// callback after backend OAuth */
+  /** Subscribe to novapromo:// deep-link callbacks */
   onOAuthCallback: (callback) => {
     const handler = (_event, payload) => callback(payload);
     ipcRenderer.on('oauth:callback', handler);

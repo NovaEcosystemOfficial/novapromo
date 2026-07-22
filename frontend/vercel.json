@@ -21,6 +21,6 @@
     { "source": "/api/:path*", "destination": "https://novapromo-backend.vercel.app/api/:path*" },
     { "source": "/uploads/:path*", "destination": "https://novapromo-backend.vercel.app/uploads/:path*" },
     { "source": "/health", "destination": "https://novapromo-backend.vercel.app/health" },
-    { "source": "/((?!assets/|sw\\.js|workbox-|manifest\\.webmanifest|icons/).*)", "destination": "/index.html" }
+    { "source": "/((?!assets/|sw\\.js|workbox-|manifest\\.webmanifest|icons/|splashes/).*)", "destination": "/index.html" }
   ]
 }

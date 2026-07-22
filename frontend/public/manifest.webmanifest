@@ -2,14 +2,15 @@
   "name": "NovaPromo",
   "short_name": "NovaPromo",
   "description": "NovaPromo AutoPublisher — AI Marketing Assistant",
-  "start_url": "/",
+  "start_url": "/?source=pwa",
   "scope": "/",
   "display": "standalone",
-  "orientation": "portrait",
+  "orientation": "any",
   "theme_color": "#ff7a1a",
   "background_color": "#050506",
   "lang": "it",
   "dir": "ltr",
+  "categories": ["business", "productivity", "marketing"],
   "icons": [
     {
       "src": "/icons/icon-192.png",

@@ -7,15 +7,15 @@ import {
   dialog,
   Menu,
 } from 'electron';
-import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import {
   BACKEND_DEV_URL,
+  CLOUD_APP_ORIGIN,
+  CLOUD_APP_START_URL,
   FRONTEND_DEV_DASHBOARD_URL,
   FRONTEND_DEV_URL,
   PROTOCOL,
-  getFrontendIndexHtml,
+  getAppStartUrl,
   getPreloadPath,
   getIconPath,
 } from './paths.js';
@@ -23,23 +23,18 @@ import {
   startBackend,
   stopBackend,
   waitForBackend,
-  ensureUserEnvFile,
 } from './backendSpawner.js';
 import { waitForHttpUrl } from './waitForUrl.js';
 import { buildErrorPageDataUrl } from './errorPage.js';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /** @type {BrowserWindow | null} */
 let mainWindow = null;
 /** @type {BrowserWindow | null} */
 let oauthWindow = null;
 
-/** @type {string | null} */
-let packagedIndexHtml = null;
-
 const isDev = !app.isPackaged;
 const VITE_READY_TIMEOUT_MS = 15000;
+const spawnLocalBackend = process.env.NOVAPROMO_SPAWN_BACKEND === '1';
 
 process.env.NOVAPROMO_PACKAGED = app.isPackaged ? '1' : '0';
 
@@ -81,21 +76,54 @@ function sendOAuthCallback(payload) {
   }
 }
 
+/**
+ * Deep-link: prefer in-app navigation on the cloud origin;
+ * fall back to IPC for the renderer bridge.
+ */
 function handleProtocolUrl(rawUrl) {
   const { route, params } = parseProtocolUrl(rawUrl);
+  const qs = new URLSearchParams(params).toString();
+
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    let pathName = '/dashboard';
+    if (route.startsWith('auth/callback') || route === 'auth') {
+      pathName = `/auth/callback${qs ? `?${qs}` : ''}`;
+    } else if (route.startsWith('accounts') || route === 'accounts') {
+      pathName = `/accounts${qs ? `?${qs}` : ''}`;
+    } else if (route) {
+      pathName = `/${route}${qs ? `?${qs}` : ''}`;
+    }
+
+    const target = `${CLOUD_APP_ORIGIN}${pathName}`;
+    const current = mainWindow.webContents.getURL();
+    if (current.startsWith(CLOUD_APP_ORIGIN)) {
+      mainWindow.loadURL(target).catch(() => {
+        sendOAuthCallback({
+          type: route.startsWith('auth') ? 'login' : route.startsWith('accounts') ? 'accounts' : 'unknown',
+          route,
+          ...params,
+        });
+      });
+    } else {
+      sendOAuthCallback({
+        type: route.startsWith('auth') ? 'login' : route.startsWith('accounts') ? 'accounts' : 'unknown',
+        route,
+        ...params,
+      });
+    }
+
+    if (oauthWindow && !oauthWindow.isDestroyed()) oauthWindow.close();
+    return;
+  }
 
   if (route.startsWith('auth/callback') || route === 'auth') {
     sendOAuthCallback({ type: 'login', ...params });
-    if (oauthWindow && !oauthWindow.isDestroyed()) oauthWindow.close();
     return;
   }
-
   if (route.startsWith('accounts') || route === 'accounts') {
     sendOAuthCallback({ type: 'accounts', ...params });
-    if (oauthWindow && !oauthWindow.isDestroyed()) oauthWindow.close();
     return;
   }
-
   sendOAuthCallback({ type: 'unknown', route, ...params });
 }
 
@@ -138,24 +166,20 @@ async function waitForViteDevServer() {
 }
 
 async function loadMainWindowContent(win) {
-  if (isDev) {
-    console.log('[electron] Caricamento dev:', FRONTEND_DEV_DASHBOARD_URL);
-    await win.loadURL(FRONTEND_DEV_DASHBOARD_URL);
-    return;
-  }
-
-  if (!packagedIndexHtml || !fs.existsSync(packagedIndexHtml)) {
-    throw new Error(
-      `Build frontend mancante: ${packagedIndexHtml || 'index.html non configurato'}. Esegui npm run build:desktop`
-    );
-  }
-
-  console.log('[electron] Caricamento production:', packagedIndexHtml, '#/dashboard');
-  await win.loadFile(packagedIndexHtml, { hash: '/dashboard' });
+  const startUrl = getAppStartUrl(app.isPackaged);
+  console.log('[electron] Thin client →', startUrl);
+  await win.loadURL(startUrl);
 }
 
 async function createWindow() {
-  if (isDev) {
+  const startUrl = getAppStartUrl(app.isPackaged);
+  const needsLocalVite =
+    isDev
+    && !process.env.NOVAPROMO_APP_URL
+    && process.env.NOVAPROMO_USE_CLOUD !== '1'
+    && startUrl.startsWith(FRONTEND_DEV_URL || 'http://localhost');
+
+  if (needsLocalVite) {
     try {
       await waitForViteDevServer();
     } catch (err) {
@@ -173,7 +197,11 @@ async function createWindow() {
           sandbox: true,
         },
       });
-      await showLoadError(mainWindow, FRONTEND_DEV_DASHBOARD_URL, err.message);
+      await showLoadError(
+        mainWindow,
+        FRONTEND_DEV_DASHBOARD_URL,
+        `${err.message}\n\nSuggerimento: avvia npm run dev, oppure usa NOVAPROMO_USE_CLOUD=1 per aprire ${CLOUD_APP_START_URL}`
+      );
       mainWindow.on('closed', () => {
         mainWindow = null;
       });
@@ -187,7 +215,7 @@ async function createWindow() {
     if (errorCode === -3) return;
     showLoadError(
       mainWindow,
-      validatedURL || FRONTEND_DEV_DASHBOARD_URL,
+      validatedURL || startUrl,
       `${errorDescription} (${errorCode})`
     );
   });
@@ -201,11 +229,7 @@ async function createWindow() {
     await loadMainWindowContent(mainWindow);
   } catch (err) {
     console.error('[electron] Caricamento fallito:', err.message);
-    await showLoadError(
-      mainWindow,
-      isDev ? FRONTEND_DEV_DASHBOARD_URL : packagedIndexHtml,
-      err.message
-    );
+    await showLoadError(mainWindow, startUrl, err.message);
     return;
   }
 
@@ -226,7 +250,7 @@ function createOAuthWindow(url) {
     height: 720,
     parent: mainWindow ?? undefined,
     modal: !!mainWindow,
-    title: 'Accedi con TikTok',
+    title: 'Accedi',
     icon: getIconPath(),
     autoHideMenuBar: true,
     webPreferences: {
@@ -305,15 +329,16 @@ function setupIpc() {
     version: app.getVersion(),
     isPackaged: app.isPackaged,
     isDev,
+    thinClient: true,
     userData: app.getPath('userData'),
-    backendUrl: BACKEND_DEV_URL,
-    frontendUrl: isDev ? FRONTEND_DEV_DASHBOARD_URL : packagedIndexHtml,
+    cloudAppUrl: CLOUD_APP_START_URL,
+    backendUrl: spawnLocalBackend ? BACKEND_DEV_URL : null,
+    frontendUrl: getAppStartUrl(app.isPackaged),
     platform: process.platform,
   }));
 
   ipcMain.handle('app:openEnvFolder', () => {
     const userData = app.getPath('userData');
-    ensureUserEnvFile(userData);
     shell.openPath(userData);
     return { path: userData };
   });
@@ -325,30 +350,18 @@ async function bootstrap() {
   registerProtocol();
   setupIpc();
 
-  const userData = app.getPath('userData');
-  ensureUserEnvFile(userData);
-
-  if (app.isPackaged) {
-    packagedIndexHtml = getFrontendIndexHtml(true, process.resourcesPath);
-
-    startBackend({
-      isPackaged: true,
-      resourcesPath: process.resourcesPath,
-      userDataPath: userData,
-    });
-    await waitForBackend();
-  } else if (process.env.NOVAPROMO_SPAWN_BACKEND === '1') {
+  // Optional legacy: local Express backend (dev only). Packaged thin client never spawns it.
+  if (!app.isPackaged && spawnLocalBackend) {
     startBackend({
       isPackaged: false,
       resourcesPath: process.resourcesPath,
-      userDataPath: userData,
+      userDataPath: app.getPath('userData'),
     });
-    await waitForBackend();
+    await waitForBackend().catch((err) => {
+      console.warn('[electron] Backend locale non avviato:', err.message);
+    });
   } else {
-    await waitForBackend(30, 500).catch(() => {
-      console.warn('[electron] Backend non raggiungibile su', BACKEND_DEV_URL);
-      console.warn('Avvia con: npm run dev:electron');
-    });
+    console.log('[electron] Thin client cloud — nessun backend locale');
   }
 
   await createWindow();
@@ -358,12 +371,8 @@ async function bootstrap() {
       label: 'NovaPromo',
       submenu: [
         {
-          label: 'Cartella configurazione (.env.local)',
-          click: () => {
-            const uData = app.getPath('userData');
-            ensureUserEnvFile(uData);
-            shell.openPath(uData);
-          },
+          label: 'Apri nel browser',
+          click: () => shell.openExternal(CLOUD_APP_START_URL),
         },
         { type: 'separator' },
         { role: 'quit', label: 'Esci' },
@@ -396,5 +405,5 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
-  stopBackend();
+  if (spawnLocalBackend) stopBackend();
 });

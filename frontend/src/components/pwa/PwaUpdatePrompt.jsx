@@ -25,7 +25,7 @@ export default function PwaUpdatePrompt() {
 
   return (
     <div className="pwa-toast" role="status">
-      <span>NovaPromo è pronta per l&apos;uso offline.</span>
+      <span>NovaPromo è pronta sull&apos;Home: puoi riaprirla anche senza connessione iniziale.</span>
       <button type="button" className="pwa-toast__close" onClick={dismissOfflineNotice} aria-label="Chiudi">
         ×
       </button>

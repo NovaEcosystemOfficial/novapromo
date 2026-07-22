@@ -16,11 +16,15 @@
     "dev:web": "npm run dev",
     "dev:backend": "npm run dev -w backend",
     "dev:frontend": "npm run dev -w frontend",
-    "dev:electron": "node -e \"console.error('\\nElectron/EXE in pausa. Usa: npm run dev (web locale) oppure deploy su Vercel.\\n'); process.exit(1)\"",
+    "dev:electron": "cross-env NOVAPROMO_USE_CLOUD=1 electron .",
+    "dev:electron:local": "electron .",
     "build": "npm run build -w frontend",
     "build:desktop": "cross-env ELECTRON_BUILD=1 VITE_RUNTIME=desktop VITE_TIKTOK_ENABLED=false VITE_DESKTOP_API_URL=http://localhost:3001 npm run build -w frontend",
-    "dist": "npm run build:desktop && electron-builder --win",
-    "dist:dir": "npm run build:desktop && electron-builder --win dir",
+    "dist": "electron-builder --win",
+    "dist:dir": "electron-builder --win dir",
+    "dist:nsis": "electron-builder --win nsis",
+    "dist:appx": "electron-builder --win appx",
+    "dist:msix": "electron-builder --win appx",
     "install:all": "npm install",
     "test:firebase": "node scripts/test-firebase-integration.mjs",
     "test:facebook": "node scripts/test-facebook-publishing.mjs",
@@ -60,29 +64,17 @@
     "files": [
       "electron/**/*",
       "package.json",
-      "node_modules/**/*"
-    ],
-    "extraResources": [
-      {
-        "from": "backend/src",
-        "to": "backend/src",
-        "filter": ["**/*"]
-      },
-      {
-        "from": "backend/package.json",
-        "to": "backend/package.json"
-      },
-      {
-        "from": "frontend/dist",
-        "to": "frontend/dist",
-        "filter": ["**/*"]
-      }
+      "build/icon.png"
     ],
     "asar": true,
     "win": {
       "target": [
         {
           "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
+          "target": "appx",
           "arch": ["x64"]
         }
       ],
@@ -95,6 +87,15 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "NovaPromo AutoPublisher"
+    },
+    "appx": {
+      "identityName": "NovaPromo.AutoPublisher",
+      "applicationId": "NovaPromoAutoPublisher",
+      "publisher": "CN=NovaPromo",
+      "publisherDisplayName": "NovaPromo",
+      "displayName": "NovaPromo AutoPublisher",
+      "languages": ["it-IT", "en-US"],
+      "backgroundColor": "#050506"
     },
     "protocols": [
       {

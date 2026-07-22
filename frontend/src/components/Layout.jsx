@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
+import { useEffect, useMemo } from 'react';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useContentModal } from '../context/ContentModalContext.jsx';
 import { isTikTokEnabled } from '../lib/features.js';
@@ -8,7 +8,6 @@ import { IconNav, IconPlus } from './icons/DashboardIcons.jsx';
 import { useBilling } from '../context/BillingContext.jsx';
 import { useViewport } from '../hooks/useViewport.js';
 import MobileBottomNav from './layout/MobileBottomNav.jsx';
-import MobileFab from './layout/MobileFab.jsx';
 import PwaInstalledBadge from './pwa/PwaInstalledBadge.jsx';
 import SchedulePublisherTick from './SchedulePublisherTick.jsx';
 
@@ -24,11 +23,37 @@ const NAV_ITEMS = [
   { to: '/history', label: 'Storico', icon: 'history' },
 ];
 
+const MOBILE_TITLES = {
+  '/dashboard': 'Home',
+  '/generator': 'Crea',
+  '/calendar': 'Agenda',
+  '/drafts': 'Bozze',
+  '/accounts': 'Account',
+  '/premium': 'Premium',
+  '/history': 'Storico',
+  '/brand-intelligence': 'Brand',
+  '/review-demo': 'Review',
+};
+
+function resolveMobileTitle(pathname) {
+  const exact = MOBILE_TITLES[pathname];
+  if (exact) return exact;
+  const hit = Object.keys(MOBILE_TITLES).find((key) => pathname.startsWith(key));
+  return hit ? MOBILE_TITLES[hit] : 'NovaPromo';
+}
+
 export default function Layout() {
   const { user, logout } = useAuth();
   const { billing } = useBilling();
   const { openModal } = useContentModal();
   const { isMobile, isStandalone } = useViewport();
+  const location = useLocation();
+
+  const mobileTitle = useMemo(
+    () => resolveMobileTitle(location.pathname),
+    [location.pathname]
+  );
+  const isHome = location.pathname === '/dashboard' || location.pathname === '/';
 
   useEffect(() => {
     const root = document.documentElement;
@@ -97,25 +122,27 @@ export default function Layout() {
 
       <main className="main-content main-content--wide mobile-screen">
         {isMobile && (
-          <header className="mobile-topbar">
-            <div className="mobile-topbar__brand">
-              <span className="mobile-topbar__mark" aria-hidden>N</span>
-              <span>NovaPromo</span>
+          <header className={`mobile-topbar${isHome ? ' mobile-topbar--home' : ''}`}>
+            <div className="mobile-topbar__row">
+              <div className="mobile-topbar__brand">
+                <span className="mobile-topbar__mark" aria-hidden>N</span>
+                <span className="mobile-topbar__product">NovaPromo</span>
+              </div>
+              <PwaInstalledBadge />
             </div>
-            <PwaInstalledBadge />
+            <h1 className="mobile-topbar__title">{mobileTitle}</h1>
           </header>
         )}
 
         {!isMobile && <PwaInstalledBadge />}
 
-        <div className="mobile-screen__content page-transition">
+        <div className="mobile-screen__content page-transition" key={location.pathname}>
           <DemoModeBanner />
           <Outlet />
         </div>
       </main>
 
-      {isMobile && <MobileBottomNav />}
-      {isMobile && <MobileFab onClick={() => openModal()} />}
+      {isMobile && <MobileBottomNav onCreate={() => openModal()} />}
     </div>
   );
 }

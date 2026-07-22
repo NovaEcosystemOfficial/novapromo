@@ -11,9 +11,10 @@
   --ndl-text: #fafafa;
   --ndl-text-secondary: #a1a1aa;
   --ndl-text-tertiary: #71717a;
-  --ndl-orange: #f97316;
-  --ndl-orange-soft: rgba(249, 115, 22, 0.12);
-  --ndl-orange-glow: rgba(249, 115, 22, 0.18);
+  --ndl-orange: #ff7a1a;
+  --ndl-orange-soft: rgba(255, 122, 26, 0.12);
+  --ndl-orange-glow: rgba(255, 122, 26, 0.22);
+  --ndl-orange-bright: #ff8c33;
   --ndl-success: #22c55e;
   --ndl-warning: #eab308;
   --ndl-danger: #ef4444;
