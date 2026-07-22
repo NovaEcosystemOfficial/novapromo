@@ -1,10 +1,10 @@
 /**
- * Nova Creative Engine V2 — constants for director-led creative process.
+ * Nova Creative Engine — director-led creative process (definitive studio engine).
  */
 
 export const ENGINE_ID = 'creative-engine-v2';
-export const ENGINE_LABEL = 'Nova Creative Engine V2';
-export const ENGINE_VERSION = '2.1.0-beta';
+export const ENGINE_LABEL = 'Nova Creative Engine';
+export const ENGINE_VERSION = '2.1.0';
 
 /**
  * Director styles — chosen from Creative Brief (not random).

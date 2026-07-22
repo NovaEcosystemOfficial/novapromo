@@ -60,13 +60,20 @@ router.post('/creative-pack', async (req, res) => {
 
   try {
     const body = req.body || {};
-    const useV2 = body.useCreativeEngineV2 === true || body.engine === 'v2';
+    // Creative Engine (ex V2) is the definitive studio engine.
+    // Opt out only with explicit engine: 'v1' / useCreativeEngineV2: false (legacy).
+    const forceV1 = body.engine === 'v1' || body.useCreativeEngineV2 === false;
+    const useV2 = !forceV1;
     const result = useV2
       ? await generateCreativePackV2(req.sessionUser.docId, body)
       : await generateCreativePack(req.sessionUser.docId, body);
     res.json(result);
   } catch (err) {
-    logger.error('Creative pack error', { code: err.code, user: req.sessionUser?.docId, engine: req.body?.useCreativeEngineV2 ? 'v2' : 'v1' });
+    logger.error('Creative pack error', {
+      code: err.code,
+      user: req.sessionUser?.docId,
+      engine: (req.body?.engine === 'v1' || req.body?.useCreativeEngineV2 === false) ? 'v1' : 'v2',
+    });
     res.status(err.status || 500).json({
       error: err.message,
       code: err.code || 'CREATIVE_STUDIO_ERROR',

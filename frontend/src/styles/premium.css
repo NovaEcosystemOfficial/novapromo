@@ -418,41 +418,30 @@
   cursor: pointer;
 }
 
-.creative-toggle--beta {
-  flex-wrap: wrap;
-  padding: 0.55rem 0.65rem;
-  border: 1px dashed rgba(249, 115, 22, 0.45);
-  border-radius: 10px;
-  background: rgba(249, 115, 22, 0.06);
-}
-
-.creative-beta-badge {
-  margin-left: 0.25rem;
-  padding: 0.1rem 0.4rem;
-  border-radius: 4px;
-  font-size: 0.65rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  color: #0b0b0f;
-  background: #f97316;
-}
-
 .creative-engine-hint {
   margin: 0.35rem 0 0.75rem;
-  font-size: 0.8rem;
-  line-height: 1.4;
+  padding: 0.65rem 0.75rem;
+  border-radius: 12px;
+  border: 0.5px solid rgba(255, 122, 26, 0.28);
+  background: rgba(255, 122, 26, 0.07);
+  font-size: 0.82rem;
+  line-height: 1.45;
   color: var(--text-muted, #8b95a8);
 }
 
 .creative-engine-badge {
-  display: inline-block;
-  margin: 0 0 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0 0 0.75rem;
   padding: 0.35rem 0.65rem;
   border-radius: 999px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: #f8fafc;
-  background: linear-gradient(120deg, #7c3aed, #f97316);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #ffb074;
+  background: rgba(255, 122, 26, 0.12);
+  border: 0.5px solid rgba(255, 122, 26, 0.3);
 }
 
 .creative-quality-meta {
@@ -461,7 +450,7 @@
   color: var(--text-muted, #8b95a8);
 }
 
-/* —— Creative Engine V2 progress UX (loading only) —— */
+/* —— Nova Creative Engine progress UX —— */
 .cev2-shell {
   display: grid;
   grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);

@@ -6,7 +6,7 @@ import { useBilling } from '../../context/BillingContext.jsx';
 import { useBrandProjects, CUSTOM_PROJECT_ID, resolveProjectLabel } from '../../hooks/useBrandProjects.js';
 import ProjectPicker from '../generator/ProjectPicker.jsx';
 import { isFacebookPublishReady, isFacebookPublishPending, FACEBOOK_PUBLISH_PENDING_UI_MESSAGE } from '../../lib/facebookStatus.js';
-import { isCreativeEngineV2BetaVisible } from '../../lib/features.js';
+import { isCreativeEngineEnabled } from '../../lib/features.js';
 import PremiumLock from '../ai/PremiumLock.jsx';
 import CreativeEngineV2Progress from '../creative/CreativeEngineV2Progress.jsx';
 import '../../styles/modal.css';
@@ -62,7 +62,6 @@ export default function CreativeStudioModal() {
     style: 'premium',
     includeImage: true,
     includeVideoPrompt: true,
-    useCreativeEngineV2: false,
   });
   useEffect(() => {
     if (isOpen) {
@@ -85,7 +84,6 @@ export default function CreativeStudioModal() {
         style: prefill?.style || 'premium',
         includeImage: true,
         includeVideoPrompt: true,
-        useCreativeEngineV2: false,
       });
       api.getIntegrationsStatus().then(setIntegrations).catch(() => setIntegrations({}));
     }
@@ -121,6 +119,8 @@ export default function CreativeStudioModal() {
     form.brandId === CUSTOM_PROJECT_ID ? 'nova-ecosystem' : form.brandId
   );
 
+  const useCreativeEngine = isCreativeEngineEnabled();
+
   const buildPackBody = (opts = {}) => ({
     idea: form.idea,
     platform: form.platform,
@@ -135,8 +135,8 @@ export default function CreativeStudioModal() {
     includeImage: form.includeImage,
     includeVideoPrompt: form.includeVideoPrompt,
     brandId: resolveBrandId(),
-    useCreativeEngineV2: form.useCreativeEngineV2 === true,
-    engine: form.useCreativeEngineV2 ? 'v2' : 'v1',
+    useCreativeEngineV2: useCreativeEngine,
+    engine: useCreativeEngine ? 'v2' : 'v1',
     ...opts,
   });
 
@@ -160,9 +160,9 @@ export default function CreativeStudioModal() {
   };
 
   const runCreativePack = async (opts = {}) => {
-    const useV2 = opts.useCreativeEngineV2 === true
-      || opts.engine === 'v2'
-      || (opts.useCreativeEngineV2 !== false && form.useCreativeEngineV2 === true);
+    const useV2 = useCreativeEngine
+      && opts.engine !== 'v1'
+      && opts.useCreativeEngineV2 !== false;
     setLoading(true);
     setError('');
     setLock(null);
@@ -188,7 +188,9 @@ export default function CreativeStudioModal() {
 
   const handleRegenerateImage = async () => {
     if (!pack?.imagePrompt) return;
-    const useV2 = pack.engineId === 'creative-engine-v2' || form.useCreativeEngineV2;
+    const useV2 = useCreativeEngine && (
+      pack.engineId === 'creative-engine-v2' || pack.engineId == null
+    );
     setLoading(true);
     setError('');
     if (useV2) setV2Ux('running');
@@ -460,7 +462,7 @@ export default function CreativeStudioModal() {
                 <li><strong>Formato:</strong> {form.format}</li>
                 <li><strong>Stile:</strong> {form.style}</li>
               </ul>
-              {form.useCreativeEngineV2 && (v2Ux === 'running' || v2Ux === 'success') ? (
+              {useCreativeEngine && (v2Ux === 'running' || v2Ux === 'success') ? (
                 <CreativeEngineV2Progress
                   active={v2Ux === 'running'}
                   succeeded={v2Ux === 'success'}
@@ -484,20 +486,10 @@ export default function CreativeStudioModal() {
                 />
                 Includi prompt video professionale
               </label>
-              {isCreativeEngineV2BetaVisible() && (
-                <label className="creative-toggle creative-toggle--beta">
-                  <input
-                    type="checkbox"
-                    checked={form.useCreativeEngineV2}
-                    onChange={(e) => setForm((f) => ({ ...f, useCreativeEngineV2: e.target.checked }))}
-                  />
-                  Usa Nova Creative Engine V2 (Beta)
-                  <span className="creative-beta-badge">BETA</span>
-                </label>
-              )}
-              {form.useCreativeEngineV2 && (
+              {useCreativeEngine && (
                 <p className="creative-engine-hint">
-                  Motore nuovo: Creative Director, layout, prompt lunghi, Brand Photography, quality check e pacchetto completo (varianti A/B, story, cover, carousel).
+                  Motore ufficiale Nova Creative Engine: Creative Director, layout, Brand Photography,
+                  quality check e pacchetto completo (varianti A/B, story, cover, carousel).
                 </p>
               )}
               <p className="creative-cost-hint">
@@ -511,8 +503,8 @@ export default function CreativeStudioModal() {
                 disabled={loading || !creativeAvailable}
               >
                 {loading
-                  ? 'Generazione pacchetto…'
-                  : '✦ Genera pacchetto creativo'}
+                  ? 'Generazione con Creative Engine…'
+                  : '✦ Genera con Creative Engine'}
               </button>
                 </>
               )}
@@ -533,7 +525,7 @@ export default function CreativeStudioModal() {
               <>
               {(pack.engineId === 'creative-engine-v2' || pack.engine?.label) && (
                 <p className="creative-engine-badge">
-                  {pack.engineLabel || pack.engine?.label || 'Nova Creative Engine V2'}
+                  {pack.engineLabel || pack.engine?.label || 'Nova Creative Engine'}
                   {pack.engine?.conceptLabel ? ` · ${pack.engine.conceptLabel}` : ''}
                   {pack.engine?.photographyMode ? ' · Brand Photography' : ''}
                 </p>

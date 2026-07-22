@@ -287,7 +287,7 @@ export default function CreativeEngineV2Progress({
         setWaiting(true);
         const over = elapsed - STEP_DURATIONS_MS.reduce((a, b) => a + b, 0);
         const crawl = 92 + (1 - Math.exp(-over / 18000)) * 5;
-        setDisplayPercent(clamp(crawl, 92, 97));
+        setDisplayPercent(Math.round(clamp(crawl, 92, 97)));
       } else {
         setStepIndex(idx);
         setStepProgress(clamp(local, 0, 1));
@@ -314,7 +314,7 @@ export default function CreativeEngineV2Progress({
     return () => window.clearInterval(id);
   }, [active, succeeded]);
 
-  const percent = showSuccess ? 100 : displayPercent;
+  const percent = showSuccess ? 100 : Math.round(Number(displayPercent) || 0);
   const messagePool = waiting ? WAITING_MESSAGES : DYNAMIC_MESSAGES;
   const message = messagePool[messageIndex % messagePool.length];
 
@@ -339,7 +339,7 @@ export default function CreativeEngineV2Progress({
       <div className={`cev2-progress${showSuccess ? ' cev2-progress--success' : ''}`}>
         {!showSuccess && (
           <>
-            <p className="cev2-progress-kicker">Nova Creative Engine V2</p>
+            <p className="cev2-progress-kicker">Nova Creative Engine</p>
             <p key={messageIndex} className="cev2-progress-message">{message}</p>
 
             <div className="cev2-bar-block">
