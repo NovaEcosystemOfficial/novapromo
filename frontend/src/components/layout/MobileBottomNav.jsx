@@ -1,10 +1,11 @@
 import { NavLink } from 'react-router-dom';
 import { IconNav, IconPlus } from '../icons/DashboardIcons.jsx';
 
+/** Dock: Home · Brand · + · Agenda · Account (Bozze via Home quick actions) */
 const SIDE_ITEMS = [
   { to: '/dashboard', label: 'Home', icon: 'dashboard' },
+  { to: '/brand-intelligence', label: 'Brand', icon: 'brand' },
   { to: '/calendar', label: 'Agenda', icon: 'calendar' },
-  { to: '/drafts', label: 'Bozze', icon: 'drafts' },
   { to: '/accounts', label: 'Account', icon: 'accounts' },
 ];
 

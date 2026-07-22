@@ -117,7 +117,7 @@ export default defineConfig(({ mode }) => {
       'import.meta.env.VITE_DEMO_MODE': JSON.stringify(mergedEnv.VITE_DEMO_MODE || 'false'),
     },
     server: {
-      host: 'localhost',
+      host: true,
       port: 5173,
       strictPort: true,
       proxy: {

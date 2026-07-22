@@ -460,8 +460,18 @@
     padding-bottom: 1rem;
   }
 
+  .bi-page--wizard {
+    padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px) + var(--mobile-nav-height, 4.75rem));
+  }
+
   .bi-hero {
-    padding: 1.5rem;
+    padding: 1.15rem 1rem;
+    margin-bottom: 0.75rem;
+    border-radius: 16px;
+  }
+
+  .bi-hero-title {
+    font-size: 1.45rem;
   }
 
   .bi-form-grid {
@@ -472,12 +482,110 @@
     position: sticky;
     top: 0;
     z-index: 20;
-    margin: 0 0 1rem;
-    padding: 0.75rem 0;
+    margin: 0 0 0.85rem;
+    padding: 0.55rem 0 0.65rem;
     background: rgba(5, 5, 6, 0.92);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .bi-wizard-meta {
+    margin-top: 0.55rem;
+  }
+
+  .bi-wizard-step-label {
+    margin: 0 0 0.45rem;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+  }
+
+  .bi-wizard-step-label strong {
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  .bi-wizard-dots {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    overflow-x: auto;
+    padding-bottom: 0.15rem;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .bi-wizard-dot {
+    flex: 0 0 auto;
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    border: none;
+    padding: 0;
+    background: rgba(255, 255, 255, 0.18);
+    cursor: pointer;
+    transition: width 0.2s ease, background 0.2s ease;
+  }
+
+  .bi-wizard-dot.is-done {
+    background: rgba(255, 122, 26, 0.45);
+  }
+
+  .bi-wizard-dot.is-active {
+    width: 22px;
+    background: var(--ndl-orange, #ff7a1a);
+  }
+
+  .bi-wizard-panel {
+    padding: 1.1rem 1.05rem 1.25rem;
+    margin: 0 0 1rem;
+    animation: bi-wizard-in 0.28s ease both;
+  }
+
+  .bi-wizard-panel__head {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.85rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.85rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .bi-wizard-panel__head h2 {
+    margin: 0 0 0.2rem;
+    font-size: 1.2rem;
+    letter-spacing: -0.02em;
+  }
+
+  .bi-wizard-panel__head p {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+
+  .bi-wizard-panel__body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+  }
+
+  .bi-wizard-footer {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: calc(var(--mobile-nav-height, 4.75rem) + env(safe-area-inset-bottom, 0px) + 0.35rem);
+    z-index: 1050;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.65rem;
+    padding: 0.65rem 1rem;
+    pointer-events: none;
+  }
+
+  .bi-wizard-footer__btn {
+    pointer-events: auto;
+    min-height: 48px;
+    border-radius: 14px;
+    font-weight: 600;
   }
 
   .bi-sync-status {
@@ -502,71 +610,18 @@
     font-size: 0.9rem;
   }
 
-  .bi-section-card--accordion {
-    padding: 0;
-    overflow: hidden;
+  .bi-library-sections {
+    grid-template-columns: 1fr;
   }
 
-  .bi-section-card--accordion .bi-section-head {
-    margin-bottom: 0;
-    padding: 0;
-    border-bottom: none;
-  }
-
-  .bi-section-head--toggle {
-    width: 100%;
-    display: flex;
-    align-items: flex-start;
-    gap: 0.85rem;
-    padding: 1rem 1.1rem;
-    border: none;
-    background: transparent;
-    color: inherit;
-    text-align: left;
-    cursor: pointer;
-    font-family: inherit;
-  }
-
-  .bi-section-head__text {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .bi-section-chevron {
-    flex-shrink: 0;
-    width: 28px;
-    height: 28px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 8px;
-    background: rgba(108, 92, 231, 0.12);
-    color: var(--accent-hover);
-    font-size: 1.1rem;
-    line-height: 1;
-  }
-
-  .bi-section-card--accordion.is-open {
-    border-color: rgba(108, 92, 231, 0.3);
-  }
-
-  .bi-section-card--accordion .bi-section-body {
-    padding: 0 1.1rem 1.25rem;
-    animation: bi-accordion-in 0.25s ease;
-  }
-
-  @keyframes bi-accordion-in {
+  @keyframes bi-wizard-in {
     from {
       opacity: 0;
-      transform: translateY(-4px);
+      transform: translateY(8px);
     }
     to {
       opacity: 1;
       transform: translateY(0);
     }
-  }
-
-  .bi-library-sections {
-    grid-template-columns: 1fr;
   }
 }

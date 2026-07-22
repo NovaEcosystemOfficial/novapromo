@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api/client.js';
 import { isDemoMode } from '../lib/features.js';
 import BrandProgressHeader from '../components/brand/BrandProgressHeader.jsx';
@@ -29,6 +29,7 @@ export default function BrandIntelligence() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [stepIndex, setStepIndex] = useState(0);
   const saveTimer = useRef(null);
   const skipSave = useRef(true);
 
@@ -53,6 +54,11 @@ export default function BrandIntelligence() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    if (!isMobile) return;
+    window.scrollTo(0, 0);
+  }, [stepIndex, isMobile]);
 
   const persist = useCallback(async (nextProfile) => {
     if (isDemoMode()) {
@@ -131,36 +137,13 @@ export default function BrandIntelligence() {
     });
   };
 
-  if (loading) {
-    return (
-      <div className="bi-page bi-page--loading">
-        <div className="bi-spinner" />
-        <p>Caricamento Brand Intelligence…</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className={`bi-page${isMobile ? ' bi-page--mobile' : ''}`}>
-      <div className={isMobile ? 'bi-mobile-sticky' : undefined}>
-        <BrandProgressHeader
-          completionPercent={profile.completionPercent || 0}
-          companyName={profile.identity?.companyName}
-          saving={saving}
-        />
-        {isMobile && saving && (
-          <p className="bi-sync-status">Profilo sincronizzato in corso…</p>
-        )}
-        {isMobile && message && !saving && (
-          <p className="bi-sync-status bi-sync-status--ok">{message}</p>
-        )}
-      </div>
-
-      {error && <div className="alert alert-error">{error}</div>}
-      {message && <div className="alert alert-success">{message}</div>}
-
-      <div className="bi-sections">
-        <BrandSectionCard index={1} title="Identità" subtitle="Chi sei e cosa rappresenti" delay={0} accordion={isMobile}>
+  const steps = useMemo(() => [
+    {
+      id: 'identity',
+      title: 'Identità',
+      subtitle: 'Chi sei e cosa rappresenti',
+      body: (
+        <>
           <div className="bi-form-grid">
             <div className="bi-field">
               <label>Nome azienda</label>
@@ -257,9 +240,15 @@ export default function BrandIntelligence() {
             onChange={(v) => patch('identity', 'values', v)}
             placeholder="Es. Innovazione"
           />
-        </BrandSectionCard>
-
-        <BrandSectionCard index={2} title="Brand" subtitle="Identità visiva e stile grafico" delay={80} accordion={isMobile}>
+        </>
+      ),
+    },
+    {
+      id: 'brand',
+      title: 'Brand',
+      subtitle: 'Identità visiva e stile grafico',
+      body: (
+        <>
           <ColorInput
             label="Colori principali"
             colors={profile.brand.primaryColors}
@@ -290,9 +279,15 @@ export default function BrandIntelligence() {
               onChange={(v) => patch('brand', 'graphicStyles', v)}
             />
           </div>
-        </BrandSectionCard>
-
-        <BrandSectionCard index={3} title="Target" subtitle="A chi parli" delay={160} accordion={isMobile}>
+        </>
+      ),
+    },
+    {
+      id: 'target',
+      title: 'Target',
+      subtitle: 'A chi parli',
+      body: (
+        <>
           <div className="bi-form-grid">
             <div className="bi-field">
               <label>Età</label>
@@ -349,25 +344,39 @@ export default function BrandIntelligence() {
             value={profile.target.goals}
             onChange={(v) => patch('target', 'goals', v)}
           />
-        </BrandSectionCard>
-
-        <BrandSectionCard index={4} title="Tone of Voice" subtitle="Come comunica il tuo brand" delay={240} accordion={isMobile}>
-          <ChipSelect
-            options={TONE_OF_VOICE_OPTIONS}
-            value={profile.toneOfVoice}
-            onChange={(v) => updateProfile((prev) => ({ ...prev, toneOfVoice: v }))}
-          />
-        </BrandSectionCard>
-
-        <BrandSectionCard index={5} title="Obiettivi" subtitle="Cosa vuoi ottenere" delay={320} accordion={isMobile}>
-          <ChipSelect
-            options={MARKETING_GOALS}
-            value={profile.marketingGoals}
-            onChange={(v) => updateProfile((prev) => ({ ...prev, marketingGoals: v }))}
-          />
-        </BrandSectionCard>
-
-        <BrandSectionCard index={6} title="CTA preferite" subtitle="Call to action ricorrenti" delay={400} accordion={isMobile}>
+        </>
+      ),
+    },
+    {
+      id: 'tone',
+      title: 'Tone of Voice',
+      subtitle: 'Come comunica il tuo brand',
+      body: (
+        <ChipSelect
+          options={TONE_OF_VOICE_OPTIONS}
+          value={profile.toneOfVoice}
+          onChange={(v) => updateProfile((prev) => ({ ...prev, toneOfVoice: v }))}
+        />
+      ),
+    },
+    {
+      id: 'goals',
+      title: 'Obiettivi',
+      subtitle: 'Cosa vuoi ottenere',
+      body: (
+        <ChipSelect
+          options={MARKETING_GOALS}
+          value={profile.marketingGoals}
+          onChange={(v) => updateProfile((prev) => ({ ...prev, marketingGoals: v }))}
+        />
+      ),
+    },
+    {
+      id: 'cta',
+      title: 'CTA preferite',
+      subtitle: 'Call to action ricorrenti',
+      body: (
+        <>
           <div className="bi-cta-grid">
             {CTA_PRESETS.map((cta) => (
               <button
@@ -389,9 +398,15 @@ export default function BrandIntelligence() {
             }}
             placeholder="Aggiungi CTA custom"
           />
-        </BrandSectionCard>
-
-        <BrandSectionCard index={7} title="Parole" subtitle="Lessico del brand" delay={480} accordion={isMobile}>
+        </>
+      ),
+    },
+    {
+      id: 'words',
+      title: 'Parole',
+      subtitle: 'Lessico del brand',
+      body: (
+        <>
           <TagInput
             label="Parole da usare"
             value={profile.words.use}
@@ -414,9 +429,15 @@ export default function BrandIntelligence() {
             onChange={(v) => patch('words', 'emojis', v)}
             placeholder="✨"
           />
-        </BrandSectionCard>
-
-        <BrandSectionCard index={8} title="Concorrenti" subtitle="Solo riferimento stilistico per l'AI" delay={560} accordion={isMobile}>
+        </>
+      ),
+    },
+    {
+      id: 'competitors',
+      title: 'Concorrenti',
+      subtitle: "Solo riferimento stilistico per l'AI",
+      body: (
+        <>
           <div className="bi-competitors">
             {profile.competitors.map((comp, index) => (
               <div key={index} className="bi-competitor-card">
@@ -452,22 +473,137 @@ export default function BrandIntelligence() {
           <button type="button" className="btn btn-secondary" onClick={addCompetitor}>
             + Aggiungi concorrente
           </button>
-        </BrandSectionCard>
+        </>
+      ),
+    },
+    {
+      id: 'library',
+      title: 'Libreria Brand',
+      subtitle: 'Asset visivi centralizzati',
+      body: (
+        <div className="bi-library-sections">
+          {LIBRARY_SECTIONS.map((section) => (
+            <LibraryUpload
+              key={section.id}
+              category={section.id}
+              label={`${section.icon} ${section.label}`}
+              items={profile.library?.[section.id] || []}
+              onUploaded={(nextProfile) => setProfile((prev) => ({ ...prev, ...nextProfile }))}
+            />
+          ))}
+        </div>
+      ),
+    },
+  ], [profile]); // eslint-disable-line react-hooks/exhaustive-deps -- section bodies bind latest profile/handlers
 
-        <BrandSectionCard index={9} title="Libreria Brand" subtitle="Asset visivi centralizzati" delay={640} accordion={isMobile}>
-          <div className="bi-library-sections">
-            {LIBRARY_SECTIONS.map((section) => (
-              <LibraryUpload
-                key={section.id}
-                category={section.id}
-                label={`${section.icon} ${section.label}`}
-                items={profile.library?.[section.id] || []}
-                onUploaded={(nextProfile) => setProfile((prev) => ({ ...prev, ...nextProfile }))}
-              />
-            ))}
-          </div>
-        </BrandSectionCard>
+  if (loading) {
+    return (
+      <div className="bi-page bi-page--loading">
+        <div className="bi-spinner" />
+        <p>Caricamento Brand Intelligence…</p>
       </div>
+    );
+  }
+
+  const safeStep = Math.min(Math.max(stepIndex, 0), steps.length - 1);
+  const current = steps[safeStep];
+  const isFirst = safeStep === 0;
+  const isLast = safeStep === steps.length - 1;
+
+  return (
+    <div className={`bi-page${isMobile ? ' bi-page--mobile bi-page--wizard' : ''}`}>
+      <div className={isMobile ? 'bi-mobile-sticky' : undefined}>
+        <BrandProgressHeader
+          completionPercent={profile.completionPercent || 0}
+          companyName={profile.identity?.companyName}
+          saving={saving}
+        />
+        {isMobile && (
+          <div className="bi-wizard-meta" aria-live="polite">
+            <p className="bi-wizard-step-label">
+              Passo {safeStep + 1} di {steps.length}
+              {' · '}
+              <strong>{current.title}</strong>
+            </p>
+            <div className="bi-wizard-dots" role="tablist" aria-label="Sezioni brand">
+              {steps.map((step, i) => (
+                <button
+                  key={step.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={i === safeStep}
+                  className={`bi-wizard-dot${i === safeStep ? ' is-active' : ''}${i < safeStep ? ' is-done' : ''}`}
+                  onClick={() => setStepIndex(i)}
+                  title={step.title}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+        {isMobile && saving && (
+          <p className="bi-sync-status">Profilo sincronizzato in corso…</p>
+        )}
+        {isMobile && message && !saving && (
+          <p className="bi-sync-status bi-sync-status--ok">{message}</p>
+        )}
+      </div>
+
+      {error && <div className="alert alert-error">{error}</div>}
+      {!isMobile && message && <div className="alert alert-success">{message}</div>}
+
+      {isMobile ? (
+        <>
+          <section className="bi-wizard-panel mobile-card" key={current.id}>
+            <header className="bi-wizard-panel__head">
+              <span className="bi-section-index">{String(safeStep + 1).padStart(2, '0')}</span>
+              <div>
+                <h2>{current.title}</h2>
+                {current.subtitle && <p>{current.subtitle}</p>}
+              </div>
+            </header>
+            <div className="bi-wizard-panel__body">{current.body}</div>
+          </section>
+
+          <footer className="bi-wizard-footer">
+            <button
+              type="button"
+              className="btn btn-secondary bi-wizard-footer__btn"
+              onClick={() => setStepIndex((i) => Math.max(0, i - 1))}
+              disabled={isFirst}
+            >
+              Indietro
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary bi-wizard-footer__btn"
+              onClick={() => {
+                if (isLast) {
+                  setMessage('Profilo brand aggiornato. Puoi tornare quando vuoi a completarlo.');
+                  return;
+                }
+                setStepIndex((i) => Math.min(steps.length - 1, i + 1));
+              }}
+            >
+              {isLast ? 'Fine' : 'Avanti'}
+            </button>
+          </footer>
+        </>
+      ) : (
+        <div className="bi-sections">
+          {steps.map((step, index) => (
+            <BrandSectionCard
+              key={step.id}
+              index={index + 1}
+              title={step.title}
+              subtitle={step.subtitle}
+              delay={index * 80}
+              accordion={false}
+            >
+              {step.body}
+            </BrandSectionCard>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

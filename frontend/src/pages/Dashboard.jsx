@@ -230,7 +230,7 @@ export default function Dashboard() {
         icon: '◆',
         onClick: () => openCreativeStudio(),
       },
-      { id: 'calendar', label: 'Calendario', href: '/calendar', icon: <IconCalendar /> },
+      { id: 'brand', label: 'Brand Intelligence', href: '/brand-intelligence', icon: '◎' },
       { id: 'drafts', label: 'Bozze', href: '/drafts', icon: <IconDrafts /> },
     ],
     [openModal, openCreativeStudio]
